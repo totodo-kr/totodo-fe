@@ -1,65 +1,49 @@
-import Image from "next/image";
+import Footer from "@/components/Footer";
 
 export default function Home() {
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex min-h-screen w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
+    <main className="min-h-screen bg-black text-white flex flex-col">
+      {/* Hero Section */}
+      <div className="flex-1 flex flex-col items-center justify-center text-center px-4 py-32">
+        <h1 className="text-5xl md:text-7xl font-bold tracking-tight mb-8 bg-linear-to-r from-purple-400 to-pink-600 text-transparent bg-clip-text">
+          목표를 현실로 만드는
+          <br />
+          가장 확실한 방법
+        </h1>
+        <p className="text-xl text-gray-400 max-w-2xl mb-12">
+          TOTODO와 함께 하루를 계획하고, 성취하고, 성장하세요.
+          <br />
+          복잡한 도구는 잊으세요. 오직 당신의 목표에만 집중할 수 있습니다.
+        </p>
+        <div className="flex flex-col sm:flex-row gap-4">
+          <button className="px-8 py-4 bg-purple-600 hover:bg-purple-700 text-white rounded-full font-bold text-lg transition-all hover:scale-105">
+            무료로 시작하기
+          </button>
+          <button className="px-8 py-4 bg-zinc-900 hover:bg-zinc-800 text-white border border-zinc-800 rounded-full font-bold text-lg transition-all">
+            더 알아보기
+          </button>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+      </div>
+
+      {/* Feature Grid (Optional placeholder) */}
+      <div className="max-w-7xl mx-auto px-4 py-24 border-t border-white/5">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 text-center">
+          <div className="p-6 rounded-2xl bg-zinc-900/50 border border-white/5">
+            <h3 className="text-xl font-bold mb-2 text-purple-400">심플함</h3>
+            <p className="text-gray-400">복잡한 설정 없이 바로 시작하세요.</p>
+          </div>
+          <div className="p-6 rounded-2xl bg-zinc-900/50 border border-white/5">
+            <h3 className="text-xl font-bold mb-2 text-purple-400">강력함</h3>
+            <p className="text-gray-400">데이터는 안전하게, 속도는 빠르게.</p>
+          </div>
+          <div className="p-6 rounded-2xl bg-zinc-900/50 border border-white/5">
+            <h3 className="text-xl font-bold mb-2 text-purple-400">자유로움</h3>
+            <p className="text-gray-400">플랫폼 종속 없이 어디서나 접속.</p>
+          </div>
         </div>
-      </main>
-    </div>
+      </div>
+
+      <Footer />
+    </main>
   );
 }
