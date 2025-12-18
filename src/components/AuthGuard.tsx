@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import LoginModal from "./LoginModal";
+import { useAuthStore } from "@/store/useAuthStore";
 
 interface AuthGuardProps {
   children: React.ReactNode;
@@ -10,22 +11,21 @@ interface AuthGuardProps {
 
 export default function AuthGuard({ children }: AuthGuardProps) {
   const router = useRouter();
-  const [isLoggedIn, setIsLoggedIn] = useState(false); // 실제 로그인 상태 로직으로 교체 필요
+  const { user, isLoading } = useAuthStore();
   const [showConfirm, setShowConfirm] = useState(false);
   const [showLoginModal, setShowLoginModal] = useState(false);
 
   useEffect(() => {
-    // 여기에 실제 로그인 체크 로직 구현 (예: localStorage 토큰 확인 등)
-    const token = localStorage.getItem("totodo-token");
-    if (token) {
-      setIsLoggedIn(true);
-    } else {
-      setShowConfirm(true);
+    if (!isLoading) {
+      if (!user) {
+        setShowConfirm(true);
+      } else {
+        setShowConfirm(false);
+      }
     }
-  }, []);
+  }, [user, isLoading]);
 
   const handleCancel = () => {
-    // 취소 시 이전 페이지로 돌아가거나 홈으로 이동
     router.back();
   };
 
@@ -34,7 +34,9 @@ export default function AuthGuard({ children }: AuthGuardProps) {
     setShowLoginModal(true);
   };
 
-  if (isLoggedIn) {
+  if (isLoading) return null; // 또는 로딩 스피너
+
+  if (user) {
     return <>{children}</>;
   }
 
