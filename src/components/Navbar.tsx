@@ -77,17 +77,19 @@ export default function Navbar() {
                 <button className="text-gray-400 hover:text-white transition-colors">
                   <Bell size={20} />
                 </button>
-                <div className="w-9 h-9 rounded-full bg-gray-800 overflow-hidden border border-white/10 flex items-center justify-center">
-                  {user.user_metadata?.avatar_url ? (
-                    <img
-                      src={user.user_metadata.avatar_url}
-                      alt="Profile"
-                      className="w-full h-full object-cover"
-                    />
-                  ) : (
-                    <UserIcon size={18} className="text-gray-400" />
-                  )}
-                </div>
+                <Link href="/settings">
+                  <div className="w-9 h-9 rounded-full bg-gray-800 overflow-hidden border border-white/10 flex items-center justify-center cursor-pointer hover:border-purple-500 transition-colors">
+                    {user.user_metadata?.avatar_url ? (
+                      <img
+                        src={user.user_metadata.avatar_url}
+                        alt="Profile"
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <UserIcon size={18} className="text-gray-400" />
+                    )}
+                  </div>
+                </Link>
               </div>
             ) : (
               <button
