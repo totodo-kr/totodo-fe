@@ -2,6 +2,7 @@
 
 import { X } from "lucide-react";
 import { useEffect } from "react";
+import { createClient } from "@/utils/supabase/client";
 
 interface LoginModalProps {
   isOpen: boolean;
@@ -19,6 +20,16 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
       document.body.style.overflow = "unset";
     };
   }, [isOpen]);
+
+  const handleGoogleLogin = async () => {
+    const supabase = createClient();
+    await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: {
+        redirectTo: `${window.location.origin}/auth/callback`,
+      },
+    });
+  };
 
   if (!isOpen) return null;
 
@@ -47,7 +58,10 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
 
           {/* Social Login Buttons */}
           <div className="w-full space-y-3 mt-4">
-            <button className="w-full h-12 bg-white text-gray-900 rounded-lg font-medium flex items-center justify-center gap-3 hover:bg-gray-100 transition-colors">
+            <button
+              onClick={handleGoogleLogin}
+              className="w-full h-12 bg-white text-gray-900 rounded-lg font-medium flex items-center justify-center gap-3 hover:bg-gray-100 transition-colors"
+            >
               <svg className="w-5 h-5" viewBox="0 0 24 24">
                 <path
                   d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"

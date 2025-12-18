@@ -4,11 +4,14 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
 import { clsx } from "clsx";
+import { Bell, User as UserIcon } from "lucide-react";
+import { useAuthStore } from "@/store/useAuthStore";
 import LoginModal from "./LoginModal";
 
 export default function Navbar() {
   const pathname = usePathname();
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const { user } = useAuthStore();
 
   const menuItems = [
     { name: "홈", href: "/" },
@@ -68,13 +71,32 @@ export default function Navbar() {
               })}
             </div>
 
-            {/* Right: Start Button */}
-            <button
-              onClick={() => setIsModalOpen(true)}
-              className="px-5 py-2 bg-white text-purple-600 rounded-lg font-bold text-sm hover:bg-gray-100 transition-colors"
-            >
-              시작하기
-            </button>
+            {/* Right: Auth Status */}
+            {user ? (
+              <div className="flex items-center gap-4">
+                <button className="text-gray-400 hover:text-white transition-colors">
+                  <Bell size={20} />
+                </button>
+                <div className="w-9 h-9 rounded-full bg-gray-800 overflow-hidden border border-white/10 flex items-center justify-center">
+                  {user.user_metadata?.avatar_url ? (
+                    <img
+                      src={user.user_metadata.avatar_url}
+                      alt="Profile"
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <UserIcon size={18} className="text-gray-400" />
+                  )}
+                </div>
+              </div>
+            ) : (
+              <button
+                onClick={() => setIsModalOpen(true)}
+                className="px-5 py-2 bg-white text-purple-600 rounded-lg font-bold text-sm hover:bg-gray-100 transition-colors"
+              >
+                시작하기
+              </button>
+            )}
           </div>
         </nav>
 
