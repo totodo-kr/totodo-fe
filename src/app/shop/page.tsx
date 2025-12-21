@@ -37,7 +37,7 @@ export default function ShopPage() {
 
             {/* Text Content */}
             <div className="flex flex-col gap-1">
-              <h3 className="text-xl font-bold text-white group-hover:text-purple-400 transition-colors">
+              <h3 className="text-xl font-bold text-white group-hover:text-brand-500 transition-colors">
                 {product.title}
               </h3>
               <p className="text-gray-400 font-medium text-lg">
@@ -50,5 +50,6 @@ export default function ShopPage() {
     </main>
   );
 }
+
 
 

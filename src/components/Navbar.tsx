@@ -47,8 +47,8 @@ export default function Navbar() {
         <nav className="bg-black/80 backdrop-blur-md border-b border-white/10 h-16 w-full">
           <div className="max-w-[1600px] mx-auto px-4 h-full flex items-center justify-between">
             {/* Left: Logo */}
-            <Link href="/" className="flex items-center">
-              <span className="text-2xl font-bold text-purple-500 tracking-tight">TOTODO</span>
+            <Link href="/" className="flex w-52 items-center">
+              <span className="text-5xl font-bold text-brand-500 tracking-tight">TOTODO</span>
             </Link>
 
             {/* Center: Menu */}
@@ -61,7 +61,7 @@ export default function Navbar() {
                     key={item.name}
                     href={item.href}
                     className={clsx(
-                      "text-sm font-medium transition-colors",
+                      "text-lg font-medium transition-colors",
                       isActive ? "text-white font-bold" : "text-gray-400 hover:text-white"
                     )}
                   >
@@ -72,33 +72,35 @@ export default function Navbar() {
             </div>
 
             {/* Right: Auth Status */}
-            {user ? (
-              <div className="flex items-center gap-4">
-                <button className="text-gray-400 hover:text-white transition-colors">
-                  <Bell size={20} />
+            <div className="flex w-52 justify-end gap-4">
+              {user ? (
+                <>
+                  <button className="text-gray-400 hover:text-white transition-colors">
+                    <Bell size={20} />
+                  </button>
+                  <Link href="/settings">
+                    <div className="w-9 h-9 rounded-full bg-gray-800 overflow-hidden border border-white/10 flex items-center justify-center cursor-pointer hover:border-brand-500 transition-colors">
+                      {user.user_metadata?.avatar_url ? (
+                        <img
+                          src={user.user_metadata.avatar_url}
+                          alt="Profile"
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <UserIcon size={18} className="text-gray-400" />
+                      )}
+                    </div>
+                  </Link>
+                </>
+              ) : (
+                <button
+                  onClick={() => setIsModalOpen(true)}
+                  className="px-5 py-2 bg-white text-brand-500 rounded-lg font-bold text-sm hover:bg-gray-100 transition-colors"
+                >
+                  시작하기
                 </button>
-                <Link href="/settings">
-                  <div className="w-9 h-9 rounded-full bg-gray-800 overflow-hidden border border-white/10 flex items-center justify-center cursor-pointer hover:border-purple-500 transition-colors">
-                    {user.user_metadata?.avatar_url ? (
-                      <img
-                        src={user.user_metadata.avatar_url}
-                        alt="Profile"
-                        className="w-full h-full object-cover"
-                      />
-                    ) : (
-                      <UserIcon size={18} className="text-gray-400" />
-                    )}
-                  </div>
-                </Link>
-              </div>
-            ) : (
-              <button
-                onClick={() => setIsModalOpen(true)}
-                className="px-5 py-2 bg-white text-purple-600 rounded-lg font-bold text-sm hover:bg-gray-100 transition-colors"
-              >
-                시작하기
-              </button>
-            )}
+              )}
+            </div>
           </div>
         </nav>
 
@@ -115,7 +117,7 @@ export default function Navbar() {
                     className={clsx(
                       "h-full flex items-center text-sm font-medium border-b-2 transition-colors px-1",
                       isSubActive
-                        ? "text-white border-purple-500"
+                        ? "text-white border-brand-500"
                         : "text-gray-400 border-transparent hover:text-white"
                     )}
                   >

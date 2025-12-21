@@ -4,7 +4,7 @@ export default function Footer() {
       <div className="max-w-7xl mx-auto px-4">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mb-8">
           <div className="col-span-1 md:col-span-2">
-            <span className="text-xl font-bold text-purple-500 mb-4 block">
+            <span className="text-xl font-bold text-brand-500 mb-4 block">
               TOTODO
             </span>
             <p className="text-gray-400 text-sm leading-relaxed max-w-sm">
@@ -37,5 +37,6 @@ export default function Footer() {
     </footer>
   );
 }
+
 
 

@@ -43,7 +43,7 @@ export default function ReviewsPage() {
           <input
             type="text"
             placeholder="검색어를 입력하세요..."
-            className="w-full h-12 pl-12 pr-4 bg-zinc-900 border border-white/10 rounded-full text-white placeholder:text-gray-500 focus:outline-none focus:border-purple-500 transition-colors"
+            className="w-full h-12 pl-12 pr-4 bg-zinc-900 border border-white/10 rounded-full text-white placeholder:text-gray-500 focus:outline-none focus:border-brand-500 transition-colors"
           />
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 w-5 h-5" />
         </div>
@@ -61,7 +61,7 @@ export default function ReviewsPage() {
               rounded-xl border transition-all cursor-pointer
               ${
                 review.isPinned
-                  ? "bg-zinc-900/80 border-purple-500/30 hover:border-purple-500/50"
+                  ? "bg-zinc-900/80 border-brand-500/30 hover:border-brand-500/50"
                   : "bg-zinc-900/40 border-white/5 hover:bg-zinc-800/60 hover:border-white/10"
               }
             `}
@@ -70,9 +70,9 @@ export default function ReviewsPage() {
             <div className="flex flex-col gap-2">
               <div className="flex items-center gap-2">
                 {review.isPinned && (
-                  <Pin className="w-4 h-4 text-purple-500 rotate-45" fill="currentColor" />
+                  <Pin className="w-4 h-4 text-brand-500 rotate-45" fill="currentColor" />
                 )}
-                <h3 className={`font-medium text-lg truncate ${review.isPinned ? "text-purple-100" : "text-gray-200"}`}>
+                <h3 className={`font-medium text-lg truncate ${review.isPinned ? "text-[#f5d0fe]" : "text-gray-200"}`}>
                   {review.title}
                 </h3>
               </div>

@@ -19,7 +19,7 @@ export default function FAQPage() {
           <input
             type="text"
             placeholder="궁금한 내용을 검색해보세요..."
-            className="w-full h-12 pl-12 pr-4 bg-zinc-900 border border-white/10 rounded-full text-white placeholder:text-gray-500 focus:outline-none focus:border-purple-500 transition-colors"
+            className="w-full h-12 pl-12 pr-4 bg-zinc-900 border border-white/10 rounded-full text-white placeholder:text-gray-500 focus:outline-none focus:border-brand-500 transition-colors"
           />
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 w-5 h-5" />
         </div>
@@ -34,7 +34,7 @@ export default function FAQPage() {
             className="flex flex-col justify-center w-full p-6 bg-zinc-900/40 border border-white/5 rounded-xl hover:bg-zinc-800/60 hover:border-white/10 transition-all cursor-pointer group gap-2"
           >
             <h3 className="text-lg font-medium text-gray-200 group-hover:text-white transition-colors">
-              <span className="text-purple-500 mr-2 font-bold">Q:</span>
+              <span className="text-brand-500 mr-2 font-bold">Q:</span>
               {faq.question}
             </h3>
             <div className="flex items-center gap-3 text-sm text-gray-500">

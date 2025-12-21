@@ -10,13 +10,25 @@
   --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+
+  --color-brand-50: #fae8ff;
+  --color-brand-100: #f5d0fe;
+  --color-brand-200: #f0abfc;
+  --color-brand-300: #e879f9;
+  --color-brand-400: #c026d3;
+  --color-brand-500: #a200cb;
+  --color-brand-600: #8e00b2;
+  --color-brand-700: #7e22ce;
+  --color-brand-800: #6b21a8;
+  --color-brand-900: #581c87;
+  --color-brand-950: #3b0764;
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
-  
+
   /* 스크롤바 숨기기 (기능은 유지) */
   -ms-overflow-style: none; /* IE and Edge */
   scrollbar-width: none; /* Firefox */

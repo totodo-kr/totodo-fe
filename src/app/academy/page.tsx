@@ -22,7 +22,7 @@ export default function AcademyPage() {
 
           {/* Text Content */}
           <div className="flex flex-col gap-2">
-            <h3 className="text-2xl font-bold text-white group-hover:text-purple-400 transition-colors">
+            <h3 className="text-2xl font-bold text-white group-hover:text-brand-500 transition-colors">
               오레노 니홍고
             </h3>
             <div className="flex items-center gap-2 text-gray-400 text-sm font-medium">
@@ -36,5 +36,3 @@ export default function AcademyPage() {
     </main>
   );
 }
-
-
