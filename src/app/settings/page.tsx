@@ -70,7 +70,10 @@ export default function SettingsPage() {
           </div>
 
           {/* 프로필 수정 버튼 */}
-          <button className="w-full max-w-[200px] h-11 rounded-full bg-[#2a2a2a] border border-[#2a2a2a] text-brand-500 font-medium text-sm hover:bg-[#333] hover:border-brand-500/30 transition-all">
+          <button
+            onClick={() => router.push("/settings/profile")}
+            className="w-full max-w-[200px] h-11 rounded-full bg-[#2a2a2a] border border-[#2a2a2a] text-brand-500 font-medium text-sm hover:bg-[#333] hover:border-brand-500/30 transition-all"
+          >
             프로필 수정
           </button>
         </div>
