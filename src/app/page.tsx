@@ -1,5 +1,3 @@
-import Footer from "@/components/Footer";
-
 export default function Home() {
   return (
     <main className="min-h-screen bg-black text-white flex flex-col">
@@ -42,8 +40,6 @@ export default function Home() {
           </div>
         </div>
       </div>
-
-      <Footer />
     </main>
   );
 }

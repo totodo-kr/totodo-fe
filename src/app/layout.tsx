@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import Navbar from "@/components/Navbar";
+import Footer from "@/components/Footer";
 import AuthStateSync from "@/components/AuthStateSync";
 import "./globals.css";
 
@@ -30,12 +31,11 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} antialiased bg-black text-white`}
       >
         <AuthStateSync />
+        <Navbar />
         <div className="flex justify-center w-full">
-          <div className="w-full max-w-[1600px]">
-            <Navbar />
-            {children}
-          </div>
+          <div className="w-full max-w-[1600px]">{children}</div>
         </div>
+        <Footer />
       </body>
     </html>
   );
