@@ -58,11 +58,13 @@ export default function ReviewDetailPage() {
     try {
       const { data, error } = await supabase
         .from("reviews")
-        .select(`
+        .select(
+          `
           *,
           profiles:user_id (display_name, avatar_url),
           review_attachments (*)
-        `)
+        `
+        )
         .eq("id", id)
         .single();
 
@@ -84,15 +86,17 @@ export default function ReviewDetailPage() {
     try {
       const { data, error } = await supabase
         .from("review_comments")
-        .select(`
+        .select(
+          `
           *,
           profiles:user_id (display_name, avatar_url)
-        `)
+        `
+        )
         .eq("review_id", id)
         .order("created_at", { ascending: true });
 
       if (error) throw error;
-      setComments(data as any || []);
+      setComments((data as any) || []);
     } catch (error) {
       console.error("Error fetching comments:", error);
     }
@@ -107,13 +111,11 @@ export default function ReviewDetailPage() {
 
     setCommentSubmitting(true);
     try {
-      const { error } = await supabase
-        .from("review_comments")
-        .insert({
-          review_id: id,
-          user_id: user.id,
-          content: newComment
-        });
+      const { error } = await supabase.from("review_comments").insert({
+        review_id: id,
+        user_id: user.id,
+        content: newComment,
+      });
 
       if (error) throw error;
 
@@ -133,7 +135,7 @@ export default function ReviewDetailPage() {
       month: "2-digit",
       day: "2-digit",
       hour: "2-digit",
-      minute: "2-digit"
+      minute: "2-digit",
     });
   };
 
@@ -160,9 +162,9 @@ export default function ReviewDetailPage() {
         <div className="flex items-center gap-3 text-gray-500">
           <div className="flex items-center gap-2">
             {review.profiles?.avatar_url && (
-              <img 
-                src={review.profiles.avatar_url} 
-                alt="Profile" 
+              <img
+                src={review.profiles.avatar_url}
+                alt="Profile"
                 className="w-6 h-6 rounded-full object-cover"
               />
             )}
@@ -174,7 +176,7 @@ export default function ReviewDetailPage() {
       </header>
 
       {/* Content */}
-      <div 
+      <div
         className="text-gray-300 leading-relaxed text-lg mb-12 min-h-[200px] prose prose-invert max-w-none"
         dangerouslySetInnerHTML={{ __html: review.content }}
       />
@@ -185,10 +187,10 @@ export default function ReviewDetailPage() {
           <h4 className="text-sm font-bold text-gray-400 mb-3">첨부파일</h4>
           <div className="flex flex-col gap-2">
             {review.review_attachments.map((file, index) => (
-              <a 
-                key={index} 
-                href={file.file_url} 
-                target="_blank" 
+              <a
+                key={index}
+                href={file.file_url}
+                target="_blank"
                 rel="noreferrer"
                 className="text-brand-500 hover:underline flex items-center gap-2 w-fit"
               >
@@ -210,7 +212,11 @@ export default function ReviewDetailPage() {
         <div className="flex gap-4 mb-8">
           <div className="w-10 h-10 rounded-full bg-brand-500 flex items-center justify-center text-white font-bold shrink-0 overflow-hidden">
             {user?.user_metadata?.avatar_url ? (
-               <img src={user.user_metadata.avatar_url} alt="Me" className="w-full h-full object-cover" />
+              <img
+                src={user.user_metadata.avatar_url}
+                alt="Me"
+                className="w-full h-full object-cover"
+              />
             ) : (
               "나"
             )}
@@ -224,7 +230,7 @@ export default function ReviewDetailPage() {
               className="w-full h-24 bg-zinc-900 border border-white/10 rounded-xl p-4 text-white placeholder:text-gray-500 focus:outline-none focus:border-brand-500 transition-colors resize-none disabled:opacity-50"
             />
             <div className="flex justify-end mt-2">
-              <button 
+              <button
                 onClick={handleSubmitComment}
                 disabled={!user || commentSubmitting || !newComment.trim()}
                 className="px-4 py-2 bg-brand-500 hover:bg-brand-600 text-white rounded-lg font-bold text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
@@ -238,15 +244,17 @@ export default function ReviewDetailPage() {
         {/* Comment List */}
         <div className="flex flex-col gap-6">
           {comments.length === 0 ? (
-            <div className="text-center py-8 text-gray-500">
-              첫 번째 댓글을 남겨보세요!
-            </div>
+            <div className="text-center py-8 text-gray-500">첫 번째 댓글을 남겨보세요!</div>
           ) : (
             comments.map((comment) => (
               <div key={comment.id} className="flex gap-4">
                 <div className="w-10 h-10 rounded-full bg-gray-800 flex items-center justify-center text-gray-400 shrink-0 overflow-hidden">
                   {comment.profiles?.avatar_url ? (
-                    <img src={comment.profiles.avatar_url} alt="User" className="w-full h-full object-cover" />
+                    <img
+                      src={comment.profiles.avatar_url}
+                      alt="User"
+                      className="w-full h-full object-cover"
+                    />
                   ) : (
                     comment.profiles?.display_name?.[0] || "?"
                   )}
@@ -256,9 +264,7 @@ export default function ReviewDetailPage() {
                     <span className="font-bold text-gray-200">
                       {comment.profiles?.display_name || "알 수 없음"}
                     </span>
-                    <span className="text-xs text-gray-500">
-                      {formatDate(comment.created_at)}
-                    </span>
+                    <span className="text-xs text-gray-500">{formatDate(comment.created_at)}</span>
                   </div>
                   <div className="text-gray-300 leading-relaxed whitespace-pre-wrap">
                     {comment.content}

@@ -24,7 +24,7 @@ export function useReviews(initialPage: number = 1) {
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(initialPage);
   const [keyword, setKeyword] = useState("");
-  
+
   const supabase = createClient();
 
   const fetchReviews = useCallback(async () => {
@@ -33,11 +33,13 @@ export function useReviews(initialPage: number = 1) {
       // 1. 고정 게시글 가져오기
       const { data: pinnedData } = await supabase
         .from("reviews")
-        .select(`
+        .select(
+          `
           *,
           profiles:user_id (display_name, name),
           review_comments (count)
-        `)
+        `
+        )
         .eq("is_pinned", true)
         .order("created_at", { ascending: false });
 
@@ -51,11 +53,14 @@ export function useReviews(initialPage: number = 1) {
 
       let query = supabase
         .from("reviews")
-        .select(`
+        .select(
+          `
           *,
           profiles:user_id (display_name, name),
           review_comments (count)
-        `, { count: "exact" })
+        `,
+          { count: "exact" }
+        )
         .eq("is_pinned", false)
         .order("created_at", { ascending: false })
         .range(from, to);

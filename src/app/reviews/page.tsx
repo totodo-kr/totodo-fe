@@ -4,9 +4,9 @@ import { MessageSquare, Search, Pin, ChevronLeft, ChevronRight } from "lucide-re
 import Link from "next/link";
 import { useSearchParams, useRouter } from "next/navigation";
 import { useReviews, Review } from "@/hooks/useReviews";
-import { useEffect } from "react";
+import { useEffect, Suspense } from "react";
 
-export default function ReviewsPage() {
+function ReviewsContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
 
@@ -64,7 +64,7 @@ export default function ReviewsPage() {
   };
 
   return (
-    <main className="min-h-screen p-8 max-w-[1600px] mx-auto">
+    <>
       {/* Search Bar */}
       <form onSubmit={handleSearch} className="mb-8 flex justify-center">
         <div className="relative w-full max-w-xl">
@@ -188,6 +188,16 @@ export default function ReviewsPage() {
           <span>글쓰기</span>
         </Link>
       </div>
+    </>
+  );
+}
+
+export default function ReviewsPage() {
+  return (
+    <main className="min-h-screen p-8 max-w-[1600px] mx-auto">
+      <Suspense fallback={<div className="text-center py-20 text-gray-500">로딩 중...</div>}>
+        <ReviewsContent />
+      </Suspense>
     </main>
   );
 }
