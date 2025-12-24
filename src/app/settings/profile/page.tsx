@@ -3,23 +3,23 @@
 import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { ChevronLeft, Camera, ChevronDown } from "lucide-react";
-import { createClient } from "@/utils/supabase/client";
 import { useAuthStore } from "@/store/useAuthStore";
-import Link from "next/link";
+import { useProfile } from "@/hooks/useProfile";
 
 type Tab = "basic" | "extra";
 
 export default function ProfileEditPage() {
   const router = useRouter();
-  const { user, setUser } = useAuthStore();
+  const { user } = useAuthStore();
+  const { profile, loading: profileLoading, updateProfile, uploadAvatar } = useProfile(user);
+
   const [activeTab, setActiveTab] = useState<Tab>("basic");
-  const [loading, setLoading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Form States
   // Basic Tab State
   const [displayName, setDisplayName] = useState("");
-  
+
   // Extra Tab States
   const [profileName, setProfileName] = useState("");
   const [gender, setGender] = useState("");
@@ -30,138 +30,83 @@ export default function ProfileEditPage() {
   const [country, setCountry] = useState("대한민국(+82)");
   const [jobDescription, setJobDescription] = useState("");
   const [avatarUrl, setAvatarUrl] = useState("");
-  
+
   // Auth Email
   const [email, setEmail] = useState("");
 
-  const supabase = createClient();
-
+  // Initialize form when profile loads
   useEffect(() => {
-    const fetchProfile = async () => {
-      if (!user) return;
-
+    if (user) {
       setEmail(user.email || "");
-      
-      if (user) {
-        // Basic Info - Auth Metadata
-        setDisplayName(user.user_metadata?.full_name || user.user_metadata?.name || "");
+    }
+
+    if (profile) {
+      // Basic Info - Profile display_name
+      setDisplayName(profile.display_name || "");
+
+      // Extra Info - Profile Table
+      setProfileName(profile.name || "");
+      setGender(profile.gender || "");
+      setPhone(profile.phone || "");
+      setCountry(profile.country || "대한민국(+82)");
+      setJobDescription(profile.job_description || "");
+      setAvatarUrl(profile.avatar_url || user?.user_metadata?.avatar_url || "");
+
+      if (profile.birth_date) {
+        const date = new Date(profile.birth_date);
+        setBirthYear(date.getFullYear().toString());
+        setBirthMonth((date.getMonth() + 1).toString());
+        setBirthDay(date.getDate().toString());
       }
-      
-      const { data: profile, error } = await supabase
-        .from("profiles")
-        .select("*")
-        .eq("id", user.id)
-        .single();
-
-      if (profile) {
-        // Extra Info - Profile Table
-        setProfileName(profile.name || "");
-        setGender(profile.gender || "");
-        setPhone(profile.phone || ""); // DB에 phone 컬럼 필요
-        setCountry(profile.country || "대한민국(+82)");
-        setJobDescription(profile.job_description || "");
-        setAvatarUrl(profile.avatar_url || user.user_metadata?.avatar_url || "");
-
-        if (profile.birth_date) {
-          const date = new Date(profile.birth_date);
-          setBirthYear(date.getFullYear().toString());
-          setBirthMonth((date.getMonth() + 1).toString());
-          setBirthDay(date.getDate().toString());
-        }
-      }
-    };
-
-    fetchProfile();
-  }, [user]);
+    }
+  }, [profile, user]);
 
   const handleUpdate = async () => {
     if (!user) return;
-    setLoading(true);
 
     try {
-      // 1. Basic Info Update (Auth Metadata)
       if (activeTab === "basic") {
-        const { error: authError } = await supabase.auth.updateUser({
-          data: { 
-            name: displayName,
-            full_name: displayName,
-            avatar_url: avatarUrl 
-          }
+        // 1. Basic Info Update (Profile display_name)
+        await updateProfile({
+          display_name: displayName,
+          avatar_url: avatarUrl,
         });
-        
-        if (authError) throw authError;
-
-        // Also update avatar_url in profiles table to keep in sync
-        const { error: profileError } = await supabase
-          .from("profiles")
-          .update({ avatar_url: avatarUrl })
-          .eq("id", user.id);
-
-        if (profileError) throw profileError;
-
       } else {
-        // 2. Extra Info Update (Profiles Table)
+        // 2. Extra Info Update (Profile name)
         let birthDate = null;
         if (birthYear && birthMonth && birthDay) {
           birthDate = `${birthYear}-${birthMonth.padStart(2, "0")}-${birthDay.padStart(2, "0")}`;
         }
 
-        const updates = {
+        await updateProfile({
           name: profileName,
           gender,
           birth_date: birthDate,
           phone,
           country,
           job_description: jobDescription,
-          updated_at: new Date().toISOString(),
-        };
-
-        const { error } = await supabase
-          .from("profiles")
-          .update(updates)
-          .eq("id", user.id);
-
-        if (error) throw error;
+        });
       }
-      
+
       alert("프로필이 수정되었습니다.");
       router.refresh();
-      
-      // Force refresh auth state to update UI immediately
-      const { data: { session } } = await supabase.auth.refreshSession();
-      setUser(session?.user ?? null);
-      
     } catch (error) {
       console.error(error);
       alert("프로필 수정 중 오류가 발생했습니다.");
-    } finally {
-      setLoading(false);
     }
   };
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!e.target.files || !e.target.files[0] || !user) return;
 
-    const file = e.target.files[0];
-    const fileExt = file.name.split(".").pop();
-    const fileName = `${user.id}-${Math.random()}.${fileExt}`;
-    const filePath = `${fileName}`;
-
-    setLoading(true);
     try {
-      const { error: uploadError } = await supabase.storage
-        .from("review_files") // 프로필용 버킷을 따로 만들거나 기존 것 사용. 여기선 review_files 임시 사용 또는 avatars 버킷 안내 필요
-        .upload(filePath, file);
-
-      if (uploadError) throw uploadError;
-
-      const { data } = supabase.storage.from("review_files").getPublicUrl(filePath);
-      setAvatarUrl(data.publicUrl);
+      const publicUrl = await uploadAvatar(e.target.files[0]);
+      if (publicUrl) {
+        setAvatarUrl(publicUrl);
+      }
     } catch (error) {
       console.error(error);
       alert("이미지 업로드 실패");
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -173,10 +118,7 @@ export default function ProfileEditPage() {
     <main className="min-h-screen bg-black text-white p-4 pb-24">
       {/* Header */}
       <div className="relative flex items-center justify-center h-14 mb-4">
-        <button 
-          onClick={() => router.back()}
-          className="absolute left-0 p-2 text-white"
-        >
+        <button onClick={() => router.back()} className="absolute left-0 p-2 text-white">
           <ChevronLeft className="w-6 h-6" />
         </button>
         <h1 className="text-lg font-bold">프로필</h1>
@@ -222,17 +164,17 @@ export default function ProfileEditPage() {
                   </div>
                 )}
               </div>
-              <button 
+              <button
                 onClick={() => fileInputRef.current?.click()}
                 className="absolute bottom-0 right-0 w-8 h-8 rounded-full bg-zinc-800 border border-white/20 flex items-center justify-center text-white hover:bg-zinc-700 transition-colors"
               >
                 <Camera className="w-4 h-4" />
               </button>
-              <input 
-                type="file" 
-                ref={fileInputRef} 
-                onChange={handleImageUpload} 
-                className="hidden" 
+              <input
+                type="file"
+                ref={fileInputRef}
+                onChange={handleImageUpload}
+                className="hidden"
                 accept="image/*"
               />
             </div>
@@ -253,7 +195,7 @@ export default function ProfileEditPage() {
             {/* 개인 정보 */}
             <section className="flex flex-col gap-4">
               <h3 className="text-lg font-bold">개인 정보</h3>
-              
+
               <div className="flex flex-col gap-2">
                 <label className="text-sm font-bold text-gray-300">이름</label>
                 <input
@@ -272,7 +214,9 @@ export default function ProfileEditPage() {
                     onChange={(e) => setGender(e.target.value)}
                     className="w-full h-12 bg-zinc-900/50 rounded-lg px-4 border border-white/10 text-white appearance-none focus:outline-none focus:border-brand-500"
                   >
-                    <option value="" disabled>선택해주세요</option>
+                    <option value="" disabled>
+                      선택해주세요
+                    </option>
                     <option value="Male">남성</option>
                     <option value="Female">여성</option>
                     <option value="Other">기타</option>
@@ -289,8 +233,14 @@ export default function ProfileEditPage() {
                     onChange={(e) => setBirthYear(e.target.value)}
                     className="w-full h-12 bg-zinc-900/50 rounded-lg px-4 border border-white/10 text-white appearance-none focus:outline-none focus:border-brand-500"
                   >
-                    <option value="" disabled>년도</option>
-                    {years.map(y => <option key={y} value={y}>{y}년</option>)}
+                    <option value="" disabled>
+                      년도
+                    </option>
+                    {years.map((y) => (
+                      <option key={y} value={y}>
+                        {y}년
+                      </option>
+                    ))}
                   </select>
                   <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500 pointer-events-none" />
                 </div>
@@ -304,8 +254,14 @@ export default function ProfileEditPage() {
                     onChange={(e) => setBirthMonth(e.target.value)}
                     className="w-full h-12 bg-zinc-900/50 rounded-lg px-4 border border-white/10 text-white appearance-none focus:outline-none focus:border-brand-500"
                   >
-                    <option value="" disabled>월</option>
-                    {months.map(m => <option key={m} value={m}>{m}월</option>)}
+                    <option value="" disabled>
+                      월
+                    </option>
+                    {months.map((m) => (
+                      <option key={m} value={m}>
+                        {m}월
+                      </option>
+                    ))}
                   </select>
                   <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500 pointer-events-none" />
                 </div>
@@ -319,8 +275,14 @@ export default function ProfileEditPage() {
                     onChange={(e) => setBirthDay(e.target.value)}
                     className="w-full h-12 bg-zinc-900/50 rounded-lg px-4 border border-white/10 text-white appearance-none focus:outline-none focus:border-brand-500"
                   >
-                    <option value="" disabled>일</option>
-                    {days.map(d => <option key={d} value={d}>{d}일</option>)}
+                    <option value="" disabled>
+                      일
+                    </option>
+                    {days.map((d) => (
+                      <option key={d} value={d}>
+                        {d}일
+                      </option>
+                    ))}
                   </select>
                   <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500 pointer-events-none" />
                 </div>
@@ -330,7 +292,7 @@ export default function ProfileEditPage() {
             {/* 연락 정보 */}
             <section className="flex flex-col gap-4">
               <h3 className="text-lg font-bold">연락 정보</h3>
-              
+
               <div className="flex flex-col gap-2">
                 <label className="text-sm font-bold text-gray-300">개인 이메일 주소</label>
                 <input
@@ -345,7 +307,7 @@ export default function ProfileEditPage() {
                 <label className="text-sm font-bold text-gray-300">휴대폰 번호</label>
                 <div className="flex gap-2">
                   <div className="relative w-1/3">
-                    <select 
+                    <select
                       value={country}
                       onChange={(e) => setCountry(e.target.value)}
                       className="w-full h-12 bg-zinc-900/50 rounded-lg px-2 text-sm border border-white/10 text-white appearance-none focus:outline-none focus:border-brand-500"
@@ -388,13 +350,12 @@ export default function ProfileEditPage() {
 
         <button
           onClick={handleUpdate}
-          disabled={loading}
+          disabled={profileLoading}
           className="w-full h-14 bg-zinc-800 hover:bg-zinc-700 text-white rounded-xl font-bold transition-colors mt-4 disabled:opacity-50"
         >
-          {loading ? "저장 중..." : "수정"}
+          {profileLoading ? "저장 중..." : "수정"}
         </button>
       </div>
     </main>
   );
 }
-
