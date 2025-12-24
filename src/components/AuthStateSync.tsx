@@ -13,7 +13,9 @@ export default function AuthStateSync() {
     // 초기 세션 확인
     const checkUser = async () => {
       try {
-        const { data: { session } } = await supabase.auth.getSession();
+        const {
+          data: { session },
+        } = await supabase.auth.getSession();
         setUser(session?.user ?? null);
       } catch (error) {
         console.error("Session check error:", error);
@@ -25,7 +27,9 @@ export default function AuthStateSync() {
     checkUser();
 
     // 인증 상태 변경 리스너 (로그인, 로그아웃 감지)
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user ?? null);
       setLoading(false);
     });
@@ -37,5 +41,3 @@ export default function AuthStateSync() {
 
   return null; // UI를 렌더링하지 않는 유틸리티 컴포넌트
 }
-
-

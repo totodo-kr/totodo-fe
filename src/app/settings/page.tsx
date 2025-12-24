@@ -42,11 +42,10 @@ export default function SettingsPage() {
   return (
     <div className="min-h-screen pt-24 pb-20 px-4 flex justify-center">
       <div className="w-full max-w-md flex flex-col gap-[10px]">
-        
         {/* 1행: 프로필 정보 컴포넌트 */}
         <div className="bg-[#1a1a1a] rounded-2xl p-8 flex flex-col items-center gap-6 border border-white/5 shadow-lg">
           <h1 className="text-xl font-bold text-white">설정</h1>
-          
+
           <div className="flex flex-col items-center gap-4">
             {/* 프로필 사진 */}
             <div className="w-24 h-24 rounded-full bg-gray-800 overflow-hidden border-2 border-white/10 flex items-center justify-center">
@@ -60,7 +59,7 @@ export default function SettingsPage() {
                 <UserIcon size={40} className="text-gray-400" />
               )}
             </div>
-            
+
             {/* 회원 코드 */}
             <div className="flex flex-col items-center gap-1">
               <span className="text-gray-400 text-sm">회원코드</span>
@@ -88,7 +87,7 @@ export default function SettingsPage() {
                 <ChevronRight size={18} className="text-gray-500" />
               </button>
             ))}
-            
+
             {/* 로그아웃 버튼 */}
             <button
               onClick={handleLogout}
@@ -99,10 +98,7 @@ export default function SettingsPage() {
             </button>
           </div>
         </div>
-
       </div>
     </div>
   );
 }
-
-

@@ -45,16 +45,10 @@ export default function AuthGuard({ children }: AuthGuardProps) {
       {showConfirm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
           <div className="w-[400px] bg-[#1a1a1a] rounded-xl p-6 border border-white/10 shadow-2xl">
-            <h3 className="text-xl font-bold text-white mb-2">
-              가입자만 이용할 수 있습니다.
-            </h3>
+            <h3 className="text-xl font-bold text-white mb-2">가입자만 이용할 수 있습니다.</h3>
             <div className="space-y-1 mb-8">
-              <p className="text-gray-400 text-sm">
-                가입자만 이용할 수 있는 기능입니다.
-              </p>
-              <p className="text-gray-400 text-sm">
-                지금 가입하여 다양한 기능을 이용해보세요.
-              </p>
+              <p className="text-gray-400 text-sm">가입자만 이용할 수 있는 기능입니다.</p>
+              <p className="text-gray-400 text-sm">지금 가입하여 다양한 기능을 이용해보세요.</p>
             </div>
 
             <div className="flex justify-end gap-3">
@@ -85,5 +79,3 @@ export default function AuthGuard({ children }: AuthGuardProps) {
     </>
   );
 }
-
-
