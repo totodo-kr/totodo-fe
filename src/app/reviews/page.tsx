@@ -14,8 +14,7 @@ interface Review {
   is_pinned: boolean;
   user_id: string;
   profiles: {
-    name: string;
-    nickname?: string;
+    display_name: string | null;
   } | null;
   review_comments: { count: number }[];
 }
@@ -26,7 +25,7 @@ export default function ReviewsPage() {
   const supabase = createClient();
   const searchParams = useSearchParams();
   const router = useRouter();
-  
+
   const page = Number(searchParams.get("page")) || 1;
   const [pinnedReviews, setPinnedReviews] = useState<Review[]>([]);
   const [reviews, setReviews] = useState<Review[]>([]);
@@ -41,14 +40,16 @@ export default function ReviewsPage() {
   const fetchReviews = async () => {
     setLoading(true);
     try {
-      // 1. 고정 게시글 가져오기 (첫 페이지일 때만 혹은 항상 - 정책에 따라 다름. 보통 항상 상단에 노출)
+      // 1. 고정 게시글 가져오기
       const { data: pinnedData } = await supabase
         .from("reviews")
-        .select(`
+        .select(
+          `
           *,
-          profiles:user_id (name, nickname),
+          profiles:user_id (name),
           review_comments (count)
-        `)
+        `
+        )
         .eq("is_pinned", true)
         .order("created_at", { ascending: false });
 
@@ -62,11 +63,14 @@ export default function ReviewsPage() {
 
       let query = supabase
         .from("reviews")
-        .select(`
+        .select(
+          `
           *,
-          profiles:user_id (name, nickname),
+          profiles:user_id (name),
           review_comments (count)
-        `, { count: "exact" })
+        `,
+          { count: "exact" }
+        )
         .eq("is_pinned", false)
         .order("created_at", { ascending: false })
         .range(from, to);
@@ -76,6 +80,9 @@ export default function ReviewsPage() {
       }
 
       const { data, count, error } = await query;
+
+      // 디버깅용 로그
+      console.log("Reviews Fetch Result:", { data, count, error });
 
       if (error) throw error;
 
@@ -114,7 +121,7 @@ export default function ReviewsPage() {
   };
 
   const getAuthorName = (review: Review) => {
-    return review.profiles?.name || review.profiles?.nickname || "알 수 없음";
+    return review.profiles?.display_name || "알 수 없음";
   };
 
   const getCommentCount = (review: Review) => {
@@ -140,9 +147,7 @@ export default function ReviewsPage() {
       {/* Review List */}
       <div className="flex flex-col min-h-[500px]">
         {loading ? (
-          <div className="flex-1 flex justify-center items-center text-gray-500">
-            로딩 중...
-          </div>
+          <div className="flex-1 flex justify-center items-center text-gray-500">로딩 중...</div>
         ) : (
           <>
             {/* Pinned Reviews */}
@@ -155,9 +160,7 @@ export default function ReviewsPage() {
                 <div className="flex flex-col gap-2">
                   <div className="flex items-center gap-2">
                     <Pin className="w-4 h-4 text-brand-500 rotate-45" fill="currentColor" />
-                    <h3 className="font-medium text-lg truncate text-[#f5d0fe]">
-                      {review.title}
-                    </h3>
+                    <h3 className="font-medium text-lg truncate text-[#f5d0fe]">{review.title}</h3>
                   </div>
                   <div className="flex items-center gap-3 text-sm text-gray-500">
                     <span>{getAuthorName(review)}</span>
@@ -184,9 +187,7 @@ export default function ReviewsPage() {
                 >
                   <div className="flex flex-col gap-2">
                     <div className="flex items-center gap-2">
-                      <h3 className="font-medium text-lg truncate text-gray-200">
-                        {review.title}
-                      </h3>
+                      <h3 className="font-medium text-lg truncate text-gray-200">{review.title}</h3>
                     </div>
                     <div className="flex items-center gap-3 text-sm text-gray-500">
                       <span>{getAuthorName(review)}</span>
@@ -215,16 +216,17 @@ export default function ReviewsPage() {
           >
             <ChevronLeft className="w-5 h-5 text-gray-400" />
           </button>
-          
+
           {Array.from({ length: totalPages }, (_, i) => i + 1).map((pageNum) => (
             <button
               key={pageNum}
               onClick={() => movePage(pageNum)}
               className={`
                 w-8 h-8 rounded-lg font-medium text-sm transition-colors
-                ${page === pageNum 
-                  ? "bg-brand-500 text-white" 
-                  : "text-gray-400 hover:bg-white/5 hover:text-white"
+                ${
+                  page === pageNum
+                    ? "bg-brand-500 text-white"
+                    : "text-gray-400 hover:bg-white/5 hover:text-white"
                 }
               `}
             >
@@ -244,7 +246,7 @@ export default function ReviewsPage() {
 
       {/* Write Button */}
       <div className="flex justify-end mt-8">
-        <Link 
+        <Link
           href="/reviews/write"
           className="px-6 py-3 bg-brand-500 hover:bg-brand-600 text-white rounded-xl font-bold transition-colors flex items-center gap-2"
         >
