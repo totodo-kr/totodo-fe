@@ -2,114 +2,49 @@
 
 import { MessageSquare, Search, Pin, ChevronLeft, ChevronRight } from "lucide-react";
 import Link from "next/link";
-import { useEffect, useState } from "react";
-import { createClient } from "@/utils/supabase/client";
 import { useSearchParams, useRouter } from "next/navigation";
-
-interface Review {
-  id: number;
-  title: string;
-  created_at: string;
-  view_count: number;
-  is_pinned: boolean;
-  user_id: string;
-  profiles: {
-    display_name: string | null;
-  } | null;
-  review_comments: { count: number }[];
-}
-
-const ITEMS_PER_PAGE = 10;
+import { useReviews, Review } from "@/hooks/useReviews";
+import { useEffect } from "react";
 
 export default function ReviewsPage() {
-  const supabase = createClient();
   const searchParams = useSearchParams();
   const router = useRouter();
 
-  const page = Number(searchParams.get("page")) || 1;
-  const [pinnedReviews, setPinnedReviews] = useState<Review[]>([]);
-  const [reviews, setReviews] = useState<Review[]>([]);
-  const [totalCount, setTotalCount] = useState(0);
-  const [loading, setLoading] = useState(true);
-  const [keyword, setKeyword] = useState("");
+  // URL 쿼리 파라미터에서 초기 페이지 설정
+  const initialPage = Number(searchParams.get("page")) || 1;
 
+  const {
+    pinnedReviews,
+    reviews,
+    totalCount,
+    loading,
+    page,
+    setPage,
+    keyword,
+    setKeyword,
+    fetchReviews,
+    totalPages,
+  } = useReviews(initialPage);
+
+  // URL 변경 시 페이지 상태 업데이트
   useEffect(() => {
-    fetchReviews();
-  }, [page]);
-
-  const fetchReviews = async () => {
-    setLoading(true);
-    try {
-      // 1. 고정 게시글 가져오기
-      const { data: pinnedData } = await supabase
-        .from("reviews")
-        .select(
-          `
-          *,
-          profiles:user_id (name),
-          review_comments (count)
-        `
-        )
-        .eq("is_pinned", true)
-        .order("created_at", { ascending: false });
-
-      if (pinnedData) {
-        setPinnedReviews(pinnedData as any);
-      }
-
-      // 2. 일반 게시글 가져오기 (페이징 적용)
-      const from = (page - 1) * ITEMS_PER_PAGE;
-      const to = from + ITEMS_PER_PAGE - 1;
-
-      let query = supabase
-        .from("reviews")
-        .select(
-          `
-          *,
-          profiles:user_id (name),
-          review_comments (count)
-        `,
-          { count: "exact" }
-        )
-        .eq("is_pinned", false)
-        .order("created_at", { ascending: false })
-        .range(from, to);
-
-      if (keyword) {
-        query = query.ilike("title", `%${keyword}%`);
-      }
-
-      const { data, count, error } = await query;
-
-      // 디버깅용 로그
-      console.log("Reviews Fetch Result:", { data, count, error });
-
-      if (error) throw error;
-
-      if (data) {
-        setReviews(data as any);
-      }
-      if (count !== null) {
-        setTotalCount(count);
-      }
-    } catch (error) {
-      console.error("Error fetching reviews:", error);
-    } finally {
-      setLoading(false);
+    const pageParam = Number(searchParams.get("page")) || 1;
+    if (pageParam !== page) {
+      setPage(pageParam);
     }
-  };
+  }, [searchParams]);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
-    router.push(`/reviews?page=1`); // 검색 시 1페이지로 이동
-    fetchReviews();
+    router.push(`/reviews?page=1`);
+    setPage(1);
+    fetchReviews(); // 키워드가 변경되었으므로 다시 조회
   };
-
-  const totalPages = Math.ceil(totalCount / ITEMS_PER_PAGE);
 
   const movePage = (newPage: number) => {
     if (newPage < 1 || newPage > totalPages) return;
     router.push(`/reviews?page=${newPage}`);
+    // setPage는 useEffect에서 처리됨
   };
 
   const formatDate = (dateString: string) => {
@@ -121,7 +56,7 @@ export default function ReviewsPage() {
   };
 
   const getAuthorName = (review: Review) => {
-    return review.profiles?.display_name || "알 수 없음";
+    return review.profiles?.display_name || review.profiles?.name || "알 수 없음";
   };
 
   const getCommentCount = (review: Review) => {
