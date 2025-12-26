@@ -44,7 +44,12 @@ export default function Navbar() {
     <>
       <div className="fixed top-0 left-0 right-0 z-40 flex flex-col">
         {/* 1단: 메인 네비게이션 */}
-        <nav className="bg-black/80 backdrop-blur-md border-b border-white/10 h-16 w-full">
+        <nav
+          className={clsx(
+            "bg-black backdrop-blur-md h-16 w-full",
+            currentSubMenus ? "border-b-0" : "border-b border-white/10"
+          )}
+        >
           <div className="max-w-[1600px] mx-auto px-4 h-full flex items-center justify-between">
             {/* Left: Logo */}
             <Link href="/" className="flex w-52 items-center">
@@ -106,7 +111,7 @@ export default function Navbar() {
 
         {/* 2단: 서브 탭 (조건부 렌더링) */}
         {currentSubMenus && (
-          <div className="bg-black/95 border-b border-white/10 h-12 w-full">
+          <div className="bg-black border-b border-white/10 h-12 w-full">
             <div className="max-w-[1600px] mx-auto px-4 h-full flex items-center justify-center gap-6">
               {currentSubMenus.map((subItem) => {
                 const isSubActive = pathname === subItem.href;
