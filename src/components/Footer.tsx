@@ -1,38 +1,17 @@
 export default function Footer() {
   return (
-    <footer className="bg-zinc-900 border-t border-white/10 py-12">
-      <div className="max-w-7xl mx-auto px-4">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mb-8">
-          <div className="col-span-1 md:col-span-2">
-            <span className="text-xl font-bold text-brand-500 mb-4 block">
-              TOTODO
-            </span>
-            <p className="text-gray-400 text-sm leading-relaxed max-w-sm">
-              비플 종속에서 벗어나 자유로운 커스텀 개발을 지향합니다.
-              <br />
-              더 빠르고, 더 예쁘고, 더 강력한 기능을 만나보세요.
-            </p>
-          </div>
-          <div>
-            <h3 className="text-white font-bold mb-4">Service</h3>
-            <ul className="space-y-2 text-sm text-gray-400">
-              <li><a href="#" className="hover:text-white">이세계 학원</a></li>
-              <li><a href="#" className="hover:text-white">상점</a></li>
-              <li><a href="#" className="hover:text-white">강의 후기</a></li>
-            </ul>
-          </div>
-          <div>
-            <h3 className="text-white font-bold mb-4">Support</h3>
-            <ul className="space-y-2 text-sm text-gray-400">
-              <li><a href="#" className="hover:text-white">자주 묻는 질문</a></li>
-              <li><a href="#" className="hover:text-white">문의하기</a></li>
-              <li><a href="#" className="hover:text-white">이용약관</a></li>
-            </ul>
-          </div>
-        </div>
-        <div className="border-t border-white/10 pt-8 text-center text-sm text-gray-500">
-          © 2024 TOTODO. All rights reserved.
-        </div>
+    <footer className="bg-black border-t border-white/10 py-12">
+      <div className="max-w-5xl mx-auto px-4 text-center text-sm leading-relaxed text-gray-400">
+        <p className="mb-3">
+          토토도홀딩스 TOTODO HOLDINGS
+        </p>
+        <p className="mb-2">
+          대표 윤병이 | 서울특별시 강남구 도산대로49길 6-7 501호(신사동) | hanora1423@gmail.com | 사업자등록번호: 882-26-01885 | 통신판매업신고: 2024-서울강남-04626
+          입금계좌: IBK기업은행 054-158049-01-011 토토도홀딩스
+        </p>
+        <p className="text-gray-500">
+          Copyright © 2024 SFC TV All rights reserved.
+        </p>
       </div>
     </footer>
   );
