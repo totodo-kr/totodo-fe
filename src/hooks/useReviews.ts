@@ -28,23 +28,28 @@ export function useReviews(initialPage: number = 1) {
   const supabase = createClient();
 
   const fetchReviews = useCallback(async () => {
+    const hasKeyword = keyword.trim().length > 0;
     setLoading(true);
     try {
-      // 1. 고정 게시글 가져오기
-      const { data: pinnedData } = await supabase
-        .from("reviews")
-        .select(
+      // 1. 고정 게시글 가져오기 (검색 중이 아닐 때만)
+      if (!hasKeyword) {
+        const { data: pinnedData } = await supabase
+          .from("reviews")
+          .select(
+            `
+            *,
+            profiles:user_id (display_name, name),
+            review_comments (count)
           `
-          *,
-          profiles:user_id (display_name, name),
-          review_comments (count)
-        `
-        )
-        .eq("is_pinned", true)
-        .order("created_at", { ascending: false });
+          )
+          .eq("is_pinned", true)
+          .order("created_at", { ascending: false });
 
-      if (pinnedData) {
-        setPinnedReviews(pinnedData as any);
+        if (pinnedData) {
+          setPinnedReviews(pinnedData as any);
+        }
+      } else {
+        setPinnedReviews([]);
       }
 
       // 2. 일반 게시글 가져오기
@@ -61,11 +66,15 @@ export function useReviews(initialPage: number = 1) {
         `,
           { count: "exact" }
         )
-        .eq("is_pinned", false)
         .order("created_at", { ascending: false })
         .range(from, to);
 
-      if (keyword) {
+      // 검색 중이 아닐 때만 고정글을 분리하기 위해 일반글 필터 적용
+      if (!hasKeyword) {
+        query = query.eq("is_pinned", false);
+      }
+
+      if (hasKeyword) {
         query = query.ilike("title", `%${keyword}%`);
       }
 
