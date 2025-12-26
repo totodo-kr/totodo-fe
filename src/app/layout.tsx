@@ -33,7 +33,7 @@ export default function RootLayout({
         <AuthStateSync />
         <Navbar />
         <div className="flex justify-center w-full">
-          <div className="w-full max-w-[1600px]">{children}</div>
+          <div className="w-full max-w-[1200px]">{children}</div>
         </div>
         <Footer />
       </body>

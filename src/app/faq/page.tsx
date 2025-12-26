@@ -12,7 +12,7 @@ export default function FAQPage() {
   }));
 
   return (
-    <main className="min-h-screen p-8 max-w-[1600px] mx-auto">
+    <main className="min-h-screen p-8 mx-auto">
       {/* Search Bar */}
       <div className="mb-8 flex justify-center">
         <div className="relative w-full max-w-xl">

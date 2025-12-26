@@ -5,7 +5,7 @@ export default function Home() {
     <main className="min-h-screen bg-black text-white flex flex-col">
       {/* Hero Section */}
       <div className="flex-1 flex flex-col items-center justify-center text-center px-4 py-32">
-        <h1 className="text-5xl md:text-7xl font-bold tracking-tight mb-8 bg-linear-to-r from-brand-500 to-pink-600 text-transparent bg-clip-text">
+        <h1 className="text-5xl md:text-6xl font-bold tracking-tight mb-8 bg-linear-to-r from-brand-500 to-pink-600 text-transparent bg-clip-text">
           공부로 하는 일본어가 즐거운 분이라면、
           <br />
           나가셔도 좋습니다。

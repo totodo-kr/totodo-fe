@@ -118,7 +118,7 @@ function ReviewsContent() {
                 <Link
                   key={review.id}
                   href={`/reviews/${review.id}`}
-                  className="relative flex items-center justify-between w-full h-[100px] mb-[10px] px-8 rounded-xl border transition-all cursor-pointer bg-zinc-900/40 border-white/5 hover:bg-zinc-800/60 hover:border-white/10"
+                  className="relative flex items-center justify-between w-full h-[100px] mb-[10px] px-8 rounded-xl border transition-all cursor-pointer bg-zinc-800/40 border-white/5 hover:bg-zinc-800/60 hover:border-white/10"
                 >
                   <div className="flex flex-col gap-2">
                     <div className="flex items-center gap-2">
@@ -194,7 +194,7 @@ function ReviewsContent() {
 
 export default function ReviewsPage() {
   return (
-    <main className="min-h-screen p-8 max-w-[1600px] mx-auto">
+    <main className="min-h-screen p-8 mx-auto">
       <Suspense fallback={<div className="text-center py-20 text-gray-500">로딩 중...</div>}>
         <ReviewsContent />
       </Suspense>

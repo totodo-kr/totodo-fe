@@ -5,7 +5,7 @@ import Image from "next/image";
 export default function AcademyPage() {
   return (
     <main className="min-h-screen p-8">
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-8 w-full max-w-[1600px] mx-auto">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-8 w-full mx-auto">
         {/* Course Card */}
         <div className="flex flex-col gap-4 group cursor-pointer">
           {/* Image Container */}

@@ -20,7 +20,7 @@ export default function ShopPage() {
 
   return (
     <main className="min-h-screen p-8">
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 w-full max-w-[1600px] mx-auto">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 w-full mx-auto">
         {products.map((product) => (
           <div key={product.id} className="flex flex-col gap-4 group cursor-pointer">
             {/* Image Container */}
