@@ -1,9 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
-import Navbar from "@/components/Navbar";
-import TopSlider from "@/components/TopSlider";
-import Footer from "@/components/Footer";
 import AuthStateSync from "@/components/AuthStateSync";
+import ConditionalLayout from "@/components/ConditionalLayout";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -32,12 +30,7 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} antialiased bg-black text-white`}
       >
         <AuthStateSync />
-        <Navbar />
-        <TopSlider />
-        <div className="flex justify-center w-full">
-          <div className="w-full max-w-[1200px]">{children}</div>
-        </div>
-        <Footer />
+        <ConditionalLayout>{children}</ConditionalLayout>
       </body>
     </html>
   );

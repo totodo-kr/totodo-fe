@@ -4,14 +4,17 @@ import { useParams, usePathname } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
 
-export default function CourseLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export default function CourseLayout({ children }: { children: React.ReactNode }) {
   const params = useParams();
   const pathname = usePathname();
   const courseId = params.id;
+
+  // watch 페이지에서는 레이아웃 없이 children만 렌더링
+  const isWatchPage = pathname?.includes("/session/");
+
+  if (isWatchPage) {
+    return <>{children}</>;
+  }
 
   // 임시 데이터
   const courseData = {
@@ -53,9 +56,7 @@ export default function CourseLayout({
                 북마크
               </button>
             </div>
-            <h1 className="text-4xl font-bold text-white mb-2">
-              {courseData.title}
-            </h1>
+            <h1 className="text-4xl font-bold text-white mb-2">{courseData.title}</h1>
             <p className="text-gray-300 text-sm">도도토</p>
           </div>
         </div>
@@ -64,7 +65,7 @@ export default function CourseLayout({
       {/* Content Section */}
       <div className="flex gap-8 px-8 pb-16">
         {/* Left Sidebar - Tabs */}
-        <aside className="w-[200px] flex-shrink-0">
+        <aside className="w-[200px] shrink-0">
           <nav className="sticky top-8 flex flex-col gap-2">
             {tabs.map((tab) => (
               <Link
@@ -88,4 +89,3 @@ export default function CourseLayout({
     </div>
   );
 }
-
