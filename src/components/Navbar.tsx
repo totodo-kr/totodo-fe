@@ -140,7 +140,10 @@ export default function Navbar() {
               </div>
               <div className="flex items-center justify-center w-6/8 h-full gap-6">
                 {currentSubMenus.map((subItem) => {
-                  const isSubActive = pathname === subItem.href;
+                  const isSubActive =
+                    subItem.href === activeSubMenuKey
+                      ? pathname === subItem.href
+                      : pathname.startsWith(subItem.href);
                   return (
                     <Link
                       key={subItem.name}

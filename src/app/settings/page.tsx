@@ -45,7 +45,7 @@ export default function SettingsPage() {
   ];
 
   return (
-    <div className="min-h-screen px-4 flex justify-center">
+    <div className="min-h-screen p-4 px-4 flex justify-center">
       <div className="w-full max-w-md flex flex-col gap-[10px]">
         {/* 1행: 프로필 정보 컴포넌트 */}
         <div className="bg-[#1a1a1a] rounded-2xl p-8 flex flex-col items-center gap-6 border border-white/5 shadow-lg">
