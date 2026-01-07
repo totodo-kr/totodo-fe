@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { clsx } from "clsx";
 import { Bell, User as UserIcon } from "lucide-react";
 import { useAuthStore } from "@/store/useAuthStore";
@@ -11,7 +11,22 @@ import LoginModal from "./LoginModal";
 export default function Navbar() {
   const pathname = usePathname();
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isHidden, setIsHidden] = useState(false);
   const { user } = useAuthStore();
+
+  // Listen for data-hide-navbar attribute changes
+  useEffect(() => {
+    const observer = new MutationObserver(() => {
+      setIsHidden(document.body.hasAttribute("data-hide-navbar"));
+    });
+
+    observer.observe(document.body, {
+      attributes: true,
+      attributeFilter: ["data-hide-navbar"],
+    });
+
+    return () => observer.disconnect();
+  }, []);
 
   const menuItems = [
     { name: "홈", href: "/" },
@@ -43,7 +58,12 @@ export default function Navbar() {
 
   return (
     <>
-      <div className="fixed top-0 left-0 right-0 z-40 flex flex-col">
+      <div
+        className={clsx(
+          "fixed top-0 left-0 right-0 z-40 flex flex-col transition-transform duration-300",
+          isHidden && "-translate-y-full"
+        )}
+      >
         {/* 1단: 메인 네비게이션 */}
         <nav
           className={clsx(
