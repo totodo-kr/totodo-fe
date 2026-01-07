@@ -29,8 +29,9 @@ export default function Navbar() {
       { name: "나의 북마크", href: "/academy/bookmarks" },
     ],
     "/shop": [
-      { name: "포스트", href: "/shop" },
-      { name: "시리즈", href: "/shop/series" },
+      { name: "홈", href: "/shop" },
+      { name: "도서", href: "/shop/books" },
+      { name: "잡화", href: "/shop/goods" },
     ],
   };
 
@@ -112,24 +113,34 @@ export default function Navbar() {
         {/* 2단: 서브 탭 (조건부 렌더링) */}
         {currentSubMenus && (
           <div className="bg-black border-b border-white/10 h-12 w-full">
-            <div className="max-w-[1600px] mx-auto px-4 h-full flex items-center justify-center gap-6">
-              {currentSubMenus.map((subItem) => {
-                const isSubActive = pathname === subItem.href;
-                return (
-                  <Link
-                    key={subItem.name}
-                    href={subItem.href}
-                    className={clsx(
-                      "h-full flex items-center text-sm font-medium border-b-2 transition-colors px-1",
-                      isSubActive
-                        ? "text-white border-brand-500"
-                        : "text-gray-400 border-transparent hover:text-white"
-                    )}
-                  >
-                    {subItem.name}
-                  </Link>
-                );
-              })}
+            <div className="flex mx-auto max-w-[1600px] px-4 h-full">
+              <div className="flex items-center justify-start w-1/8 h-full gap-6">
+                <div>1-1</div>
+                <div>1-2</div>
+              </div>
+              <div className="flex items-center justify-center w-6/8 h-full gap-6">
+                {currentSubMenus.map((subItem) => {
+                  const isSubActive = pathname === subItem.href;
+                  return (
+                    <Link
+                      key={subItem.name}
+                      href={subItem.href}
+                      className={clsx(
+                        "h-full flex items-center text-sm font-medium border-b-2 transition-colors px-1",
+                        isSubActive
+                          ? "text-white border-brand-500"
+                          : "text-gray-400 border-transparent hover:text-white"
+                      )}
+                    >
+                      {subItem.name}
+                    </Link>
+                  );
+                })}
+              </div>
+              <div className="flex items-center justify-end w-1/8 h-full gap-6">
+                <div>2-1</div>
+                <div>2-2</div>
+              </div>
             </div>
           </div>
         )}
