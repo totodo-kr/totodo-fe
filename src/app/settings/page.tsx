@@ -29,18 +29,23 @@ export default function SettingsPage() {
 
   if (!user) return null;
 
+  // 회원코드 마스킹 함수 (마지막 4자리만 표시)
+  const maskMemberCode = (code: string) => {
+    if (code.length <= 4) return code;
+    return "***" + code.slice(-4);
+  };
+
   const menuItems = [
-    "내 보관함",
-    "내 쿠폰함",
-    "결제 내역",
-    "사업자 정보",
-    "환경 설정",
-    "본인 인증",
-    "계정 설정",
+    { label: "내 멤버쉽", path: "/settings/my-membership" },
+    { label: "내 쿠폰함", path: "/settings/my-coupons" },
+    { label: "결제 내역", path: "/settings/purchases" },
+    { label: "본인 인증", path: "/settings/certify" },
+    { label: "환경 설정", path: "/settings/preferences" },
+    { label: "계정 설정", path: "/settings/account-setting" },
   ];
 
   return (
-    <div className="min-h-screen pt-24 pb-20 px-4 flex justify-center">
+    <div className="min-h-screen px-4 flex justify-center">
       <div className="w-full max-w-md flex flex-col gap-[10px]">
         {/* 1행: 프로필 정보 컴포넌트 */}
         <div className="bg-[#1a1a1a] rounded-2xl p-8 flex flex-col items-center gap-6 border border-white/5 shadow-lg">
@@ -61,10 +66,10 @@ export default function SettingsPage() {
             </div>
 
             {/* 회원 코드 */}
-            <div className="flex flex-col items-center gap-1">
+            <div className="flex items-center gap-1">
               <span className="text-gray-400 text-sm">회원코드</span>
               <span className="text-gray-300 font-mono text-xs bg-black/30 px-2 py-1 rounded">
-                {user.id}
+                {maskMemberCode(user.id)}
               </span>
             </div>
           </div>
@@ -84,9 +89,10 @@ export default function SettingsPage() {
             {menuItems.map((item, index) => (
               <button
                 key={index}
+                onClick={() => item.path && router.push(item.path)}
                 className="flex items-center justify-between w-full p-5 hover:bg-white/5 transition-colors border-b border-white/5 last:border-0 text-left"
               >
-                <span className="text-gray-200">{item}</span>
+                <span className="text-gray-200">{item.label}</span>
                 <ChevronRight size={18} className="text-gray-500" />
               </button>
             ))}

@@ -115,7 +115,7 @@ export default function ProfileEditPage() {
   const days = Array.from({ length: 31 }, (_, i) => i + 1);
 
   return (
-    <main className="min-h-screen bg-black text-white p-4 pb-24">
+    <main className="min-h-screen p-4">
       {/* Header */}
       <div className="relative flex items-center justify-center h-14 mb-4">
         <button onClick={() => router.back()} className="absolute left-0 p-2 text-white">
