@@ -4,13 +4,38 @@ import Image from "next/image";
 import Link from "next/link";
 import { useState, useEffect, useRef } from "react";
 import { Heart, Share2, ChevronLeft, ChevronRight } from "lucide-react";
+import { createClient } from "@/utils/supabase/client";
 
-export default function BookDetailPage({ params }: { params: { id: string } }) {
+interface BookDetail {
+  id: number;
+  title: string;
+  subtitle: string | null;
+  description: string | null;
+  price: number;
+  thumbnail_url: string | null;
+  review_count: number;
+  average_rating: number;
+  shipping_fee: number;
+  author: string | null;
+  publisher: string | null;
+  publish_date: string | null;
+  size: string | null;
+  material: string | null;
+  published_by: string | null;
+  distributor: string | null;
+  detailed_description: string | null;
+  images: Array<{ url: string; order: number; alt: string }>;
+}
+
+export default function BookDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const [quantity, setQuantity] = useState(1);
   const [activeTab, setActiveTab] = useState("detail");
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [showStickyHeader, setShowStickyHeader] = useState(false);
   const [showStickyFooter, setShowStickyFooter] = useState(false);
+  const [book, setBook] = useState<BookDetail | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   // Refs for each section
   const detailRef = useRef<HTMLDivElement>(null);
@@ -19,41 +44,90 @@ export default function BookDetailPage({ params }: { params: { id: string } }) {
   const inquiryRef = useRef<HTMLDivElement>(null);
   const tabsRef = useRef<HTMLDivElement>(null);
 
-  // 샘플 데이터 (실제로는 API에서 가져옴)
-  const book = {
-    id: params.id,
-    title: "Original Mind Essential English",
-    subtitle: "본심 영어 개론",
-    description: "[오리지널 마인드 기초 영어] 콘텐츠의 교재",
-    price: 14900,
-    shippingFee: 3000,
-    author: "기초 영어",
-    publisher: "스토리 블랜스트",
-    size: "22 X 30 X 1.5 (cm)",
-    publishDate: "2024년 1월",
-    publishedBy: "자체제작",
-    distributor: "ORIGI MAKE 코리센터",
-    images: [
-      "https://images.unsplash.com/photo-1589829085413-56de8ae18c73?q=80&w=800&auto=format&fit=crop",
-      "https://images.unsplash.com/photo-1544947950-fa07a98d237f?q=80&w=800&auto=format&fit=crop",
-    ],
-  };
+  // 데이터 로딩
+  useEffect(() => {
+    async function fetchBookDetail() {
+      try {
+        const supabase = createClient();
+        const resolvedParams = await params;
 
-  const handleQuantityChange = (change: number) => {
-    const newQuantity = quantity + change;
-    if (newQuantity >= 1) {
-      setQuantity(newQuantity);
+        // products와 product_details 조인해서 가져오기
+        const { data, error } = await supabase
+          .from("products")
+          .select(
+            `
+            id,
+            title,
+            subtitle,
+            description,
+            price,
+            thumbnail_url,
+            review_count,
+            average_rating,
+            product_details (
+              shipping_fee,
+              author,
+              publisher,
+              publish_date,
+              size,
+              material,
+              published_by,
+              distributor,
+              detailed_description,
+              images
+            )
+          `
+          )
+          .eq("id", resolvedParams.id)
+          .eq("is_active", true)
+          .single();
+
+        if (error) {
+          console.error("Error fetching book:", error);
+          throw error;
+        }
+
+        if (!data) {
+          throw new Error("상품을 찾을 수 없습니다.");
+        }
+
+        // 데이터 변환 (product_details는 배열로 반환됨)
+        const details = Array.isArray(data.product_details)
+          ? data.product_details[0]
+          : data.product_details;
+
+        const bookData: BookDetail = {
+          id: data.id,
+          title: data.title,
+          subtitle: data.subtitle,
+          description: data.description,
+          price: data.price,
+          thumbnail_url: data.thumbnail_url,
+          review_count: data.review_count,
+          average_rating: data.average_rating,
+          shipping_fee: details?.shipping_fee || 3000,
+          author: details?.author || null,
+          publisher: details?.publisher || null,
+          publish_date: details?.publish_date || null,
+          size: details?.size || null,
+          material: details?.material || null,
+          published_by: details?.published_by || null,
+          distributor: details?.distributor || null,
+          detailed_description: details?.detailed_description || null,
+          images: details?.images || [],
+        };
+
+        setBook(bookData);
+      } catch (err) {
+        console.error("Error:", err);
+        setError("상품 정보를 불러오는 중 오류가 발생했습니다.");
+      } finally {
+        setLoading(false);
+      }
     }
-  };
 
-  const totalPrice = book.price * quantity;
-
-  const tabs = [
-    { id: "detail", label: "상세정보", ref: detailRef },
-    { id: "review", label: "리뷰 (0)", ref: reviewRef },
-    { id: "return", label: "반품/교환정보", ref: returnRef },
-    { id: "inquiry", label: "실물문의 (5)", ref: inquiryRef },
-  ];
+    fetchBookDetail();
+  }, [params]);
 
   // Intersection Observer for auto-switching tabs based on scroll
   useEffect(() => {
@@ -114,6 +188,29 @@ export default function BookDetailPage({ params }: { params: { id: string } }) {
     };
   }, []);
 
+  // 데이터 기반 변수 및 함수
+  const handleQuantityChange = (change: number) => {
+    const newQuantity = quantity + change;
+    if (newQuantity >= 1) {
+      setQuantity(newQuantity);
+    }
+  };
+
+  const totalPrice = book ? book.price * quantity : 0;
+  const imageList =
+    book?.images && book.images.length > 0
+      ? book.images.sort((a, b) => a.order - b.order).map((img) => img.url)
+      : book?.thumbnail_url
+      ? [book.thumbnail_url]
+      : [];
+
+  const tabs = [
+    { id: "detail", label: "상세정보", ref: detailRef },
+    { id: "review", label: `리뷰 (${book?.review_count || 0})`, ref: reviewRef },
+    { id: "return", label: "반품/교환정보", ref: returnRef },
+    { id: "inquiry", label: "상품문의 (0)", ref: inquiryRef },
+  ];
+
   // Smooth scroll to section when tab is clicked
   const scrollToSection = (sectionId: string) => {
     const ref = tabs.find((tab) => tab.id === sectionId)?.ref;
@@ -126,6 +223,32 @@ export default function BookDetailPage({ params }: { params: { id: string } }) {
     }
     setActiveTab(sectionId);
   };
+
+  // 로딩 상태
+  if (loading) {
+    return (
+      <main className="min-h-screen bg-black text-white flex items-center justify-center">
+        <div className="text-center">
+          <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-brand-500 border-r-transparent"></div>
+          <p className="mt-4 text-gray-400">상품 정보를 불러오는 중...</p>
+        </div>
+      </main>
+    );
+  }
+
+  // 에러 상태
+  if (error || !book) {
+    return (
+      <main className="min-h-screen bg-black text-white flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-red-400 text-xl mb-4">{error || "상품을 찾을 수 없습니다."}</p>
+          <Link href="/shop/books" className="text-brand-500 hover:underline">
+            도서 목록으로 돌아가기 →
+          </Link>
+        </div>
+      </main>
+    );
+  }
 
   return (
     <main className="min-h-screen bg-black text-white">
@@ -152,17 +275,23 @@ export default function BookDetailPage({ params }: { params: { id: string } }) {
           {/* 왼쪽: 이미지 */}
           <div className="space-y-4">
             <div className="relative aspect-square rounded-2xl overflow-hidden bg-zinc-900 border border-white/10">
-              <Image
-                src={book.images[currentImageIndex]}
-                alt={book.title}
-                fill
-                className="object-cover"
-              />
+              {imageList.length > 0 ? (
+                <Image
+                  src={imageList[currentImageIndex]}
+                  alt={book.title}
+                  fill
+                  className="object-cover"
+                />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center text-gray-600">
+                  이미지 없음
+                </div>
+              )}
             </div>
             {/* 썸네일 */}
-            {book.images.length > 1 && (
+            {imageList.length > 1 && (
               <div className="flex gap-2">
-                {book.images.map((img, idx) => (
+                {imageList.map((img, idx) => (
                   <button
                     key={idx}
                     onClick={() => setCurrentImageIndex(idx)}
@@ -211,7 +340,7 @@ export default function BookDetailPage({ params }: { params: { id: string } }) {
             {/* 배송비 */}
             <div className="flex items-center justify-between py-3 border-b border-white/10">
               <span className="text-gray-400">배송비</span>
-              <span className="font-medium">{book.shippingFee.toLocaleString()}원</span>
+              <span className="font-medium">{book.shipping_fee.toLocaleString()}원</span>
             </div>
 
             {/* 무이자 할부 */}
@@ -325,11 +454,13 @@ export default function BookDetailPage({ params }: { params: { id: string } }) {
             <h2 className="text-2xl font-bold mb-6">책 소개</h2>
             <div className="bg-zinc-900 rounded-lg p-6">
               <p className="text-gray-300 leading-relaxed mb-4">
-                [오리지널 마인드 기초 영어] 콘텐츠의 교재입니다.
+                {book.detailed_description || book.description || "상세 설명이 준비 중입니다."}
               </p>
-              <div className="relative aspect-3/4 max-w-md mx-auto rounded-lg overflow-hidden">
-                <Image src={book.images[0]} alt="저자 소개" fill className="object-cover" />
-              </div>
+              {imageList.length > 0 && (
+                <div className="relative aspect-3/4 max-w-md mx-auto rounded-lg overflow-hidden">
+                  <Image src={imageList[0]} alt={book.title} fill className="object-cover" />
+                </div>
+              )}
             </div>
           </section>
 
@@ -342,29 +473,52 @@ export default function BookDetailPage({ params }: { params: { id: string } }) {
                   <tr>
                     <td className="px-6 py-4 text-gray-400 font-medium w-1/4">제품명</td>
                     <td className="px-6 py-4">
-                      {book.title} - {book.subtitle} 개론
+                      {book.title}
+                      {book.subtitle && ` - ${book.subtitle}`}
                     </td>
                   </tr>
-                  <tr>
-                    <td className="px-6 py-4 text-gray-400 font-medium">소재</td>
-                    <td className="px-6 py-4 text-brand-500">{book.author} 블랜스트</td>
-                  </tr>
-                  <tr>
-                    <td className="px-6 py-4 text-gray-400 font-medium">사이즈</td>
-                    <td className="px-6 py-4">{book.size} only</td>
-                  </tr>
-                  <tr>
-                    <td className="px-6 py-4 text-gray-400 font-medium">출산지</td>
-                    <td className="px-6 py-4 text-brand-500">{book.publishDate}</td>
-                  </tr>
-                  <tr>
-                    <td className="px-6 py-4 text-gray-400 font-medium">제조사</td>
-                    <td className="px-6 py-4">{book.publishedBy}</td>
-                  </tr>
-                  <tr>
-                    <td className="px-6 py-4 text-gray-400 font-medium">A/S문의</td>
-                    <td className="px-6 py-4">{book.distributor}</td>
-                  </tr>
+                  {book.author && (
+                    <tr>
+                      <td className="px-6 py-4 text-gray-400 font-medium">저자</td>
+                      <td className="px-6 py-4">{book.author}</td>
+                    </tr>
+                  )}
+                  {book.publisher && (
+                    <tr>
+                      <td className="px-6 py-4 text-gray-400 font-medium">출판사</td>
+                      <td className="px-6 py-4">{book.publisher}</td>
+                    </tr>
+                  )}
+                  {book.size && (
+                    <tr>
+                      <td className="px-6 py-4 text-gray-400 font-medium">사이즈</td>
+                      <td className="px-6 py-4">{book.size}</td>
+                    </tr>
+                  )}
+                  {book.publish_date && (
+                    <tr>
+                      <td className="px-6 py-4 text-gray-400 font-medium">출판일</td>
+                      <td className="px-6 py-4">{book.publish_date}</td>
+                    </tr>
+                  )}
+                  {book.published_by && (
+                    <tr>
+                      <td className="px-6 py-4 text-gray-400 font-medium">제조사</td>
+                      <td className="px-6 py-4">{book.published_by}</td>
+                    </tr>
+                  )}
+                  {book.distributor && (
+                    <tr>
+                      <td className="px-6 py-4 text-gray-400 font-medium">A/S문의</td>
+                      <td className="px-6 py-4">{book.distributor}</td>
+                    </tr>
+                  )}
+                  {book.material && (
+                    <tr>
+                      <td className="px-6 py-4 text-gray-400 font-medium">소재</td>
+                      <td className="px-6 py-4">{book.material}</td>
+                    </tr>
+                  )}
                 </tbody>
               </table>
             </div>
@@ -373,7 +527,7 @@ export default function BookDetailPage({ params }: { params: { id: string } }) {
                 - 제품색상은 사용자의 모니터의 해상도에 따라 실제 색상과 다소 차이가 있을 수
                 있습니다.
               </p>
-              <p>- 제품의의 색상이 날염 제품 색상과 가장 비슷합니다.</p>
+              <p>- 제품의 색상이 실물 제품 색상과 가장 비슷합니다.</p>
             </div>
           </section>
         </div>
@@ -389,12 +543,12 @@ export default function BookDetailPage({ params }: { params: { id: string } }) {
               <div className="text-center">
                 <div className="text-gray-400 mb-2">상품만족도</div>
                 <div className="text-3xl font-bold">
-                  <span className="text-brand-500">0</span> / 5
+                  <span className="text-brand-500">{book.average_rating || 0}</span> / 5
                 </div>
               </div>
               <div className="text-center">
                 <div className="text-gray-400 mb-2">리뷰 개수</div>
-                <div className="text-3xl font-bold">0</div>
+                <div className="text-3xl font-bold">{book.review_count || 0}</div>
               </div>
               <div className="text-center border-l border-white/10 pl-8">
                 <div className="text-gray-400 mb-4">고객님의 리뷰를 공유해주세요!</div>
