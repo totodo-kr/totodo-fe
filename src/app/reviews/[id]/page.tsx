@@ -382,7 +382,7 @@ export default function ReviewDetailPage() {
 
       {/* Content */}
       <div
-        className="text-gray-300 leading-relaxed text-lg mb-12 min-h-[200px] prose prose-invert max-w-none"
+        className="prose prose-invert max-w-none text-gray-300 leading-relaxed mb-12 min-h-[200px]"
         dangerouslySetInnerHTML={{ __html: review.content }}
       />
 
