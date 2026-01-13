@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState, useEffect } from "react";
 import { clsx } from "clsx";
-import { Bell, User as UserIcon, Menu, X } from "lucide-react";
+import { Bell, User as UserIcon, Heart, ShoppingCart } from "lucide-react";
 import { useAuthStore } from "@/store/useAuthStore";
 import LoginModal from "./LoginModal";
 
@@ -12,7 +12,6 @@ export default function Navbar() {
   const pathname = usePathname();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isHidden, setIsHidden] = useState(false);
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const { user } = useAuthStore();
 
   // Listen for data-hide-navbar attribute changes
@@ -28,19 +27,6 @@ export default function Navbar() {
 
     return () => observer.disconnect();
   }, []);
-
-  // 사이드바 열릴 때 배경 스크롤 막기
-  useEffect(() => {
-    if (isSidebarOpen) {
-      document.body.style.overflow = "hidden";
-    } else {
-      document.body.style.overflow = "unset";
-    }
-
-    return () => {
-      document.body.style.overflow = "unset";
-    };
-  }, [isSidebarOpen]);
 
   const menuItems = [
     { name: "홈", href: "/" },
@@ -72,99 +58,6 @@ export default function Navbar() {
 
   return (
     <>
-      {/* 모바일 사이드바 오버레이 */}
-      {isSidebarOpen && (
-        <div
-          className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40 md:hidden"
-          onClick={() => setIsSidebarOpen(false)}
-        />
-      )}
-
-      {/* 모바일 사이드바 */}
-      <div
-        className={clsx(
-          "fixed top-0 left-0 h-full w-64 bg-black border-r border-white/10 z-50 transform transition-transform duration-300 md:hidden",
-          isSidebarOpen ? "translate-x-0" : "-translate-x-full"
-        )}
-      >
-        <div className="flex flex-col h-full">
-          {/* 사이드바 헤더 */}
-          <div className="flex items-center justify-between px-4 h-16 border-b border-white/10">
-            <span className="text-2xl font-bold text-brand-500">TOTODO</span>
-            <button
-              onClick={() => setIsSidebarOpen(false)}
-              className="text-gray-400 hover:text-white transition-colors"
-            >
-              <X size={24} />
-            </button>
-          </div>
-
-          {/* 사이드바 메뉴 */}
-          <nav className="flex-1 px-4 py-6 overflow-y-auto">
-            {menuItems.map((item) => {
-              const isActive =
-                item.href === "/" ? pathname === "/" : pathname.startsWith(item.href);
-              return (
-                <Link
-                  key={item.name}
-                  href={item.href}
-                  onClick={() => setIsSidebarOpen(false)}
-                  className={clsx(
-                    "block py-3 px-4 rounded-lg text-base font-medium transition-colors mb-2",
-                    isActive
-                      ? "text-white bg-brand-500/10 border border-brand-500/20"
-                      : "text-gray-400 hover:text-white hover:bg-white/5"
-                  )}
-                >
-                  {item.name}
-                </Link>
-              );
-            })}
-          </nav>
-
-          {/* 사이드바 하단 (로그인/프로필) */}
-          <div className="px-4 border-t border-white/10">
-            {user ? (
-              <Link
-                href="/settings"
-                onClick={() => setIsSidebarOpen(false)}
-                className="flex items-center gap-3 p-3 rounded-lg hover:bg-white/5 transition-colors"
-              >
-                <div className="w-10 h-10 rounded-full bg-gray-800 overflow-hidden border border-white/10 flex items-center justify-center">
-                  {user.user_metadata?.avatar_url ? (
-                    <img
-                      src={user.user_metadata.avatar_url}
-                      alt="Profile"
-                      className="w-full h-full object-cover"
-                    />
-                  ) : (
-                    <UserIcon size={20} className="text-gray-400" />
-                  )}
-                </div>
-                <div className="flex flex-col">
-                  <span className="text-white font-medium">
-                    {user.user_metadata?.full_name ||
-                      user.user_metadata?.name ||
-                      user.email?.split("@")[0] ||
-                      "사용자"}
-                  </span>
-                </div>
-              </Link>
-            ) : (
-              <button
-                onClick={() => {
-                  setIsSidebarOpen(false);
-                  setIsModalOpen(true);
-                }}
-                className="w-full px-5 py-3 bg-white text-brand-500 rounded-lg font-bold text-sm hover:bg-gray-100 transition-colors"
-              >
-                시작하기
-              </button>
-            )}
-          </div>
-        </div>
-      </div>
-
       <div
         className={clsx(
           "fixed top-0 left-0 right-0 z-30 flex flex-col transition-transform duration-300",
@@ -179,105 +72,60 @@ export default function Navbar() {
           )}
         >
           <div className="max-w-[1600px] mx-auto px-4 h-full flex items-center justify-between">
-            {/* 모바일: 햄버거 메뉴 + 로고 중앙 */}
-            <div className="flex md:hidden items-center justify-between w-full">
-              <button
-                onClick={() => setIsSidebarOpen(true)}
-                className="text-gray-400 hover:text-white transition-colors"
-              >
-                <Menu size={24} />
-              </button>
-              <Link href="/" className="absolute left-1/2 transform -translate-x-1/2">
-                <span className="text-3xl font-bold text-brand-500 tracking-tight">TOTODO</span>
-              </Link>
-              <div className="flex gap-3">
-                {user ? (
-                  <>
-                    <button className="text-gray-400 hover:text-white transition-colors">
-                      <Bell size={20} />
-                    </button>
-                    <Link href="/settings">
-                      <div className="w-8 h-8 rounded-full bg-gray-800 overflow-hidden border border-white/10 flex items-center justify-center cursor-pointer hover:border-brand-500 transition-colors">
-                        {user.user_metadata?.avatar_url ? (
-                          <img
-                            src={user.user_metadata.avatar_url}
-                            alt="Profile"
-                            className="w-full h-full object-cover"
-                          />
-                        ) : (
-                          <UserIcon size={16} className="text-gray-400" />
-                        )}
-                      </div>
-                    </Link>
-                  </>
-                ) : (
-                  <button
-                    onClick={() => setIsModalOpen(true)}
-                    className="px-3 py-1.5 bg-white text-brand-500 rounded-lg font-bold text-xs hover:bg-gray-100 transition-colors"
+            {/* Left: Logo */}
+            <Link href="/" className="flex w-52 items-center">
+              <span className="text-5xl font-bold text-brand-500 tracking-tight">TOTODO</span>
+            </Link>
+
+            {/* Center: Menu */}
+            <div className="flex items-center gap-8">
+              {menuItems.map((item) => {
+                const isActive =
+                  item.href === "/" ? pathname === "/" : pathname.startsWith(item.href);
+                return (
+                  <Link
+                    key={item.name}
+                    href={item.href}
+                    className={clsx(
+                      "text-lg font-medium transition-colors",
+                      isActive ? "text-brand-500 font-bold" : "text-gray-400 hover:text-white"
+                    )}
                   >
-                    시작하기
-                  </button>
-                )}
-              </div>
+                    {item.name}
+                  </Link>
+                );
+              })}
             </div>
 
-            {/* 데스크톱: 기존 레이아웃 */}
-            <div className="hidden md:flex items-center justify-between w-full">
-              {/* Left: Logo */}
-              <Link href="/" className="flex w-52 items-center">
-                <span className="text-5xl font-bold text-brand-500 tracking-tight">TOTODO</span>
-              </Link>
-
-              {/* Center: Menu */}
-              <div className="flex items-center gap-8">
-                {menuItems.map((item) => {
-                  const isActive =
-                    item.href === "/" ? pathname === "/" : pathname.startsWith(item.href);
-                  return (
-                    <Link
-                      key={item.name}
-                      href={item.href}
-                      className={clsx(
-                        "text-lg font-medium transition-colors",
-                        isActive ? "text-white font-bold" : "text-gray-400 hover:text-white"
-                      )}
-                    >
-                      {item.name}
-                    </Link>
-                  );
-                })}
-              </div>
-
-              {/* Right: Auth Status */}
-              <div className="flex w-52 justify-end gap-4">
-                {user ? (
-                  <>
-                    <button className="text-gray-400 hover:text-white transition-colors">
-                      <Bell size={20} />
-                    </button>
-                    <Link href="/settings">
-                      <div className="w-9 h-9 rounded-full bg-gray-800 overflow-hidden border border-white/10 flex items-center justify-center cursor-pointer hover:border-brand-500 transition-colors">
-                        {user.user_metadata?.avatar_url ? (
-                          <img
-                            src={user.user_metadata.avatar_url}
-                            alt="Profile"
-                            className="w-full h-full object-cover"
-                          />
-                        ) : (
-                          <UserIcon size={18} className="text-gray-400" />
-                        )}
-                      </div>
-                    </Link>
-                  </>
-                ) : (
-                  <button
-                    onClick={() => setIsModalOpen(true)}
-                    className="px-5 py-2 bg-white text-brand-500 rounded-lg font-bold text-sm hover:bg-gray-100 transition-colors"
-                  >
-                    시작하기
+            {/* Right: Auth Status */}
+            <div className="flex w-52 justify-end gap-4">
+              {user ? (
+                <>
+                  <button className="text-gray-400 hover:text-white transition-colors">
+                    <Bell size={20} />
                   </button>
-                )}
-              </div>
+                  <Link href="/settings">
+                    <div className="w-9 h-9 rounded-full bg-gray-800 overflow-hidden border border-white/10 flex items-center justify-center cursor-pointer hover:border-brand-500 transition-colors">
+                      {user.user_metadata?.avatar_url ? (
+                        <img
+                          src={user.user_metadata.avatar_url}
+                          alt="Profile"
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <UserIcon size={18} className="text-gray-400" />
+                      )}
+                    </div>
+                  </Link>
+                </>
+              ) : (
+                <button
+                  onClick={() => setIsModalOpen(true)}
+                  className="px-5 py-2 bg-white text-brand-500 rounded-lg font-bold text-sm hover:bg-gray-100 transition-colors"
+                >
+                  시작하기
+                </button>
+              )}
             </div>
           </div>
         </nav>
@@ -303,7 +151,7 @@ export default function Navbar() {
                       className={clsx(
                         "h-full flex items-center text-sm font-medium border-b-2 transition-colors px-1",
                         isSubActive
-                          ? "text-white border-brand-500"
+                          ? "text-brand-500 border-brand-500"
                           : "text-gray-400 border-transparent hover:text-white"
                       )}
                     >
@@ -313,8 +161,34 @@ export default function Navbar() {
                 })}
               </div>
               <div className="flex items-center justify-end w-1/8 h-full gap-6">
-                <div>2-1</div>
-                <div>2-2</div>
+                {activeSubMenuKey === "/shop" && (
+                  <>
+                    <Link
+                      href="/shop/wishlist"
+                      className={clsx(
+                        "transition-colors",
+                        pathname === "/shop/wishlist"
+                          ? "text-brand-500"
+                          : "text-gray-400 hover:text-white"
+                      )}
+                      aria-label="위시리스트"
+                    >
+                      <Heart size={20} />
+                    </Link>
+                    <Link
+                      href="/shop/cart"
+                      className={clsx(
+                        "transition-colors",
+                        pathname === "/shop/cart"
+                          ? "text-brand-500"
+                          : "text-gray-400 hover:text-white"
+                      )}
+                      aria-label="장바구니"
+                    >
+                      <ShoppingCart size={20} />
+                    </Link>
+                  </>
+                )}
               </div>
             </div>
           </div>
