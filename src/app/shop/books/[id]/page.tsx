@@ -25,6 +25,11 @@ interface BookDetail {
   distributor: string | null;
   detailed_description: string | null;
   images: Array<{ url: string; order: number; alt: string }>;
+  isbn: string | null;
+  book_type: string | null;
+  print_color: string | null;
+  age_limit: string | null;
+  page_count: number | null;
 }
 
 export default function BookDetailPage({ params }: { params: Promise<{ id: string }> }) {
@@ -74,7 +79,12 @@ export default function BookDetailPage({ params }: { params: Promise<{ id: strin
               published_by,
               distributor,
               detailed_description,
-              images
+              images,
+              isbn,
+              book_type,
+              print_color,
+              age_limit,
+              page_count
             )
           `
           )
@@ -115,6 +125,11 @@ export default function BookDetailPage({ params }: { params: Promise<{ id: strin
           distributor: details?.distributor || null,
           detailed_description: details?.detailed_description || null,
           images: details?.images || [],
+          isbn: details?.isbn || null,
+          book_type: details?.book_type || null,
+          print_color: details?.print_color || null,
+          age_limit: details?.age_limit || null,
+          page_count: details?.page_count || null,
         };
 
         setBook(bookData);
@@ -468,59 +483,31 @@ export default function BookDetailPage({ params }: { params: Promise<{ id: strin
           <section>
             <h2 className="text-2xl font-bold mb-6">상세정보</h2>
             <div className="bg-zinc-900 rounded-lg overflow-hidden">
-              <table className="w-full">
-                <tbody className="divide-y divide-white/10">
-                  <tr>
-                    <td className="px-6 py-4 text-gray-400 font-medium w-1/4">제품명</td>
-                    <td className="px-6 py-4">
-                      {book.title}
-                      {book.subtitle && ` - ${book.subtitle}`}
-                    </td>
-                  </tr>
-                  {book.author && (
-                    <tr>
-                      <td className="px-6 py-4 text-gray-400 font-medium">저자</td>
-                      <td className="px-6 py-4">{book.author}</td>
-                    </tr>
-                  )}
-                  {book.publisher && (
-                    <tr>
-                      <td className="px-6 py-4 text-gray-400 font-medium">출판사</td>
-                      <td className="px-6 py-4">{book.publisher}</td>
-                    </tr>
-                  )}
-                  {book.size && (
-                    <tr>
-                      <td className="px-6 py-4 text-gray-400 font-medium">사이즈</td>
-                      <td className="px-6 py-4">{book.size}</td>
-                    </tr>
-                  )}
-                  {book.publish_date && (
-                    <tr>
-                      <td className="px-6 py-4 text-gray-400 font-medium">출판일</td>
-                      <td className="px-6 py-4">{book.publish_date}</td>
-                    </tr>
-                  )}
-                  {book.published_by && (
-                    <tr>
-                      <td className="px-6 py-4 text-gray-400 font-medium">제조사</td>
-                      <td className="px-6 py-4">{book.published_by}</td>
-                    </tr>
-                  )}
-                  {book.distributor && (
-                    <tr>
-                      <td className="px-6 py-4 text-gray-400 font-medium">A/S문의</td>
-                      <td className="px-6 py-4">{book.distributor}</td>
-                    </tr>
-                  )}
-                  {book.material && (
-                    <tr>
-                      <td className="px-6 py-4 text-gray-400 font-medium">소재</td>
-                      <td className="px-6 py-4">{book.material}</td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
+              <div className="grid grid-cols-1 md:grid-cols-2">
+                {[
+                  { label: "도서명", value: book.title + (book.subtitle ? ` - ${book.subtitle}` : "") },
+                  ...(book.author ? [{ label: "저자", value: book.author }] : []),
+                  ...(book.publisher ? [{ label: "출판사", value: book.publisher }] : []),
+                  ...(book.publish_date ? [{ label: "출판일", value: book.publish_date }] : []),
+                  ...(book.isbn ? [{ label: "ISBN", value: book.isbn }] : []),
+                  ...(book.page_count ? [{ label: "페이지 수", value: `${book.page_count}p` }] : []),
+                  ...(book.book_type ? [{ label: "출판형태", value: book.book_type }] : []),
+                  ...(book.print_color ? [{ label: "인쇄컬러", value: book.print_color }] : []),
+                  ...(book.age_limit ? [{ label: "연령 제한", value: book.age_limit }] : []),
+                  ...(book.size ? [{ label: "사이즈", value: book.size }] : []),
+                  ...(book.published_by ? [{ label: "제조사", value: book.published_by }] : []),
+                  ...(book.distributor ? [{ label: "A/S문의", value: book.distributor }] : []),
+                  ...(book.material ? [{ label: "소재", value: book.material }] : []),
+                ].map((item, idx) => (
+                  <div
+                    key={item.label}
+                    className={`flex gap-4 px-6 py-4 border-b border-white/10 ${idx % 2 === 0 ? "md:border-r" : ""}`}
+                  >
+                    <span className="text-gray-400 font-medium w-24 shrink-0">{item.label}</span>
+                    <span>{item.value}</span>
+                  </div>
+                ))}
+              </div>
             </div>
             <div className="mt-4 space-y-2 text-sm text-gray-400">
               <p>

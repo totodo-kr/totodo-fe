@@ -59,7 +59,12 @@ CREATE TABLE product_details (
   author VARCHAR(255),
   publisher VARCHAR(255),
   publish_date VARCHAR(100),
-  
+  isbn VARCHAR(50),
+  book_type VARCHAR(50),       -- 종이책, 전자책, 오디오북 등
+  print_color VARCHAR(50),     -- 흑백, 컬러, 2도 등
+  age_limit VARCHAR(50),       -- 전연령, 12세 이상, 15세 이상, 18세 이상 등
+  page_count INTEGER CHECK (page_count > 0),
+
   -- 제품 상세 정보
   size VARCHAR(100),
   material VARCHAR(255),
@@ -269,6 +274,24 @@ COMMENT ON TABLE product_reviews IS '상품 리뷰';
 COMMENT ON TABLE product_qna IS '상품 Q&A';
 
 COMMENT ON COLUMN product_details.images IS 'JSONB 배열: [{"url": "...", "order": 0, "alt": "..."}]';
+COMMENT ON COLUMN product_details.isbn IS '국제 표준 도서 번호 (ISBN-13 권장)';
+COMMENT ON COLUMN product_details.book_type IS '출판 형태: 종이책, 전자책, 오디오북 등';
+COMMENT ON COLUMN product_details.print_color IS '인쇄 컬러: 흑백, 컬러, 2도 등';
+COMMENT ON COLUMN product_details.age_limit IS '연령 제한: 전연령, 12세 이상, 15세 이상, 18세 이상 등';
+COMMENT ON COLUMN product_details.page_count IS '총 페이지 수';
 COMMENT ON COLUMN products.thumbnail_url IS '목록에 표시할 대표 이미지';
 COMMENT ON COLUMN products.review_count IS '리뷰 개수 (캐시)';
 COMMENT ON COLUMN products.average_rating IS '평균 평점 (캐시)';
+
+
+
+-- =============================================
+-- 마이그레이션: product_details 도서 추가 필드
+-- 이미 생성된 DB에 적용할 때 아래 ALTER TABLE 실행
+-- =============================================
+ALTER TABLE product_details
+  ADD COLUMN IF NOT EXISTS isbn VARCHAR(50),
+  ADD COLUMN IF NOT EXISTS book_type VARCHAR(50),
+  ADD COLUMN IF NOT EXISTS print_color VARCHAR(50),
+  ADD COLUMN IF NOT EXISTS age_limit VARCHAR(50),
+  ADD COLUMN IF NOT EXISTS page_count INTEGER CHECK (page_count > 0);
