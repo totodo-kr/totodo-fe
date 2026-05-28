@@ -24,6 +24,8 @@ interface BookDetail {
   published_by: string | null;
   distributor: string | null;
   detailed_description: string | null;
+  author_introduction: string | null;
+  table_of_contents: string | null;
   images: Array<{ url: string; order: number; alt: string }>;
   isbn: string | null;
   book_type: string | null;
@@ -79,6 +81,8 @@ export default function BookDetailPage({ params }: { params: Promise<{ id: strin
               published_by,
               distributor,
               detailed_description,
+              author_introduction,
+              table_of_contents,
               images,
               isbn,
               book_type,
@@ -124,6 +128,8 @@ export default function BookDetailPage({ params }: { params: Promise<{ id: strin
           published_by: details?.published_by || null,
           distributor: details?.distributor || null,
           detailed_description: details?.detailed_description || null,
+          author_introduction: details?.author_introduction || null,
+          table_of_contents: details?.table_of_contents || null,
           images: details?.images || [],
           isbn: details?.isbn || null,
           book_type: details?.book_type || null,
@@ -464,20 +470,46 @@ export default function BookDetailPage({ params }: { params: Promise<{ id: strin
 
         {/* 탭 컨텐츠 */}
         <div ref={detailRef} data-section="detail" className="space-y-12">
-          {/* 책 소개 */}
-          <section>
-            <h2 className="text-2xl font-bold mb-6">책 소개</h2>
-            <div className="bg-zinc-900 rounded-lg p-6">
-              <p className="text-gray-300 leading-relaxed mb-4">
-                {book.detailed_description || book.description || "상세 설명이 준비 중입니다."}
-              </p>
-              {imageList.length > 0 && (
-                <div className="relative aspect-3/4 max-w-md mx-auto rounded-lg overflow-hidden">
-                  <Image src={imageList[0]} alt={book.title} fill className="object-cover" />
-                </div>
-              )}
-            </div>
-          </section>
+          {/* 도서 소개 */}
+          {(book.detailed_description || book.description) && (
+            <section>
+              <h2 className="text-2xl font-bold mb-6">도서 소개</h2>
+              <div className="bg-zinc-900 rounded-lg p-6">
+                <div
+                  className="text-gray-300 leading-relaxed prose prose-invert max-w-none"
+                  dangerouslySetInnerHTML={{
+                    __html: book.detailed_description || book.description || "",
+                  }}
+                />
+              </div>
+            </section>
+          )}
+
+          {/* 저자 소개 */}
+          {book.author_introduction && (
+            <section>
+              <h2 className="text-2xl font-bold mb-6">저자 소개</h2>
+              <div className="bg-zinc-900 rounded-lg p-6">
+                <div
+                  className="text-gray-300 leading-relaxed prose prose-invert max-w-none"
+                  dangerouslySetInnerHTML={{ __html: book.author_introduction }}
+                />
+              </div>
+            </section>
+          )}
+
+          {/* 도서 목차 */}
+          {book.table_of_contents && (
+            <section>
+              <h2 className="text-2xl font-bold mb-6">도서 목차</h2>
+              <div className="bg-zinc-900 rounded-lg p-6">
+                <div
+                  className="text-gray-300 leading-relaxed prose prose-invert max-w-none"
+                  dangerouslySetInnerHTML={{ __html: book.table_of_contents }}
+                />
+              </div>
+            </section>
+          )}
 
           {/* 상세정보 */}
           <section>

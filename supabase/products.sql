@@ -49,8 +49,10 @@ CREATE TABLE product_details (
   id SERIAL PRIMARY KEY,
   product_id INTEGER NOT NULL REFERENCES products(id) ON DELETE CASCADE,
   
-  -- 상세 설명
-  detailed_description TEXT, -- 상세 설명 (HTML 가능)
+  -- 상세 설명 (HTML 가능)
+  detailed_description TEXT,   -- 도서 소개
+  author_introduction TEXT,    -- 저자 소개
+  table_of_contents TEXT,      -- 도서 목차
   
   -- 가격 정보
   shipping_fee INTEGER NOT NULL DEFAULT 3000 CHECK (shipping_fee >= 0),
@@ -279,6 +281,8 @@ COMMENT ON COLUMN product_details.book_type IS '출판 형태: 종이책, 전자
 COMMENT ON COLUMN product_details.print_color IS '인쇄 컬러: 흑백, 컬러, 2도 등';
 COMMENT ON COLUMN product_details.age_limit IS '연령 제한: 전연령, 12세 이상, 15세 이상, 18세 이상 등';
 COMMENT ON COLUMN product_details.page_count IS '총 페이지 수';
+COMMENT ON COLUMN product_details.author_introduction IS '저자 소개 (HTML 가능)';
+COMMENT ON COLUMN product_details.table_of_contents IS '도서 목차 (HTML 가능)';
 COMMENT ON COLUMN products.thumbnail_url IS '목록에 표시할 대표 이미지';
 COMMENT ON COLUMN products.review_count IS '리뷰 개수 (캐시)';
 COMMENT ON COLUMN products.average_rating IS '평균 평점 (캐시)';
@@ -294,4 +298,8 @@ ALTER TABLE product_details
   ADD COLUMN IF NOT EXISTS book_type VARCHAR(50),
   ADD COLUMN IF NOT EXISTS print_color VARCHAR(50),
   ADD COLUMN IF NOT EXISTS age_limit VARCHAR(50),
-  ADD COLUMN IF NOT EXISTS page_count INTEGER CHECK (page_count > 0);
+  ADD COLUMN IF NOT EXISTS page_count INTEGER CHECK (page_count > 0)
+
+ALTER TABLE product_details
+  ADD COLUMN IF NOT EXISTS author_introduction TEXT,
+  ADD COLUMN IF NOT EXISTS table_of_contents TEXT;
