@@ -66,3 +66,21 @@ Allowed remote image domains in `next.config.ts`: `images.unsplash.com`, `cdn.pu
 ### Path Alias
 
 `@/*` maps to `./src/*`.
+
+## Supabase SQL
+
+스키마 정의 파일은 `supabase/` 폴더에 있으며, 여기서 직접 수정한다.
+
+| 파일 | 내용 |
+|------|------|
+| `supabase/products.sql` | 상품·상품상세·리뷰·Q&A 테이블 |
+| `supabase/order.sql` | 주문 관련 테이블 |
+| `supabase/faq.sql` | FAQ 테이블 |
+| `supabase/reviews.sql` | (강의 등) 리뷰 테이블 |
+| `supabase/user_profiles.sql` | 유저 프로필 테이블 |
+| `supabase/common.sql` | 공통 함수/트리거 |
+| `supabase/sample_insert.sql` | 샘플 데이터 INSERT |
+
+### 이미 운영 중인 DB에 컬럼 추가 시
+
+`CREATE TABLE` 대신 파일 하단 **마이그레이션 섹션**에 `ALTER TABLE ... ADD COLUMN IF NOT EXISTS` 형태로 추가한다. `products.sql` 하단 예시 참고.
