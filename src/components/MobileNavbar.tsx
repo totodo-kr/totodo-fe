@@ -7,13 +7,17 @@ import { clsx } from "clsx";
 import { Bell, User as UserIcon, Menu, X, Heart, ShoppingCart } from "lucide-react";
 import { useAuthStore } from "@/store/useAuthStore";
 import LoginModal from "./LoginModal";
+import NotificationDropdown from "./NotificationDropdown";
+import { useNotifications } from "@/hooks/useNotifications";
 
 export default function MobileNavbar() {
   const pathname = usePathname();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isHidden, setIsHidden] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isNotificationOpen, setIsNotificationOpen] = useState(false);
   const { user } = useAuthStore();
+  const { notifications, loading, unreadCount, markAllAsRead } = useNotifications(user);
 
   // Listen for data-hide-navbar attribute changes
   useEffect(() => {
@@ -235,9 +239,27 @@ export default function MobileNavbar() {
                 <>
                   {user ? (
                     <>
-                      <button className="text-gray-400 hover:text-white transition-colors">
-                        <Bell size={20} />
-                      </button>
+                      <div className="relative flex items-center">
+                        <button
+                          onClick={() => setIsNotificationOpen((prev) => !prev)}
+                          className="relative text-gray-400 hover:text-white transition-colors"
+                        >
+                          <Bell size={20} />
+                          {unreadCount > 0 && (
+                            <span className="absolute -top-1 -right-1 w-4 h-4 bg-brand-500 rounded-full text-[10px] text-white flex items-center justify-center font-bold">
+                              {unreadCount > 9 ? "9+" : unreadCount}
+                            </span>
+                          )}
+                        </button>
+                        {isNotificationOpen && (
+                          <NotificationDropdown
+                            notifications={notifications}
+                            loading={loading}
+                            onClose={() => setIsNotificationOpen(false)}
+                            onMarkAllAsRead={markAllAsRead}
+                          />
+                        )}
+                      </div>
                       <Link href="/settings">
                         <div className="w-8 h-8 rounded-full bg-gray-800 overflow-hidden border border-white/10 flex items-center justify-center cursor-pointer hover:border-brand-500 transition-colors">
                           {user.user_metadata?.avatar_url ? (
