@@ -73,11 +73,13 @@ Allowed remote image domains in `next.config.ts`: `images.unsplash.com`, `cdn.pu
 
 | 파일 | 내용 |
 |------|------|
+| `supabase/codes.sql` | 공통 코드 테이블 (delivery_type 등 관리자 관리 코드). products.sql보다 먼저 실행 |
 | `supabase/products.sql` | 상품·상품상세·리뷰·Q&A 테이블 |
 | `supabase/order.sql` | 주문 관련 테이블 |
 | `supabase/faq.sql` | FAQ 테이블 |
 | `supabase/reviews.sql` | (강의 등) 리뷰 테이블 |
 | `supabase/user_profiles.sql` | 유저 프로필 테이블 |
+| `supabase/notifications.sql` | 알림 테이블 |
 | `supabase/common.sql` | 공통 함수/트리거 |
 | `supabase/sample_insert.sql` | 샘플 데이터 INSERT |
 

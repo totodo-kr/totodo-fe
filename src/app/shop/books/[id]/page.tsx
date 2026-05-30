@@ -6,6 +6,24 @@ import { useState, useEffect, useRef } from "react";
 import { Heart, Share2, ChevronLeft, ChevronRight } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
 
+interface PhysicalBookMeta {
+  shipping_fee?: number;
+  author?: string;
+  publisher?: string;
+  publish_date?: string;
+  isbn?: string;
+  book_type?: string;
+  print_color?: string;
+  age_limit?: string;
+  page_count?: number;
+  author_introduction?: string;
+  table_of_contents?: string;
+  size?: string;
+  material?: string;
+  published_by?: string;
+  distributor?: string;
+}
+
 interface BookDetail {
   id: number;
   title: string;
@@ -13,25 +31,12 @@ interface BookDetail {
   description: string | null;
   price: number;
   thumbnail_url: string | null;
+  delivery_type: string;
   review_count: number;
   average_rating: number;
-  shipping_fee: number;
-  author: string | null;
-  publisher: string | null;
-  publish_date: string | null;
-  size: string | null;
-  material: string | null;
-  published_by: string | null;
-  distributor: string | null;
   detailed_description: string | null;
-  author_introduction: string | null;
-  table_of_contents: string | null;
   images: Array<{ url: string; order: number; alt: string }>;
-  isbn: string | null;
-  book_type: string | null;
-  print_color: string | null;
-  age_limit: string | null;
-  page_count: number | null;
+  type_meta: PhysicalBookMeta;
 }
 
 export default function BookDetailPage({ params }: { params: Promise<{ id: string }> }) {
@@ -58,7 +63,6 @@ export default function BookDetailPage({ params }: { params: Promise<{ id: strin
         const supabase = createClient();
         const resolvedParams = await params;
 
-        // products와 product_details 조인해서 가져오기
         const { data, error } = await supabase
           .from("products")
           .select(
@@ -69,26 +73,15 @@ export default function BookDetailPage({ params }: { params: Promise<{ id: strin
             description,
             price,
             thumbnail_url,
+            delivery_type,
             review_count,
             average_rating,
             product_details (
-              shipping_fee,
-              author,
-              publisher,
-              publish_date,
-              size,
-              material,
-              published_by,
-              distributor,
               detailed_description,
-              author_introduction,
-              table_of_contents,
               images,
-              isbn,
-              book_type,
-              print_color,
-              age_limit,
-              page_count
+              features,
+              notes,
+              type_meta
             )
           `
           )
@@ -105,7 +98,6 @@ export default function BookDetailPage({ params }: { params: Promise<{ id: strin
           throw new Error("상품을 찾을 수 없습니다.");
         }
 
-        // 데이터 변환 (product_details는 배열로 반환됨)
         const details = Array.isArray(data.product_details)
           ? data.product_details[0]
           : data.product_details;
@@ -117,25 +109,12 @@ export default function BookDetailPage({ params }: { params: Promise<{ id: strin
           description: data.description,
           price: data.price,
           thumbnail_url: data.thumbnail_url,
+          delivery_type: data.delivery_type,
           review_count: data.review_count,
           average_rating: data.average_rating,
-          shipping_fee: details?.shipping_fee || 3000,
-          author: details?.author || null,
-          publisher: details?.publisher || null,
-          publish_date: details?.publish_date || null,
-          size: details?.size || null,
-          material: details?.material || null,
-          published_by: details?.published_by || null,
-          distributor: details?.distributor || null,
           detailed_description: details?.detailed_description || null,
-          author_introduction: details?.author_introduction || null,
-          table_of_contents: details?.table_of_contents || null,
           images: details?.images || [],
-          isbn: details?.isbn || null,
-          book_type: details?.book_type || null,
-          print_color: details?.print_color || null,
-          age_limit: details?.age_limit || null,
-          page_count: details?.page_count || null,
+          type_meta: details?.type_meta || {},
         };
 
         setBook(bookData);
@@ -359,10 +338,14 @@ export default function BookDetailPage({ params }: { params: Promise<{ id: strin
             </div>
 
             {/* 배송비 */}
-            <div className="flex items-center justify-between py-3 border-b border-white/10">
-              <span className="text-gray-400">배송비</span>
-              <span className="font-medium">{book.shipping_fee.toLocaleString()}원</span>
-            </div>
+            {book.delivery_type === "physical" && (
+              <div className="flex items-center justify-between py-3 border-b border-white/10">
+                <span className="text-gray-400">배송비</span>
+                <span className="font-medium">
+                  {(book.type_meta.shipping_fee ?? 3000).toLocaleString()}원
+                </span>
+              </div>
+            )}
 
             {/* 무이자 할부 */}
             <div className="flex items-center justify-between py-3 border-b border-white/10">
@@ -476,7 +459,7 @@ export default function BookDetailPage({ params }: { params: Promise<{ id: strin
               <h2 className="text-2xl font-bold mb-6">도서 소개</h2>
               <div className="bg-zinc-900 rounded-lg p-6">
                 <div
-                  className="text-gray-300 leading-relaxed prose prose-invert max-w-none"
+                  className="text-gray-300 leading-relaxed prose prose-invert max-w-none [&_li>p]:my-0"
                   dangerouslySetInnerHTML={{
                     __html: book.detailed_description || book.description || "",
                   }}
@@ -486,26 +469,26 @@ export default function BookDetailPage({ params }: { params: Promise<{ id: strin
           )}
 
           {/* 저자 소개 */}
-          {book.author_introduction && (
+          {book.type_meta.author_introduction && (
             <section>
               <h2 className="text-2xl font-bold mb-6">저자 소개</h2>
               <div className="bg-zinc-900 rounded-lg p-6">
                 <div
-                  className="text-gray-300 leading-relaxed prose prose-invert max-w-none"
-                  dangerouslySetInnerHTML={{ __html: book.author_introduction }}
+                  className="text-gray-300 leading-relaxed prose prose-invert max-w-none [&_li>p]:my-0"
+                  dangerouslySetInnerHTML={{ __html: book.type_meta.author_introduction }}
                 />
               </div>
             </section>
           )}
 
           {/* 도서 목차 */}
-          {book.table_of_contents && (
+          {book.type_meta.table_of_contents && (
             <section>
               <h2 className="text-2xl font-bold mb-6">도서 목차</h2>
               <div className="bg-zinc-900 rounded-lg p-6">
                 <div
-                  className="text-gray-300 leading-relaxed prose prose-invert max-w-none"
-                  dangerouslySetInnerHTML={{ __html: book.table_of_contents }}
+                  className="text-gray-300 leading-relaxed prose prose-invert max-w-none [&_li>p]:my-0"
+                  dangerouslySetInnerHTML={{ __html: book.type_meta.table_of_contents }}
                 />
               </div>
             </section>
@@ -518,18 +501,18 @@ export default function BookDetailPage({ params }: { params: Promise<{ id: strin
               <div className="grid grid-cols-1 md:grid-cols-2">
                 {[
                   { label: "도서명", value: book.title + (book.subtitle ? ` - ${book.subtitle}` : "") },
-                  ...(book.author ? [{ label: "저자", value: book.author }] : []),
-                  ...(book.publisher ? [{ label: "출판사", value: book.publisher }] : []),
-                  ...(book.publish_date ? [{ label: "출판일", value: book.publish_date }] : []),
-                  ...(book.isbn ? [{ label: "ISBN", value: book.isbn }] : []),
-                  ...(book.page_count ? [{ label: "페이지 수", value: `${book.page_count}p` }] : []),
-                  ...(book.book_type ? [{ label: "출판형태", value: book.book_type }] : []),
-                  ...(book.print_color ? [{ label: "인쇄컬러", value: book.print_color }] : []),
-                  ...(book.age_limit ? [{ label: "연령 제한", value: book.age_limit }] : []),
-                  ...(book.size ? [{ label: "사이즈", value: book.size }] : []),
-                  ...(book.published_by ? [{ label: "제조사", value: book.published_by }] : []),
-                  ...(book.distributor ? [{ label: "A/S문의", value: book.distributor }] : []),
-                  ...(book.material ? [{ label: "소재", value: book.material }] : []),
+                  ...(book.type_meta.author ? [{ label: "저자", value: book.type_meta.author }] : []),
+                  ...(book.type_meta.publisher ? [{ label: "출판사", value: book.type_meta.publisher }] : []),
+                  ...(book.type_meta.publish_date ? [{ label: "출판일", value: book.type_meta.publish_date }] : []),
+                  ...(book.type_meta.isbn ? [{ label: "ISBN", value: book.type_meta.isbn }] : []),
+                  ...(book.type_meta.page_count ? [{ label: "페이지 수", value: `${book.type_meta.page_count}p` }] : []),
+                  ...(book.type_meta.book_type ? [{ label: "출판형태", value: book.type_meta.book_type }] : []),
+                  ...(book.type_meta.print_color ? [{ label: "인쇄컬러", value: book.type_meta.print_color }] : []),
+                  ...(book.type_meta.age_limit ? [{ label: "연령 제한", value: book.type_meta.age_limit }] : []),
+                  ...(book.type_meta.size ? [{ label: "사이즈", value: book.type_meta.size }] : []),
+                  ...(book.type_meta.published_by ? [{ label: "제조사", value: book.type_meta.published_by }] : []),
+                  ...(book.type_meta.distributor ? [{ label: "A/S문의", value: book.type_meta.distributor }] : []),
+                  ...(book.type_meta.material ? [{ label: "소재", value: book.type_meta.material }] : []),
                 ].map((item, idx) => (
                   <div
                     key={item.label}

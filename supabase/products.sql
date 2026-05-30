@@ -16,29 +16,29 @@ CREATE TABLE product_categories (
 CREATE TABLE products (
   id SERIAL PRIMARY KEY,
   category_id INTEGER NOT NULL REFERENCES product_categories(id) ON DELETE CASCADE,
-  
+
   -- 목록에 표시할 기본 정보만
   title VARCHAR(255) NOT NULL,
   subtitle VARCHAR(255),
   description TEXT, -- 간단한 설명
   price INTEGER NOT NULL CHECK (price >= 0),
   thumbnail_url TEXT, -- 대표 이미지 URL
-  
+
   -- 표시 옵션
   is_best BOOLEAN DEFAULT FALSE,
   is_active BOOLEAN DEFAULT TRUE,
   display_order INTEGER DEFAULT 0,
-  
+
   -- 통계
   view_count INTEGER DEFAULT 0,
   sales_count INTEGER DEFAULT 0,
   review_count INTEGER DEFAULT 0,
   average_rating DECIMAL(2,1) DEFAULT 0.0,
-  
+
   -- 타임스탬프
   created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-  
+
   CONSTRAINT products_title_key UNIQUE (title)
 );
 
@@ -48,15 +48,15 @@ CREATE TABLE products (
 CREATE TABLE product_details (
   id SERIAL PRIMARY KEY,
   product_id INTEGER NOT NULL REFERENCES products(id) ON DELETE CASCADE,
-  
+
   -- 상세 설명 (HTML 가능)
   detailed_description TEXT,   -- 도서 소개
   author_introduction TEXT,    -- 저자 소개
   table_of_contents TEXT,      -- 도서 목차
-  
+
   -- 가격 정보
   shipping_fee INTEGER NOT NULL DEFAULT 3000 CHECK (shipping_fee >= 0),
-  
+
   -- 도서 관련 정보
   author VARCHAR(255),
   publisher VARCHAR(255),
@@ -72,22 +72,22 @@ CREATE TABLE product_details (
   material VARCHAR(255),
   published_by VARCHAR(255),
   distributor VARCHAR(255),
-  
+
   -- 이미지들 (JSON 배열)
   images JSONB DEFAULT '[]'::jsonb,
   -- 예시: [
   --   {"url": "https://...", "order": 0, "alt": "메인 이미지"},
   --   {"url": "https://...", "order": 1, "alt": "상세 이미지"}
   -- ]
-  
+
   -- 추가 정보
   features TEXT[], -- 특징 배열
   specifications JSONB, -- 스펙 (JSON)
   notes TEXT, -- 주의사항
-  
+
   created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-  
+
   -- product_id는 유니크 (1:1 관계)
   CONSTRAINT product_details_product_id_key UNIQUE (product_id)
 );
@@ -99,16 +99,16 @@ CREATE TABLE product_reviews (
   id SERIAL PRIMARY KEY,
   product_id INTEGER NOT NULL REFERENCES products(id) ON DELETE CASCADE,
   user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
-  
+
   rating INTEGER NOT NULL CHECK (rating >= 1 AND rating <= 5),
   title VARCHAR(255),
   content TEXT NOT NULL,
   images JSONB DEFAULT '[]'::jsonb, -- 리뷰 이미지들
-  
+
   is_verified_purchase BOOLEAN DEFAULT FALSE,
   is_visible BOOLEAN DEFAULT TRUE,
   helpful_count INTEGER DEFAULT 0,
-  
+
   created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
@@ -120,17 +120,17 @@ CREATE TABLE product_qna (
   id SERIAL PRIMARY KEY,
   product_id INTEGER NOT NULL REFERENCES products(id) ON DELETE CASCADE,
   user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
-  
+
   title VARCHAR(255) NOT NULL,
   content TEXT NOT NULL,
   is_private BOOLEAN DEFAULT FALSE,
-  
+
   answer TEXT,
   answered_at TIMESTAMP WITH TIME ZONE,
   answered_by UUID REFERENCES auth.users(id),
-  
+
   view_count INTEGER DEFAULT 0,
-  
+
   created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
@@ -201,21 +201,21 @@ RETURNS TRIGGER AS $$
 BEGIN
   -- 리뷰 통계 업데이트
   UPDATE products
-  SET 
+  SET
     review_count = (
-      SELECT COUNT(*) 
-      FROM product_reviews 
-      WHERE product_id = COALESCE(NEW.product_id, OLD.product_id) 
+      SELECT COUNT(*)
+      FROM product_reviews
+      WHERE product_id = COALESCE(NEW.product_id, OLD.product_id)
         AND is_visible = true
     ),
     average_rating = (
       SELECT COALESCE(ROUND(AVG(rating)::numeric, 1), 0)
-      FROM product_reviews 
-      WHERE product_id = COALESCE(NEW.product_id, OLD.product_id) 
+      FROM product_reviews
+      WHERE product_id = COALESCE(NEW.product_id, OLD.product_id)
         AND is_visible = true
     )
   WHERE id = COALESCE(NEW.product_id, OLD.product_id);
-  
+
   RETURN COALESCE(NEW, OLD);
 END;
 $$ LANGUAGE plpgsql;
@@ -249,7 +249,7 @@ CREATE POLICY "관리자는 모든 상품 관리 가능" ON products FOR ALL USI
 
 -- 상품 상세 RLS
 ALTER TABLE product_details ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "활성 상품 상세는 모두 조회 가능" ON product_details FOR SELECT TO public 
+CREATE POLICY "활성 상품 상세는 모두 조회 가능" ON product_details FOR SELECT TO public
   USING (EXISTS (SELECT 1 FROM products WHERE products.id = product_details.product_id AND products.is_active = true));
 CREATE POLICY "관리자는 모든 상품 상세 관리 가능" ON product_details FOR ALL USING (auth.jwt() ->> 'role' = 'admin');
 
@@ -303,3 +303,67 @@ ALTER TABLE product_details
 ALTER TABLE product_details
   ADD COLUMN IF NOT EXISTS author_introduction TEXT,
   ADD COLUMN IF NOT EXISTS table_of_contents TEXT;
+
+
+
+-- =============================================
+-- 2026-05-30: delivery_type + type_meta 구조 전환
+-- 사전 조건: codes.sql 먼저 실행 (codes 테이블 및 초기 데이터 필요)
+-- =============================================
+
+-- products에 delivery_type 컬럼 추가
+ALTER TABLE products
+  ADD COLUMN IF NOT EXISTS delivery_type VARCHAR(50) NOT NULL DEFAULT 'physical';
+
+COMMENT ON COLUMN products.delivery_type IS 'codes 테이블 DELIVERY_TYPE 그룹의 code 값. codes.sql 참고';
+
+CREATE INDEX IF NOT EXISTS idx_products_delivery_type ON products(delivery_type);
+
+-- product_details에 type_meta 컬럼 추가
+ALTER TABLE product_details
+  ADD COLUMN IF NOT EXISTS type_meta JSONB DEFAULT '{}'::jsonb;
+
+COMMENT ON COLUMN product_details.type_meta IS 'delivery_type별 속성 저장. physical: shipping_fee/author/isbn 등, digital_download: file_url/file_format 등, gifticon: brand/coupon_value 등';
+
+CREATE INDEX IF NOT EXISTS idx_product_details_type_meta ON product_details USING GIN (type_meta);
+
+-- 기존 컬럼 데이터를 type_meta로 마이그레이션
+UPDATE product_details
+SET type_meta = jsonb_strip_nulls(jsonb_build_object(
+  'shipping_fee',        shipping_fee,
+  'author',              author,
+  'publisher',           publisher,
+  'publish_date',        publish_date,
+  'isbn',                isbn,
+  'book_type',           book_type,
+  'print_color',         print_color,
+  'age_limit',           age_limit,
+  'page_count',          page_count,
+  'author_introduction', author_introduction,
+  'table_of_contents',   table_of_contents,
+  'size',                size,
+  'material',            material,
+  'published_by',        published_by,
+  'distributor',         distributor,
+  'specifications',      specifications
+))
+WHERE type_meta = '{}'::jsonb;
+
+-- 기존 타입별 컬럼 제거
+ALTER TABLE product_details
+  DROP COLUMN IF EXISTS shipping_fee,
+  DROP COLUMN IF EXISTS author,
+  DROP COLUMN IF EXISTS publisher,
+  DROP COLUMN IF EXISTS publish_date,
+  DROP COLUMN IF EXISTS isbn,
+  DROP COLUMN IF EXISTS book_type,
+  DROP COLUMN IF EXISTS print_color,
+  DROP COLUMN IF EXISTS age_limit,
+  DROP COLUMN IF EXISTS page_count,
+  DROP COLUMN IF EXISTS author_introduction,
+  DROP COLUMN IF EXISTS table_of_contents,
+  DROP COLUMN IF EXISTS size,
+  DROP COLUMN IF EXISTS material,
+  DROP COLUMN IF EXISTS published_by,
+  DROP COLUMN IF EXISTS distributor,
+  DROP COLUMN IF EXISTS specifications;
