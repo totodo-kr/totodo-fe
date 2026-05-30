@@ -104,7 +104,7 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
-                minLength={6}
+                minLength={1}
                 className="w-full h-12 bg-[#2a2a2a] border border-white/10 rounded-lg px-4 text-white placeholder-gray-500 focus:outline-none focus:border-brand-500 transition-colors"
               />
             </div>
