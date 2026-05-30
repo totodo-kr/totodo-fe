@@ -30,6 +30,7 @@ import Placeholder from "@tiptap/extension-placeholder";
 import { createClient } from "@/utils/supabase/client";
 import { useAuthStore } from "@/store/useAuthStore";
 import clsx from "clsx";
+import PageLoading from "@/components/PageLoading";
 
 export default function EditReviewPage() {
   const router = useRouter();
@@ -154,7 +155,7 @@ export default function EditReviewPage() {
   }
 
   if (isLoading) {
-    return <div className="min-h-screen p-8 text-center text-gray-500">로딩 중...</div>;
+    return <PageLoading />;
   }
 
   return (

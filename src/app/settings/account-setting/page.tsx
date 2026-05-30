@@ -5,6 +5,7 @@ import { Mail, Globe, LogIn } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 import SettingsLayout from "@/components/SettingsLayout";
+import PageLoading from "@/components/PageLoading";
 
 export default function AccountSettingPage() {
   const { user, isLoading } = useAuthStore();
@@ -25,7 +26,7 @@ export default function AccountSettingPage() {
   };
 
   if (isLoading) {
-    return <div className="min-h-screen text-center">Loading...</div>;
+    return <PageLoading variant="top" />;
   }
 
   if (!user) return null;

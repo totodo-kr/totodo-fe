@@ -2,13 +2,14 @@
 
 import { useParams } from "next/navigation";
 import { useLecture } from "@/hooks/useLecture";
+import LoadingSpinner from "@/components/LoadingSpinner";
 
 export default function InformationPage() {
   const params = useParams();
   const { lecture, loading } = useLecture(params.id);
 
   if (loading) {
-    return <p className="text-gray-500">로딩 중...</p>;
+    return <LoadingSpinner />;
   }
 
   const paragraphs = lecture?.description?.split("\n\n").filter(Boolean) ?? [];

@@ -5,6 +5,7 @@ import { ShieldCheck } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 import SettingsLayout from "@/components/SettingsLayout";
+import PageLoading from "@/components/PageLoading";
 
 export default function CertifyPage() {
   const { user, isLoading } = useAuthStore();
@@ -23,7 +24,7 @@ export default function CertifyPage() {
   };
 
   if (isLoading) {
-    return <div className="min-h-screen text-center">Loading...</div>;
+    return <PageLoading variant="top" />;
   }
 
   if (!user) return null;

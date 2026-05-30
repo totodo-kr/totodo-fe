@@ -3,6 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useMyPurchasedLectures } from "@/hooks/useLecture";
+import LoadingSpinner from "@/components/LoadingSpinner";
 
 export default function PurchasedPage() {
   const { lectures, loading } = useMyPurchasedLectures();
@@ -12,9 +13,7 @@ export default function PurchasedPage() {
       <h1 className="text-4xl font-bold text-white mb-12">구매한 클래스</h1>
 
       {loading ? (
-        <div className="flex items-center justify-center py-24">
-          <p className="text-gray-500">로딩 중...</p>
-        </div>
+        <LoadingSpinner className="py-24" />
       ) : lectures.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-24">
           <p className="text-gray-500 text-center">구매한 클래스가 없습니다.</p>

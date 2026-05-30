@@ -4,6 +4,7 @@ import { useAuthStore } from "@/store/useAuthStore";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 import SettingsLayout from "@/components/SettingsLayout";
+import PageLoading from "@/components/PageLoading";
 
 export default function MyMembershipPage() {
   const { user, isLoading } = useAuthStore();
@@ -17,7 +18,7 @@ export default function MyMembershipPage() {
   }, [user, isLoading, router]);
 
   if (isLoading) {
-    return <div className="min-h-screen pt-24 text-center">Loading...</div>;
+    return <PageLoading variant="top" />;
   }
 
   if (!user) return null;

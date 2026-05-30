@@ -6,6 +6,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createClient } from "@/utils/supabase/client";
 import { useAuthStore } from "@/store/useAuthStore";
 import { useProfile } from "@/hooks/useProfile";
+import PageLoading from "@/components/PageLoading";
 
 interface FaqDetail {
   id: string;
@@ -114,7 +115,7 @@ export default function FAQDetailPage() {
   };
 
   if (loading) {
-    return <div className="min-h-screen p-8 text-center text-gray-500">로딩 중...</div>;
+    return <PageLoading />;
   }
 
   if (!faq) {

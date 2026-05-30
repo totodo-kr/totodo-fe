@@ -5,6 +5,7 @@ import { Ticket } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import SettingsLayout from "@/components/SettingsLayout";
+import PageLoading from "@/components/PageLoading";
 
 export default function MyCouponsPage() {
   const { user, isLoading } = useAuthStore();
@@ -19,7 +20,7 @@ export default function MyCouponsPage() {
   }, [user, isLoading, router]);
 
   if (isLoading) {
-    return <div className="min-h-screen pt-24 text-center">Loading...</div>;
+    return <PageLoading variant="top" />;
   }
 
   if (!user) return null;

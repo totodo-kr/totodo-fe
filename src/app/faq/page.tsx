@@ -7,6 +7,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useFaqs } from "@/hooks/useFaqs";
 import { useAuthStore } from "@/store/useAuthStore";
 import { useProfile } from "@/hooks/useProfile";
+import LoadingSpinner from "@/components/LoadingSpinner";
 
 function FAQContent() {
   const searchParams = useSearchParams();
@@ -71,7 +72,7 @@ function FAQContent() {
       {/* FAQ List */}
       <div className="flex flex-col min-h-[500px] gap-3">
         {loading ? (
-          <div className="flex-1 flex justify-center items-center text-gray-500">로딩 중...</div>
+          <LoadingSpinner className="flex-1 py-24" />
         ) : faqs.length === 0 ? (
           <div className="text-center py-20 text-gray-500">게시글이 없습니다.</div>
         ) : (
@@ -148,7 +149,7 @@ function FAQContent() {
 export default function FAQPage() {
   return (
     <main className="min-h-screen p-8 mx-auto">
-      <Suspense fallback={<div className="text-center py-20 text-gray-500">로딩 중...</div>}>
+      <Suspense fallback={<LoadingSpinner className="py-20" />}>
         <FAQContent />
       </Suspense>
     </main>

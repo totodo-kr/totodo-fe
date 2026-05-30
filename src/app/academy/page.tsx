@@ -3,6 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useLectures } from "@/hooks/useLecture";
+import LoadingSpinner from "@/components/LoadingSpinner";
 
 export default function AcademyPage() {
   const { lectures, loading } = useLectures();
@@ -10,9 +11,7 @@ export default function AcademyPage() {
   return (
     <main className="min-h-screen p-8">
       {loading ? (
-        <div className="flex items-center justify-center py-24">
-          <p className="text-gray-500">로딩 중...</p>
-        </div>
+        <LoadingSpinner className="py-24" />
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8 w-full mx-auto">
           {lectures.map((lecture) => (

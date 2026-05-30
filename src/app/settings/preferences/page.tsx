@@ -5,6 +5,7 @@ import { ChevronDown } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import SettingsLayout from "@/components/SettingsLayout";
+import PageLoading from "@/components/PageLoading";
 
 export default function PreferencesPage() {
   const { user, isLoading } = useAuthStore();
@@ -22,7 +23,7 @@ export default function PreferencesPage() {
   }, [user, isLoading, router]);
 
   if (isLoading) {
-    return <div className="min-h-screen pt-24 text-center">Loading...</div>;
+    return <PageLoading variant="top" />;
   }
 
   if (!user) return null;

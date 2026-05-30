@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useState, useEffect, useRef } from "react";
 import { Heart, Share2, ChevronLeft, ChevronRight } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
+import PageLoading from "@/components/PageLoading";
 
 interface PhysicalBookMeta {
   shipping_fee?: number;
@@ -224,16 +225,8 @@ export default function BookDetailPage({ params }: { params: Promise<{ id: strin
     setActiveTab(sectionId);
   };
 
-  // 로딩 상태
   if (loading) {
-    return (
-      <main className="min-h-screen bg-black text-white flex items-center justify-center">
-        <div className="text-center">
-          <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-brand-500 border-r-transparent"></div>
-          <p className="mt-4 text-gray-400">상품 정보를 불러오는 중...</p>
-        </div>
-      </main>
-    );
+    return <PageLoading />;
   }
 
   // 에러 상태

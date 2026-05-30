@@ -6,6 +6,7 @@ import { useEffect, useMemo, useState } from "react";
 import { createClient } from "@/utils/supabase/client";
 import { useAuthStore } from "@/store/useAuthStore";
 import { useProfile } from "@/hooks/useProfile";
+import PageLoading from "@/components/PageLoading";
 
 export default function FAQWritePage() {
   const router = useRouter();
@@ -76,7 +77,7 @@ export default function FAQWritePage() {
   };
 
   if (profileLoading || (user && !profile)) {
-    return <div className="min-h-screen p-8 text-center text-gray-500">로딩 중...</div>;
+    return <PageLoading />;
   }
 
   if (!user || !isAdmin) {

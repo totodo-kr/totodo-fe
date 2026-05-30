@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useSearchParams, useRouter } from "next/navigation";
 import { useReviews, Review } from "@/hooks/useReviews";
 import { useEffect, Suspense } from "react";
+import LoadingSpinner from "@/components/LoadingSpinner";
 
 function ReviewsContent() {
   const searchParams = useSearchParams();
@@ -83,7 +84,7 @@ function ReviewsContent() {
       {/* Review List */}
       <div className="flex flex-col min-h-[500px]">
         {loading ? (
-          <div className="flex-1 flex justify-center items-center text-gray-500">로딩 중...</div>
+          <LoadingSpinner className="flex-1 py-24" />
         ) : (
           <>
             {/* Pinned Reviews */}
@@ -196,7 +197,7 @@ function ReviewsContent() {
 export default function ReviewsPage() {
   return (
     <main className="min-h-screen p-8 mx-auto">
-      <Suspense fallback={<div className="text-center py-20 text-gray-500">로딩 중...</div>}>
+      <Suspense fallback={<LoadingSpinner className="py-20" />}>
         <ReviewsContent />
       </Suspense>
     </main>

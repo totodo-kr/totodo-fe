@@ -4,6 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { createClient } from "@/utils/supabase/client";
+import PageLoading from "@/components/PageLoading";
 
 interface Product {
   id: number;
@@ -97,16 +98,7 @@ export default function ShopBooksPage() {
   }, []);
 
   if (loading) {
-    return (
-      <main className="min-h-screen p-8">
-        <div className="flex items-center justify-center min-h-[400px]">
-          <div className="text-center">
-            <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-brand-500 border-r-transparent"></div>
-            <p className="mt-4 text-gray-400">상품을 불러오는 중...</p>
-          </div>
-        </div>
-      </main>
-    );
+    return <PageLoading />;
   }
 
   if (error) {

@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import { useLectureChapters, formatDuration } from "@/hooks/useLecture";
+import LoadingSpinner from "@/components/LoadingSpinner";
 
 export default function ChaptersPage() {
   const params = useParams();
@@ -17,7 +18,7 @@ export default function ChaptersPage() {
   };
 
   if (loading) {
-    return <p className="text-gray-500">로딩 중...</p>;
+    return <LoadingSpinner />;
   }
 
   return (

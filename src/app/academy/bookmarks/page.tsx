@@ -4,6 +4,7 @@ import AuthGuard from "@/components/AuthGuard";
 import Image from "next/image";
 import Link from "next/link";
 import { useMyBookmarks } from "@/hooks/useLecture";
+import LoadingSpinner from "@/components/LoadingSpinner";
 
 export default function BookmarksPage() {
   const { lectures, loading } = useMyBookmarks();
@@ -14,9 +15,7 @@ export default function BookmarksPage() {
         <h1 className="text-3xl font-bold mb-8 text-white">나의 북마크</h1>
 
         {loading ? (
-          <div className="flex items-center justify-center py-24">
-            <p className="text-gray-500">로딩 중...</p>
-          </div>
+          <LoadingSpinner className="py-24" />
         ) : lectures.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-24">
             <p className="text-gray-500 text-center">저장된 북마크가 없습니다.</p>

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useParams } from "next/navigation";
 import { useBoardPosts } from "@/hooks/useLecture";
+import LoadingSpinner from "@/components/LoadingSpinner";
 
 export default function BoardPage() {
   const params = useParams();
@@ -16,7 +17,7 @@ export default function BoardPage() {
   };
 
   if (loading) {
-    return <p className="text-gray-500">로딩 중...</p>;
+    return <LoadingSpinner />;
   }
 
   return (

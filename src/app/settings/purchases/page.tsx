@@ -5,6 +5,7 @@ import { Receipt } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import SettingsLayout from "@/components/SettingsLayout";
+import PageLoading from "@/components/PageLoading";
 
 type TabType = "all" | "regular" | "point";
 
@@ -21,7 +22,7 @@ export default function PurchasesPage() {
   }, [user, isLoading, router]);
 
   if (isLoading) {
-    return <div className="min-h-screen pt-24 text-center">Loading...</div>;
+    return <PageLoading variant="top" />;
   }
 
   if (!user) return null;

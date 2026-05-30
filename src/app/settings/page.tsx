@@ -5,6 +5,7 @@ import { createClient } from "@/utils/supabase/client";
 import { ChevronRight, User as UserIcon } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
+import PageLoading from "@/components/PageLoading";
 
 export default function SettingsPage() {
   const { user, isLoading } = useAuthStore();
@@ -24,7 +25,7 @@ export default function SettingsPage() {
   };
 
   if (isLoading) {
-    return <div className="min-h-screen pt-24 text-center">Loading...</div>;
+    return <PageLoading variant="top" />;
   }
 
   if (!user) return null;
