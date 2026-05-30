@@ -28,6 +28,7 @@ interface Props {
   onClose: () => void;
   onMarkAsRead: (id: string) => void;
   onMarkAllAsRead: () => void;
+  placement?: "bottom" | "top";
 }
 
 export default function NotificationDropdown({
@@ -36,10 +37,14 @@ export default function NotificationDropdown({
   onClose,
   onMarkAsRead,
   onMarkAllAsRead,
+  placement = "bottom",
 }: Props) {
   return (
     <div
-      className="absolute right-0 top-full mt-2 w-80 bg-[#1a1a1a] border border-white/10 rounded-xl shadow-2xl overflow-hidden z-50"
+      className={clsx(
+        "absolute right-0 w-80 bg-[#1a1a1a] border border-white/10 rounded-xl shadow-2xl overflow-hidden z-50",
+        placement === "bottom" ? "top-full mt-2" : "bottom-full mb-2"
+      )}
     >
       {/* 헤더 */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-white/10 bg-[#1a1a1a]">

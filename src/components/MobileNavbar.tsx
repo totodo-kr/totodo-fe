@@ -21,14 +21,23 @@ export default function MobileNavbar() {
   const { notifications, loading, unreadCount, markAsRead, markAllAsRead } = useNotifications(user);
 
   useEffect(() => {
-    function handleClickOutside(e: MouseEvent) {
+    function handleClickOutside(e: MouseEvent | TouchEvent) {
       if (notificationRef.current && !notificationRef.current.contains(e.target as Node)) {
         setIsNotificationOpen(false);
       }
     }
     document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
+    document.addEventListener("touchstart", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("touchstart", handleClickOutside);
+    };
   }, []);
+
+  // 사이드바 닫힐 때 알림도 닫기
+  useEffect(() => {
+    if (!isSidebarOpen) setIsNotificationOpen(false);
+  }, [isSidebarOpen]);
 
   // Listen for data-hide-navbar attribute changes
   useEffect(() => {
@@ -92,7 +101,7 @@ export default function MobileNavbar() {
       {isSidebarOpen && (
         <div
           className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40"
-          onClick={() => setIsSidebarOpen(false)}
+          onClick={() => { setIsSidebarOpen(false); setIsNotificationOpen(false); }}
         />
       )}
 
@@ -139,33 +148,56 @@ export default function MobileNavbar() {
           </nav>
 
           {/* 사이드바 하단 (로그인/프로필) */}
-          <div className="px-4 border-t border-white/10">
+          <div className="px-4 py-2 border-t border-white/10">
             {user ? (
-              <Link
-                href="/settings"
-                onClick={() => setIsSidebarOpen(false)}
-                className="flex items-center gap-3 p-3 rounded-lg hover:bg-white/5 transition-colors"
-              >
-                <div className="w-10 h-10 rounded-full bg-gray-800 overflow-hidden border border-white/10 flex items-center justify-center">
-                  {user.user_metadata?.avatar_url ? (
-                    <img
-                      src={user.user_metadata.avatar_url}
-                      alt="Profile"
-                      className="w-full h-full object-cover"
-                    />
-                  ) : (
-                    <UserIcon size={20} className="text-gray-400" />
-                  )}
-                </div>
-                <div className="flex flex-col">
-                  <span className="text-white font-medium">
+              <div className="flex items-center gap-1 p-1">
+                <Link
+                  href="/settings"
+                  onClick={() => setIsSidebarOpen(false)}
+                  className="flex items-center gap-3 flex-1 min-w-0 px-2 py-2 rounded-lg hover:bg-white/5 transition-colors"
+                >
+                  <div className="w-10 h-10 rounded-full bg-gray-800 overflow-hidden border border-white/10 flex items-center justify-center shrink-0">
+                    {user.user_metadata?.avatar_url ? (
+                      <img
+                        src={user.user_metadata.avatar_url}
+                        alt="Profile"
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <UserIcon size={20} className="text-gray-400" />
+                    )}
+                  </div>
+                  <span className="text-white font-medium truncate">
                     {user.user_metadata?.full_name ||
                       user.user_metadata?.name ||
                       user.email?.split("@")[0] ||
                       "사용자"}
                   </span>
+                </Link>
+                <div ref={notificationRef} className="relative flex items-center shrink-0">
+                  <button
+                    onClick={() => setIsNotificationOpen((prev) => !prev)}
+                    className="relative text-gray-400 hover:text-white hover:bg-white/5 transition-colors p-2 rounded-lg"
+                  >
+                    <Bell size={20} />
+                    {unreadCount > 0 && (
+                      <span className="absolute -top-1 -right-1 w-4 h-4 bg-brand-500 rounded-full text-[10px] text-white flex items-center justify-center font-bold">
+                        {unreadCount > 9 ? "9+" : unreadCount}
+                      </span>
+                    )}
+                  </button>
+                  {isNotificationOpen && (
+                    <NotificationDropdown
+                      notifications={notifications}
+                      loading={loading}
+                      placement="top"
+                      onClose={() => setIsNotificationOpen(false)}
+                      onMarkAsRead={markAsRead}
+                      onMarkAllAsRead={markAllAsRead}
+                    />
+                  )}
                 </div>
-              </Link>
+              </div>
             ) : (
               <button
                 onClick={() => {
@@ -248,45 +280,7 @@ export default function MobileNavbar() {
                 </>
               ) : (
                 <>
-                  {user ? (
-                    <>
-                      <div ref={notificationRef} className="relative flex items-center">
-                        <button
-                          onClick={() => setIsNotificationOpen((prev) => !prev)}
-                          className="relative text-gray-400 hover:text-white transition-colors"
-                        >
-                          <Bell size={20} />
-                          {unreadCount > 0 && (
-                            <span className="absolute -top-1 -right-1 w-4 h-4 bg-brand-500 rounded-full text-[10px] text-white flex items-center justify-center font-bold">
-                              {unreadCount > 9 ? "9+" : unreadCount}
-                            </span>
-                          )}
-                        </button>
-                        {isNotificationOpen && (
-                          <NotificationDropdown
-                            notifications={notifications}
-                            loading={loading}
-                            onClose={() => setIsNotificationOpen(false)}
-                            onMarkAsRead={markAsRead}
-                            onMarkAllAsRead={markAllAsRead}
-                          />
-                        )}
-                      </div>
-                      <Link href="/settings">
-                        <div className="w-8 h-8 rounded-full bg-gray-800 overflow-hidden border border-white/10 flex items-center justify-center cursor-pointer hover:border-brand-500 transition-colors">
-                          {user.user_metadata?.avatar_url ? (
-                            <img
-                              src={user.user_metadata.avatar_url}
-                              alt="Profile"
-                              className="w-full h-full object-cover"
-                            />
-                          ) : (
-                            <UserIcon size={16} className="text-gray-400" />
-                          )}
-                        </div>
-                      </Link>
-                    </>
-                  ) : (
+                  {!user && (
                     <button
                       onClick={() => setIsModalOpen(true)}
                       className="px-3 py-1.5 bg-white text-brand-500 rounded-lg font-bold text-xs hover:bg-gray-100 transition-colors"
