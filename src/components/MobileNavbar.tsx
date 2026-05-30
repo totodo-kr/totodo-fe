@@ -78,7 +78,7 @@ export default function MobileNavbar() {
   const subMenus: Record<string, { name: string; href: string }[]> = {
     "/academy": [
       { name: "홈", href: "/academy" },
-      { name: "내 강의실", href: "/academy/my-classroom" },
+      { name: "내 강의실", href: "/academy/my-lectures" },
       { name: "나의 북마크", href: "/academy/bookmarks" },
     ],
     "/shop": [

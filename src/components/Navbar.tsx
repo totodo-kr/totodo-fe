@@ -55,7 +55,7 @@ export default function Navbar() {
   const subMenus: Record<string, { name: string; href: string }[]> = {
     "/academy": [
       { name: "홈", href: "/academy" },
-      { name: "내 강의실", href: "/academy/my-classroom" },
+      { name: "내 강의실", href: "/academy/my-lectures" },
       { name: "나의 북마크", href: "/academy/bookmarks" },
     ],
     "/shop": [
@@ -66,8 +66,6 @@ export default function Navbar() {
   };
 
   // 현재 경로에 맞는 서브 메뉴 찾기
-  // 단순히 pathname과 일치하는 키를 찾는 것이 아니라, pathname이 키로 시작하는지 확인해야 함
-  // 예: /academy/my-classroom 에서도 /academy 탭이 보여야 함
   const activeSubMenuKey = Object.keys(subMenus).find((key) => pathname.startsWith(key));
   const currentSubMenus = activeSubMenuKey ? subMenus[activeSubMenuKey] : null;
 

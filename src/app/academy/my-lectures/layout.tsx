@@ -4,12 +4,12 @@ import AuthGuard from "@/components/AuthGuard";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
-export default function MyClassroomLayout({ children }: { children: React.ReactNode }) {
+export default function MyLecturesLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
 
   const tabs = [
-    { label: "수강 중", path: "/academy/my-classroom/ongoing" },
-    { label: "구매한 클래스", path: "/academy/my-classroom/purchased" },
+    { label: "수강 중", path: "/academy/my-lectures/ongoing" },
+    { label: "구매한 클래스", path: "/academy/my-lectures/purchased" },
   ];
 
   const isActive = (path: string) => pathname === path;
@@ -17,9 +17,7 @@ export default function MyClassroomLayout({ children }: { children: React.ReactN
   return (
     <AuthGuard>
       <main className="min-h-screen bg-black">
-        {/* Content Section */}
         <div className="flex gap-8 px-8 pb-16 pt-8">
-          {/* Left Sidebar - Tabs */}
           <aside className="w-[200px] shrink-0">
             <nav className="sticky top-8 flex flex-col gap-2">
               {tabs.map((tab) => (
@@ -37,8 +35,6 @@ export default function MyClassroomLayout({ children }: { children: React.ReactN
               ))}
             </nav>
           </aside>
-
-          {/* Right Content */}
           <div className="flex-1 max-w-[900px]">{children}</div>
         </div>
       </main>

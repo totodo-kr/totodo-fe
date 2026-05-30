@@ -114,7 +114,7 @@ export default function WatchPage() {
           >
             <div className="pl-4 py-4">
               <button
-                onClick={() => router.push(`/academy/${courseId}/curriculums`)}
+                onClick={() => router.push(`/academy/${courseId}/chapters`)}
                 className="flex items-center gap-2 text-white hover:text-brand-500 transition-colors"
               >
                 <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">

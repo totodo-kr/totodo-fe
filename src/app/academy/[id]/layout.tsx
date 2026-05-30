@@ -3,48 +3,41 @@
 import { useParams, usePathname } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
+import { useLecture } from "@/hooks/useLecture";
 
-export default function CourseLayout({ children }: { children: React.ReactNode }) {
+export default function LectureLayout({ children }: { children: React.ReactNode }) {
   const params = useParams();
   const pathname = usePathname();
-  const courseId = params.id;
+  const lectureId = params.id;
 
-  // watch 페이지에서는 레이아웃 없이 children만 렌더링
   const isWatchPage = pathname?.includes("/session/");
+  const { lecture } = useLecture(lectureId);
 
   if (isWatchPage) {
     return <>{children}</>;
   }
 
-  // 임시 데이터
-  const courseData = {
-    id: courseId,
-    title: "오레노 니홍고",
-    instructor: "도도토",
-    image:
-      "https://images.unsplash.com/photo-1528164344705-47542687000d?q=80&w=2992&auto=format&fit=crop",
-  };
-
   const tabs = [
-    { path: `/academy/${courseId}/information`, label: "강의 소개" },
-    { path: `/academy/${courseId}/curriculums`, label: "목차" },
-    { path: `/academy/${courseId}/notices`, label: "강의 공지" },
-    { path: `/academy/${courseId}/board`, label: "마호 칼럼" },
+    { path: `/academy/${lectureId}/information`, label: "강의 소개" },
+    { path: `/academy/${lectureId}/chapters`, label: "목차" },
+    { path: `/academy/${lectureId}/notices`, label: "강의 공지" },
+    { path: `/academy/${lectureId}/board`, label: "마호 칼럼" },
   ];
 
   const isActive = (path: string) => pathname === path;
 
   return (
     <div className="min-h-screen">
-      {/* Hero Section */}
       <div className="relative w-full h-[400px] mb-8">
-        <Image
-          src={courseData.image}
-          alt={courseData.title}
-          fill
-          className="object-cover"
-          priority
-        />
+        {lecture?.thumbnail_url && (
+          <Image
+            src={lecture.thumbnail_url}
+            alt={lecture.title}
+            fill
+            className="object-cover"
+            priority
+          />
+        )}
         <div className="absolute inset-0 bg-gradient-to-t from-black via-black/50 to-transparent" />
         <div className="absolute bottom-0 left-0 right-0 p-8">
           <div className="max-w-[1200px] mx-auto">
@@ -56,15 +49,13 @@ export default function CourseLayout({ children }: { children: React.ReactNode }
                 북마크
               </button>
             </div>
-            <h1 className="text-4xl font-bold text-white mb-2">{courseData.title}</h1>
-            <p className="text-gray-300 text-sm">도도토</p>
+            <h1 className="text-4xl font-bold text-white mb-2">{lecture?.title}</h1>
+            <p className="text-gray-300 text-sm">{lecture?.instructor_name}</p>
           </div>
         </div>
       </div>
 
-      {/* Content Section */}
       <div className="flex gap-8 px-8 pb-16">
-        {/* Left Sidebar - Tabs */}
         <aside className="w-[200px] shrink-0">
           <nav className="sticky top-8 flex flex-col gap-2">
             {tabs.map((tab) => (
@@ -82,8 +73,6 @@ export default function CourseLayout({ children }: { children: React.ReactNode }
             ))}
           </nav>
         </aside>
-
-        {/* Right Content */}
         <div className="flex-1 max-w-[900px]">{children}</div>
       </div>
     </div>
