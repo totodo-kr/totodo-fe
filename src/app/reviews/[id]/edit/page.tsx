@@ -19,7 +19,7 @@ import {
   Redo,
 } from "lucide-react";
 import { useRouter, useParams } from "next/navigation";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useEditor, EditorContent } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import ImageExtension from "@tiptap/extension-image";
@@ -40,6 +40,7 @@ export default function EditReviewPage() {
   const [title, setTitle] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const hasFetched = useRef(false);
 
   const supabase = createClient();
 
@@ -68,6 +69,8 @@ export default function EditReviewPage() {
 
   const fetchReview = useCallback(async () => {
     if (!id) return;
+    if (hasFetched.current) return;
+    hasFetched.current = true;
     if (!user) {
       alert("로그인이 필요합니다.");
       router.push("/reviews");
