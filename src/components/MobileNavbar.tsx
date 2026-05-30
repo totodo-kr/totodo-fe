@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { clsx } from "clsx";
 import { Bell, User as UserIcon, Menu, X, Heart, ShoppingCart } from "lucide-react";
 import { useAuthStore } from "@/store/useAuthStore";
@@ -16,8 +16,19 @@ export default function MobileNavbar() {
   const [isHidden, setIsHidden] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isNotificationOpen, setIsNotificationOpen] = useState(false);
+  const notificationRef = useRef<HTMLDivElement>(null);
   const { user } = useAuthStore();
-  const { notifications, loading, unreadCount, markAllAsRead } = useNotifications(user);
+  const { notifications, loading, unreadCount, markAsRead, markAllAsRead } = useNotifications(user);
+
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (notificationRef.current && !notificationRef.current.contains(e.target as Node)) {
+        setIsNotificationOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   // Listen for data-hide-navbar attribute changes
   useEffect(() => {
@@ -239,7 +250,7 @@ export default function MobileNavbar() {
                 <>
                   {user ? (
                     <>
-                      <div className="relative flex items-center">
+                      <div ref={notificationRef} className="relative flex items-center">
                         <button
                           onClick={() => setIsNotificationOpen((prev) => !prev)}
                           className="relative text-gray-400 hover:text-white transition-colors"
@@ -256,6 +267,7 @@ export default function MobileNavbar() {
                             notifications={notifications}
                             loading={loading}
                             onClose={() => setIsNotificationOpen(false)}
+                            onMarkAsRead={markAsRead}
                             onMarkAllAsRead={markAllAsRead}
                           />
                         )}

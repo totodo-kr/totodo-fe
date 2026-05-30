@@ -35,6 +35,11 @@ export function useNotifications(user: User | null) {
     }
   }, [user]);
 
+  const markAsRead = useCallback(async (id: string) => {
+    await supabase.from("notifications").update({ is_read: true }).eq("id", id);
+    setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, is_read: true } : n)));
+  }, []);
+
   const markAllAsRead = useCallback(async () => {
     if (!user) return;
     await supabase
@@ -51,5 +56,5 @@ export function useNotifications(user: User | null) {
 
   const unreadCount = notifications.filter((n) => !n.is_read).length;
 
-  return { notifications, loading, unreadCount, refetch: fetchNotifications, markAllAsRead };
+  return { notifications, loading, unreadCount, refetch: fetchNotifications, markAsRead, markAllAsRead };
 }

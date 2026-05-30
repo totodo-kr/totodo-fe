@@ -1,6 +1,5 @@
 "use client";
 
-import { useEffect, useRef } from "react";
 import { clsx } from "clsx";
 import { Notification } from "@/hooks/useNotifications";
 
@@ -27,6 +26,7 @@ interface Props {
   notifications: Notification[];
   loading: boolean;
   onClose: () => void;
+  onMarkAsRead: (id: string) => void;
   onMarkAllAsRead: () => void;
 }
 
@@ -34,23 +34,11 @@ export default function NotificationDropdown({
   notifications,
   loading,
   onClose,
+  onMarkAsRead,
   onMarkAllAsRead,
 }: Props) {
-  const ref = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    function handleClickOutside(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) {
-        onClose();
-      }
-    }
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [onClose]);
-
   return (
     <div
-      ref={ref}
       className="absolute right-0 top-full mt-2 w-80 bg-[#1a1a1a] border border-white/10 rounded-xl shadow-2xl overflow-hidden z-50"
     >
       {/* 헤더 */}
@@ -80,9 +68,12 @@ export default function NotificationDropdown({
           notifications.map((notification) => (
             <div
               key={notification.id}
+              onClick={() => !notification.is_read && onMarkAsRead(notification.id)}
               className={clsx(
-                "px-4 py-3 border-b border-white/5 hover:bg-white/5 transition-colors",
-                !notification.is_read && "bg-brand-500/5"
+                "px-4 py-3 border-b border-white/5 transition-colors",
+                !notification.is_read
+                  ? "bg-brand-500/5 hover:bg-brand-500/10 cursor-pointer"
+                  : "hover:bg-white/5"
               )}
             >
               <div className="flex items-start gap-2">
