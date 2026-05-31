@@ -17,12 +17,13 @@ import {
   Quote,
   Undo,
   Redo,
+  Loader2,
 } from "lucide-react";
 import { useRouter, useParams } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useEditor, EditorContent } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
-import ImageExtension from "@tiptap/extension-image";
+import { ResizableImage } from "@/components/ResizableImage";
 import LinkExtension from "@tiptap/extension-link";
 import TextAlign from "@tiptap/extension-text-align";
 import UnderlineExtension from "@tiptap/extension-underline";
@@ -41,7 +42,9 @@ export default function EditReviewPage() {
   const [title, setTitle] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
   const hasFetched = useRef(false);
+  const imageInputRef = useRef<HTMLInputElement>(null);
 
   const supabase = createClient();
 
@@ -49,7 +52,7 @@ export default function EditReviewPage() {
     immediatelyRender: false,
     extensions: [
       StarterKit,
-      ImageExtension,
+      ResizableImage,
       LinkExtension.configure({
         openOnClick: false,
       }),
@@ -67,6 +70,47 @@ export default function EditReviewPage() {
       },
     },
   });
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    e.target.value = "";
+
+    if (!file.type.startsWith("image/")) {
+      alert("이미지 파일만 첨부 가능합니다.");
+      return;
+    }
+
+    setIsUploadingImage(true);
+    try {
+      const fileExt = file.name.split(".").pop();
+      const fileName = `review-images/${user?.id}/${Math.random()}.${fileExt}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from("totodo_pub_storage")
+        .upload(fileName, file);
+
+      if (uploadError) throw uploadError;
+
+      const { data: { publicUrl } } = supabase.storage
+        .from("totodo_pub_storage")
+        .getPublicUrl(fileName);
+
+      editor?.chain().focus().insertContent({ type: "image", attrs: { src: publicUrl } }).run();
+      await supabase.from("review_attachments").insert({
+        review_id: parseInt(id),
+        file_url: publicUrl,
+        file_name: file.name,
+        file_size: file.size,
+        file_type: file.type,
+      });
+    } catch (error) {
+      console.error(error);
+      alert("이미지 업로드 중 오류가 발생했습니다.");
+    } finally {
+      setIsUploadingImage(false);
+    }
+  };
 
   const fetchReview = useCallback(async () => {
     if (!id) return;
@@ -276,12 +320,16 @@ export default function EditReviewPage() {
                 isActive={editor.isActive("link")}
                 icon={<LinkIcon className="w-4 h-4" />}
               />
+              <input
+                type="file"
+                ref={imageInputRef}
+                onChange={handleImageUpload}
+                accept="image/*"
+                className="hidden"
+              />
               <ToolbarButton
-                onClick={() => {
-                  const url = window.prompt("이미지 URL을 입력하세요");
-                  if (url) editor.chain().focus().setImage({ src: url }).run();
-                }}
-                icon={<ImageIcon className="w-4 h-4" />}
+                onClick={() => imageInputRef.current?.click()}
+                icon={isUploadingImage ? <Loader2 className="w-4 h-4 animate-spin" /> : <ImageIcon className="w-4 h-4" />}
               />
               <ToolbarButton
                 onClick={() => editor.chain().focus().toggleBlockquote().run()}

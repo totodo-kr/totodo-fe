@@ -13,6 +13,7 @@ export interface Review {
     name: string | null;
   } | null;
   review_comments: { count: number }[];
+  review_attachments: { count: number }[];
 }
 
 const ITEMS_PER_PAGE = 10;
@@ -39,7 +40,8 @@ export function useReviews(initialPage: number = 1) {
             `
             *,
             profiles:user_id (display_name, name),
-            review_comments (count)
+            review_comments (count),
+            review_attachments (count)
           `
           )
           .eq("is_pinned", true)
@@ -62,7 +64,8 @@ export function useReviews(initialPage: number = 1) {
           `
           *,
           profiles:user_id (display_name, name),
-          review_comments (count)
+          review_comments (count),
+          review_attachments (count)
         `,
           { count: "exact" }
         )

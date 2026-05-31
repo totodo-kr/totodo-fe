@@ -1,30 +1,29 @@
 "use client";
 
-import { 
-  ChevronLeft, 
-  Bold, 
-  Italic, 
-  Underline, 
-  Strikethrough, 
-  AlignLeft, 
-  AlignCenter, 
-  AlignRight, 
+import {
+  ChevronLeft,
+  Bold,
+  Italic,
+  Underline,
+  Strikethrough,
+  AlignLeft,
+  AlignCenter,
+  AlignRight,
   AlignJustify,
-  List, 
-  ListOrdered, 
-  Image as ImageIcon, 
-  Link as LinkIcon, 
+  List,
+  ListOrdered,
+  Image as ImageIcon,
+  Link as LinkIcon,
   Quote,
-  Undo, 
+  Undo,
   Redo,
-  Plus,
-  X
+  Loader2,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useState, useCallback, useRef } from "react";
+import { useState, useRef } from "react";
 import { useEditor, EditorContent } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
-import ImageExtension from "@tiptap/extension-image";
+import { ResizableImage } from "@/components/ResizableImage";
 import LinkExtension from "@tiptap/extension-link";
 import TextAlign from "@tiptap/extension-text-align";
 import UnderlineExtension from "@tiptap/extension-underline";
@@ -38,8 +37,9 @@ export default function WriteReviewPage() {
   const { user } = useAuthStore();
   const [title, setTitle] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [files, setFiles] = useState<File[]>([]);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
+  const [uploadedImages, setUploadedImages] = useState<{ url: string; name: string; size: number; type: string }[]>([]);
+  const imageInputRef = useRef<HTMLInputElement>(null);
 
   const supabase = createClient();
 
@@ -47,7 +47,7 @@ export default function WriteReviewPage() {
     immediatelyRender: false,
     extensions: [
       StarterKit,
-      ImageExtension,
+      ResizableImage,
       LinkExtension.configure({
         openOnClick: false,
       }),
@@ -66,19 +66,39 @@ export default function WriteReviewPage() {
     },
   });
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files) {
-      const newFiles = Array.from(e.target.files);
-      if (files.length + newFiles.length > 5) {
-        alert("파일은 최대 5개까지 첨부 가능합니다.");
-        return;
-      }
-      setFiles((prev) => [...prev, ...newFiles]);
-    }
-  };
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    e.target.value = "";
 
-  const removeFile = (index: number) => {
-    setFiles((prev) => prev.filter((_, i) => i !== index));
+    if (!file.type.startsWith("image/")) {
+      alert("이미지 파일만 첨부 가능합니다.");
+      return;
+    }
+
+    setIsUploadingImage(true);
+    try {
+      const fileExt = file.name.split(".").pop();
+      const fileName = `review-images/${user?.id}/${Math.random()}.${fileExt}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from("totodo_pub_storage")
+        .upload(fileName, file);
+
+      if (uploadError) throw uploadError;
+
+      const { data: { publicUrl } } = supabase.storage
+        .from("totodo_pub_storage")
+        .getPublicUrl(fileName);
+
+      editor?.chain().focus().insertContent({ type: "image", attrs: { src: publicUrl } }).run();
+      setUploadedImages((prev) => [...prev, { url: publicUrl, name: file.name, size: file.size, type: file.type }]);
+    } catch (error) {
+      console.error(error);
+      alert("이미지 업로드 중 오류가 발생했습니다.");
+    } finally {
+      setIsUploadingImage(false);
+    }
   };
 
   const handleSubmit = async () => {
@@ -111,34 +131,16 @@ export default function WriteReviewPage() {
 
       if (reviewError) throw reviewError;
 
-      // 2. Upload Files & Create Attachments
-      if (files.length > 0 && reviewData) {
-        for (const file of files) {
-          const fileExt = file.name.split(".").pop();
-          const fileName = `${reviewData.id}/${Math.random()}.${fileExt}`;
-          
-          const { error: uploadError } = await supabase.storage
-            .from("review_files")
-            .upload(fileName, file);
-
-          if (uploadError) throw uploadError;
-
-          const { data: { publicUrl } } = supabase.storage
-            .from("review_files")
-            .getPublicUrl(fileName);
-
-          const { error: attachmentError } = await supabase
-            .from("review_attachments")
-            .insert({
-              review_id: reviewData.id,
-              file_url: publicUrl,
-              file_name: file.name,
-              file_size: file.size,
-              file_type: file.type,
-            });
-
-          if (attachmentError) throw attachmentError;
-        }
+      if (uploadedImages.length > 0 && reviewData) {
+        await supabase.from("review_attachments").insert(
+          uploadedImages.map((img) => ({
+            review_id: reviewData.id,
+            file_url: img.url,
+            file_name: img.name,
+            file_size: img.size,
+            file_type: img.type,
+          }))
+        );
       }
 
       alert("게시글이 등록되었습니다.");
@@ -171,22 +173,6 @@ export default function WriteReviewPage() {
       </div>
 
       <div className="flex flex-col gap-8">
-        {/* Board Select */}
-        <div className="flex flex-col gap-2">
-          <label className="font-bold text-lg">게시판</label>
-          <div className="relative">
-            <select 
-              className="w-full h-12 bg-zinc-800/50 border border-white/10 rounded-lg px-4 text-gray-300 appearance-none focus:outline-none focus:border-brand-500 transition-colors"
-              defaultValue="review"
-            >
-              <option value="review">「오레노 니홍고。」 후기</option>
-            </select>
-            <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-gray-500">
-              <ChevronDownIcon />
-            </div>
-          </div>
-        </div>
-
         {/* Title Input */}
         <div className="flex flex-col gap-2">
           <label className="font-bold text-lg">제목</label>
@@ -290,12 +276,16 @@ export default function WriteReviewPage() {
                 isActive={editor.isActive("link")}
                 icon={<LinkIcon className="w-4 h-4" />} 
               />
-              <ToolbarButton 
-                onClick={() => {
-                  const url = window.prompt("이미지 URL을 입력하세요");
-                  if (url) editor.chain().focus().setImage({ src: url }).run();
-                }}
-                icon={<ImageIcon className="w-4 h-4" />} 
+              <input
+                type="file"
+                ref={imageInputRef}
+                onChange={handleImageUpload}
+                accept="image/*"
+                className="hidden"
+              />
+              <ToolbarButton
+                onClick={() => imageInputRef.current?.click()}
+                icon={isUploadingImage ? <Loader2 className="w-4 h-4 animate-spin" /> : <ImageIcon className="w-4 h-4" />}
               />
               <ToolbarButton 
                 onClick={() => editor.chain().focus().toggleBlockquote().run()}
@@ -317,45 +307,6 @@ export default function WriteReviewPage() {
             
             {/* Editor Content */}
             <EditorContent editor={editor} className="flex-1 overflow-y-auto cursor-text" />
-          </div>
-        </div>
-
-        {/* File Attachment */}
-        <div className="flex flex-col gap-4">
-          <label className="font-bold text-lg">파일 첨부</label>
-          <div className="text-sm text-gray-400">
-            파일은 최대 5개까지 첨부 가능하며, 파일 당 최대 50MB까지 첨부할 수 있습니다.
-          </div>
-          
-          <div className="flex flex-col gap-3">
-            {files.map((file, index) => (
-              <div key={index} className="flex items-center justify-between p-3 bg-zinc-900 rounded-lg border border-white/10">
-                <span className="text-sm text-gray-300 truncate max-w-[80%]">{file.name} ({(file.size / 1024 / 1024).toFixed(2)} MB)</span>
-                <button 
-                  onClick={() => removeFile(index)}
-                  className="p-1 text-gray-500 hover:text-red-500 transition-colors"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              </div>
-            ))}
-          </div>
-
-          <div>
-            <input 
-              type="file" 
-              ref={fileInputRef} 
-              onChange={handleFileChange} 
-              multiple 
-              className="hidden" 
-            />
-            <button 
-              onClick={() => fileInputRef.current?.click()}
-              className="flex items-center gap-2 px-4 py-2 bg-zinc-800 hover:bg-zinc-700 text-brand-500 rounded-lg border border-white/10 transition-colors"
-            >
-              <Plus className="w-4 h-4" />
-              파일 첨부
-            </button>
           </div>
         </div>
 
@@ -385,13 +336,5 @@ function ToolbarButton({ icon, onClick, isActive }: { icon: React.ReactNode, onC
     >
       {icon}
     </button>
-  );
-}
-
-function ChevronDownIcon() {
-  return (
-    <svg width="12" height="8" viewBox="0 0 12 8" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <path d="M1 1.5L6 6.5L11 1.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-    </svg>
   );
 }

@@ -182,13 +182,12 @@ export default function ReviewDetailPage() {
   const isAdmin = profile?.role === "admin";
   const canDeletePost = isOwner || isAdmin;
 
-  const extractStoragePath = (url: string) => {
+  const extractStorageInfo = (url: string): { bucket: string; path: string } | null => {
     try {
-      const path = new URL(url).pathname;
-      const marker = "/review_files/";
-      const index = path.indexOf(marker);
-      if (index === -1) return null;
-      return decodeURIComponent(path.slice(index + marker.length));
+      const pathname = new URL(url).pathname;
+      const match = pathname.match(/\/storage\/v1\/object\/public\/([^/]+)\/(.+)/);
+      if (!match) return null;
+      return { bucket: match[1], path: decodeURIComponent(match[2]) };
     } catch {
       return null;
     }
@@ -209,16 +208,19 @@ export default function ReviewDetailPage() {
     setIsDeleting(true);
     try {
       // 첨부파일 스토리지 정리
-      const attachmentPaths =
+      const storageInfos =
         review.review_attachments
-          ?.map((file) => extractStoragePath(file.file_url))
-          .filter((v): v is string => Boolean(v)) || [];
+          ?.map((file) => extractStorageInfo(file.file_url))
+          .filter((v): v is { bucket: string; path: string } => Boolean(v)) || [];
 
-      if (attachmentPaths.length > 0) {
-        const { error: storageError } = await supabase.storage.from("review_files").remove(attachmentPaths);
-        if (storageError) {
-          console.warn("파일 삭제 중 오류", storageError);
-        }
+      const byBucket = storageInfos.reduce<Record<string, string[]>>((acc, { bucket, path }) => {
+        acc[bucket] = [...(acc[bucket] || []), path];
+        return acc;
+      }, {});
+
+      for (const [bucket, paths] of Object.entries(byBucket)) {
+        const { error: storageError } = await supabase.storage.from(bucket).remove(paths);
+        if (storageError) console.warn("파일 삭제 중 오류", storageError);
       }
 
       await supabase.from("review_attachments").delete().eq("review_id", id);
@@ -386,26 +388,6 @@ export default function ReviewDetailPage() {
         className="prose prose-invert max-w-none text-gray-300 leading-relaxed mb-12 min-h-[200px]"
         dangerouslySetInnerHTML={{ __html: review.content }}
       />
-
-      {/* Attachments */}
-      {review.review_attachments && review.review_attachments.length > 0 && (
-        <div className="mb-16 border-t border-white/10 pt-6">
-          <h4 className="text-sm font-bold text-gray-400 mb-3">첨부파일</h4>
-          <div className="flex flex-col gap-2">
-            {review.review_attachments.map((file, index) => (
-              <a
-                key={index}
-                href={file.file_url}
-                target="_blank"
-                rel="noreferrer"
-                className="text-brand-500 hover:underline flex items-center gap-2 w-fit"
-              >
-                <span>📎 {file.file_name}</span>
-              </a>
-            ))}
-          </div>
-        </div>
-      )}
 
       {/* Comments Section */}
       <div className="border-t border-white/10 pt-8">

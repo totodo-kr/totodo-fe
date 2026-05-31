@@ -1,6 +1,6 @@
 "use client";
 
-import { MessageSquare, Search, Pin, ChevronLeft, ChevronRight } from "lucide-react";
+import { MessageSquare, Search, Pin, ChevronLeft, ChevronRight, ImageIcon } from "lucide-react";
 import Link from "next/link";
 import { useSearchParams, useRouter } from "next/navigation";
 import { useReviews, Review } from "@/hooks/useReviews";
@@ -98,6 +98,9 @@ function ReviewsContent() {
                   <div className="flex items-center gap-2">
                     <Pin className="w-4 h-4 text-brand-500 rotate-45" fill="currentColor" />
                     <h3 className="font-medium text-lg truncate text-brand-100">{review.title}</h3>
+                    {review.review_attachments?.[0]?.count > 0 && (
+                      <ImageIcon className="w-4 h-4 text-gray-400 shrink-0" />
+                    )}
                   </div>
                   <div className="flex items-center gap-3 text-sm text-gray-500">
                     <span>{getAuthorName(review)}</span>
@@ -125,6 +128,9 @@ function ReviewsContent() {
                   <div className="flex flex-col gap-2">
                     <div className="flex items-center gap-2">
                       <h3 className="font-medium text-lg truncate text-gray-200">{review.title}</h3>
+                      {review.review_attachments?.[0]?.count > 0 && (
+                        <ImageIcon className="w-4 h-4 text-gray-400 shrink-0" />
+                      )}
                     </div>
                     <div className="flex items-center gap-3 text-sm text-gray-500">
                       <span>{getAuthorName(review)}</span>
