@@ -30,3 +30,15 @@ CREATE POLICY "notifications_update_own"
 CREATE POLICY "notifications_insert_service"
   ON notifications FOR INSERT
   WITH CHECK (false); -- 클라이언트에서 직접 INSERT 불가, 트리거/서버에서만
+
+
+-- =============================================
+-- 마이그레이션: 어드민 알림 발송 정책 추가
+-- =============================================
+
+-- 기존 INSERT 차단 정책 제거 후 어드민 허용
+DROP POLICY IF EXISTS "notifications_insert_service" ON notifications;
+
+CREATE POLICY "notifications_insert_admin"
+  ON notifications FOR INSERT
+  WITH CHECK (public.is_admin());

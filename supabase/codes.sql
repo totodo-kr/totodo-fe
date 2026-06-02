@@ -90,3 +90,26 @@ CREATE TRIGGER validate_products_delivery_type
   BEFORE INSERT OR UPDATE OF delivery_type ON products
   FOR EACH ROW
   EXECUTE FUNCTION validate_delivery_type();
+
+
+-- =============================================
+-- 마이그레이션: 어드민 코드 관리 정책 추가 (is_admin() 기반)
+-- 기존 auth.jwt() 기반 정책과 병행 사용
+-- =============================================
+
+-- 비활성 코드도 어드민은 조회 가능
+CREATE POLICY "codes_select_admin"
+  ON codes FOR SELECT
+  USING (public.is_admin());
+
+CREATE POLICY "codes_insert_admin"
+  ON codes FOR INSERT
+  WITH CHECK (public.is_admin());
+
+CREATE POLICY "codes_update_admin"
+  ON codes FOR UPDATE
+  USING (public.is_admin());
+
+CREATE POLICY "codes_delete_admin"
+  ON codes FOR DELETE
+  USING (public.is_admin());

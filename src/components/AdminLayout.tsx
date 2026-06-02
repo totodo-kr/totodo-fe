@@ -29,8 +29,8 @@ const navItems = [
   { href: "/admin/codes", label: "코드 관리", icon: Code2, phase: 4 },
 ];
 
-const activeItems = navItems.filter((i) => i.phase <= 3);
-const inactiveItems = navItems.filter((i) => i.phase > 3);
+const activeItems = navItems;
+const inactiveItems: typeof navItems = [];
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -102,25 +102,24 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             ))}
           </div>
 
-          {/* Phase 2+ - coming soon */}
-          <div
-            className="mt-4 pt-4 border-t"
-            style={{ borderColor: "#2a2826" }}
-          >
-            <p className="px-3 mb-2 text-xs font-medium uppercase tracking-widest" style={{ color: "#3d3b37" }}>
-              준비 중
-            </p>
-            {inactiveItems.map(({ href, label, icon: Icon }) => (
-              <div
-                key={href}
-                className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium mb-0.5 cursor-not-allowed opacity-40"
-                style={{ color: "#6c6a64" }}
-              >
-                <Icon className="w-4 h-4 flex-shrink-0" />
-                {label}
-              </div>
-            ))}
-          </div>
+          {/* Coming soon section - only rendered when there are inactive items */}
+          {inactiveItems.length > 0 && (
+            <div className="mt-4 pt-4 border-t" style={{ borderColor: "#2a2826" }}>
+              <p className="px-3 mb-2 text-xs font-medium uppercase tracking-widest" style={{ color: "#3d3b37" }}>
+                준비 중
+              </p>
+              {inactiveItems.map(({ href, label, icon: Icon }) => (
+                <div
+                  key={href}
+                  className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium mb-0.5 cursor-not-allowed opacity-40"
+                  style={{ color: "#6c6a64" }}
+                >
+                  <Icon className="w-4 h-4 flex-shrink-0" />
+                  {label}
+                </div>
+              ))}
+            </div>
+          )}
         </nav>
 
         {/* Bottom: sign out */}
