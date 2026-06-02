@@ -1,6 +1,6 @@
 "use client";
 
-import { MessageSquare, Search, Pin, ChevronLeft, ChevronRight, ImageIcon } from "lucide-react";
+import { MessageSquare, Search, Pin, ChevronLeft, ChevronRight, ImageIcon, PenLine } from "lucide-react";
 import Link from "next/link";
 import { useSearchParams, useRouter } from "next/navigation";
 import { useReviews, Review } from "@/hooks/useReviews";
@@ -94,9 +94,9 @@ function ReviewsContent() {
                 href={`/reviews/${review.id}`}
                 className="relative flex items-center justify-between w-full h-[100px] mb-[10px] px-8 rounded-xl border transition-all cursor-pointer bg-zinc-900/80 border-brand-500/30 hover:border-brand-500/50"
               >
-                <div className="flex flex-col gap-2">
-                  <div className="flex items-center gap-2">
-                    <Pin className="w-4 h-4 text-brand-500 rotate-45" fill="currentColor" />
+                <div className="flex flex-col gap-2 min-w-0 overflow-hidden">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <Pin className="w-4 h-4 text-brand-500 rotate-45 shrink-0" fill="currentColor" />
                     <h3 className="font-medium text-lg truncate text-brand-100">{review.title}</h3>
                     {review.review_attachments?.[0]?.count > 0 && (
                       <ImageIcon className="w-4 h-4 text-gray-400 shrink-0" />
@@ -125,8 +125,8 @@ function ReviewsContent() {
                   href={`/reviews/${review.id}`}
                   className="relative flex items-center justify-between w-full h-[100px] mb-[10px] px-8 rounded-xl border transition-all cursor-pointer bg-zinc-800/40 border-white/5 hover:bg-zinc-800/60 hover:border-white/10"
                 >
-                  <div className="flex flex-col gap-2">
-                    <div className="flex items-center gap-2">
+                  <div className="flex flex-col gap-2 min-w-0 overflow-hidden">
+                    <div className="flex items-center gap-2 min-w-0">
                       <h3 className="font-medium text-lg truncate text-gray-200">{review.title}</h3>
                       {review.review_attachments?.[0]?.count > 0 && (
                         <ImageIcon className="w-4 h-4 text-gray-400 shrink-0" />
@@ -187,15 +187,14 @@ function ReviewsContent() {
         </div>
       )}
 
-      {/* Write Button */}
-      <div className="flex justify-end mt-8">
-        <Link
-          href="/reviews/write"
-          className="px-6 py-3 bg-brand-500 hover:bg-brand-600 text-white rounded-xl font-bold transition-colors flex items-center gap-2"
-        >
-          <span>글쓰기</span>
-        </Link>
-      </div>
+      {/* Floating Write Button */}
+      <Link
+        href="/reviews/write"
+        className="fixed bottom-8 right-8 flex items-center gap-2 px-5 py-3.5 bg-brand-500 hover:bg-brand-600 text-white rounded-full font-bold shadow-lg shadow-brand-500/30 transition-all hover:scale-105 z-50"
+      >
+        <PenLine className="w-5 h-5" />
+        <span>글쓰기</span>
+      </Link>
     </>
   );
 }
