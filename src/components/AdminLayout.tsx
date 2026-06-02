@@ -29,8 +29,8 @@ const navItems = [
   { href: "/admin/codes", label: "코드 관리", icon: Code2, phase: 4 },
 ];
 
-const activeItems = navItems.filter((i) => i.phase === 1);
-const inactiveItems = navItems.filter((i) => i.phase !== 1);
+const activeItems = navItems.filter((i) => i.phase <= 2);
+const inactiveItems = navItems.filter((i) => i.phase > 2);
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();

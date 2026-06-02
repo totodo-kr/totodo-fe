@@ -336,3 +336,25 @@ ALTER TRIGGER set_chapters_updated_at ON lecture_chapters
 -- 3. RLS 정책 이름 변경
 ALTER POLICY "chapters_read_all" ON lecture_chapters
   RENAME TO "lecture_chapters_read_all";
+-- =============================================
+-- 마이그레이션: 어드민 RLS 정책 추가
+-- (이미 운영 중인 DB에 실행)
+-- =============================================
+
+-- 어드민은 비공개 강의 포함 전체 읽기 가능
+CREATE POLICY "lectures_read_admin"
+  ON lectures FOR SELECT
+  USING (public.is_admin());
+
+-- 어드민 강의 CRUD
+CREATE POLICY "lectures_insert_admin"
+  ON lectures FOR INSERT
+  WITH CHECK (public.is_admin());
+
+CREATE POLICY "lectures_update_admin"
+  ON lectures FOR UPDATE
+  USING (public.is_admin());
+
+CREATE POLICY "lectures_delete_admin"
+  ON lectures FOR DELETE
+  USING (public.is_admin());

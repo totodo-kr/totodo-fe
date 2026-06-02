@@ -79,3 +79,17 @@ create policy "Attachments are viewable by everyone."
 
 create policy "Authenticated users can add attachments." 
   on public.review_attachments for insert with check (auth.role() = 'authenticated');
+-- =============================================
+-- 마이그레이션: 어드민 RLS 정책 추가
+-- (이미 운영 중인 DB에 실행)
+-- =============================================
+
+-- 어드민은 모든 후기 수정 가능 (핀 설정 등)
+create policy "Admin can update any review."
+  on public.reviews for update
+  using (public.is_admin());
+
+-- 어드민은 모든 후기 삭제 가능
+create policy "Admin can delete any review."
+  on public.reviews for delete
+  using (public.is_admin());
