@@ -178,7 +178,7 @@ export default function AdminDashboard() {
               최근 FAQ
             </h2>
             <Link
-              href="/faq"
+              href="/admin/faq"
               className="text-xs font-medium transition-colors"
               style={{ color: "#cc785c" }}
             >

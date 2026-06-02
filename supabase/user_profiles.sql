@@ -60,3 +60,12 @@ where display_name is null;
 create trigger set_faq_updated_at
 before update on public.faq
 for each row execute function public.set_updated_at();
+
+-- =============================================
+-- 마이그레이션: 어드민의 프로필(role) 수정 허용
+-- =============================================
+DROP POLICY IF EXISTS "Admins can update any profile." ON public.profiles;
+
+CREATE POLICY "Admins can update any profile."
+  ON public.profiles FOR UPDATE
+  USING (public.is_admin());
