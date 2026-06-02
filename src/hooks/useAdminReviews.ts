@@ -51,9 +51,22 @@ export function useAdminReviews() {
     setLoading(false);
   }, []);
 
-  const togglePin = async (reviewId: number, current: boolean) => {
+  const togglePin = async (reviewId: number, current: boolean): Promise<{ ok: boolean; limitReached?: boolean }> => {
     const supabase = createClient();
     setPendingId(reviewId);
+
+    if (!current) {
+      const { count } = await supabase
+        .from("reviews")
+        .select("id", { count: "exact", head: true })
+        .eq("is_pinned", true);
+
+      if ((count ?? 0) >= 5) {
+        setPendingId(null);
+        return { ok: false, limitReached: true };
+      }
+    }
+
     const { error } = await supabase
       .from("reviews")
       .update({ is_pinned: !current })
@@ -65,7 +78,7 @@ export function useAdminReviews() {
       );
     }
     setPendingId(null);
-    return !error;
+    return { ok: !error };
   };
 
   const deleteReview = async (reviewId: number) => {
