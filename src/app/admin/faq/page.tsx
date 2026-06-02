@@ -64,7 +64,7 @@ export default function AdminFaqPage() {
           </p>
         </div>
         <Link
-          href="/faq/write"
+          href="/admin/faq/write"
           className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all"
           style={{ background: "#cc785c", color: "#fff" }}
           onMouseEnter={(e) =>
@@ -172,7 +172,7 @@ export default function AdminFaqPage() {
                 {/* Actions */}
                 <div className="flex items-center justify-center gap-1">
                   <Link
-                    href={`/faq/${faq.id}/edit`}
+                    href={`/admin/faq/${faq.id}/edit`}
                     className="p-1.5 rounded-lg transition-colors"
                     style={{ color: "#8e8b82" }}
                     onMouseEnter={(e) => {

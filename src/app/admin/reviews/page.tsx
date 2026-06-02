@@ -208,7 +208,11 @@ export default function AdminReviewsPage() {
 
                   {/* Pin toggle */}
                   <button
-                    onClick={() => togglePin(review.id, review.is_pinned)}
+                    onClick={async () => {
+                      const result = await togglePin(review.id, review.is_pinned);
+                      if (result.limitReached) alert("상단 고정은 최대 5개까지만 설정할 수 있습니다.");
+                      else if (!result.ok) alert("핀 설정 중 오류가 발생했습니다.");
+                    }}
                     disabled={pendingId === review.id}
                     title={review.is_pinned ? "핀 해제" : "핀 설정"}
                     className="p-1.5 rounded-lg transition-colors disabled:opacity-40"

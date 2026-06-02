@@ -19,7 +19,7 @@ import {
   Redo,
   Loader2,
 } from "lucide-react";
-import { useRouter } from "next/navigation";
+import { useRouter, useParams } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useEditor, EditorContent } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
@@ -34,15 +34,19 @@ import { useProfile } from "@/hooks/useProfile";
 import PageLoading from "@/components/PageLoading";
 import clsx from "clsx";
 
-export default function FAQWritePage() {
+export default function AdminFAQEditPage() {
   const router = useRouter();
+  const params = useParams();
+  const id = params.id as string;
   const { user } = useAuthStore();
   const { profile, loading: profileLoading } = useProfile(user);
   const supabase = useMemo(() => createClient(), []);
 
   const [title, setTitle] = useState("");
+  const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [isUploadingImage, setIsUploadingImage] = useState(false);
+  const hasFetched = useRef(false);
   const imageInputRef = useRef<HTMLInputElement>(null);
 
   const isAdmin = profile?.role === "admin";
@@ -51,15 +55,15 @@ export default function FAQWritePage() {
     if (profileLoading) return;
     if (!user) {
       alert("로그인이 필요합니다.");
-      router.push("/faq");
+      router.push("/admin/faq");
     }
   }, [profileLoading, router, user]);
 
   useEffect(() => {
     if (profileLoading || !profile || !user) return;
     if (!isAdmin) {
-      alert("관리자만 글쓰기가 가능합니다.");
-      router.push("/faq");
+      alert("관리자만 접근 가능합니다.");
+      router.push("/admin/faq");
     }
   }, [isAdmin, profile, profileLoading, router, user]);
 
@@ -79,6 +83,40 @@ export default function FAQWritePage() {
       },
     },
   });
+
+  useEffect(() => {
+    if (!editor || !isAdmin || hasFetched.current) return;
+    hasFetched.current = true;
+
+    const fetchFaq = async () => {
+      setLoading(true);
+      try {
+        const { data, error } = await supabase
+          .from("faq")
+          .select("title, content")
+          .eq("id", id)
+          .single();
+
+        if (error) throw error;
+        if (!data) {
+          alert("게시글을 찾을 수 없습니다.");
+          router.back();
+          return;
+        }
+
+        setTitle(data.title);
+        editor.commands.setContent(data.content || "");
+      } catch (error) {
+        console.error("Error fetching FAQ:", error);
+        alert("게시글을 불러오는데 실패했습니다.");
+        router.back();
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchFaq();
+  }, [editor, id, isAdmin, router, supabase]);
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -130,76 +168,81 @@ export default function FAQWritePage() {
 
     setSubmitting(true);
     try {
-      const { data, error } = await supabase
+      const { error } = await supabase
         .from("faq")
-        .insert({
-          title,
-          content: editor.getHTML(),
-          author_id: user.id,
-        })
-        .select("id")
-        .single();
+        .update({ title, content: editor.getHTML() })
+        .eq("id", id);
 
       if (error) throw error;
 
-      alert("게시글이 등록되었습니다.");
-      router.push(`/faq/${data?.id}`);
+      alert("게시글이 수정되었습니다.");
+      router.push("/admin/faq");
       router.refresh();
     } catch (error) {
-      console.error("Error inserting FAQ:", error);
-      alert("등록 중 오류가 발생했습니다.");
+      console.error("Error updating FAQ:", error);
+      alert("수정 중 오류가 발생했습니다.");
     } finally {
       setSubmitting(false);
     }
   };
 
-  if (profileLoading || (user && !profile)) {
-    return <PageLoading />;
-  }
-
-  if (!user || !isAdmin) {
-    return null;
-  }
-
-  if (!editor) {
-    return null;
-  }
+  if (profileLoading || loading) return <PageLoading />;
+  if (!user || !isAdmin) return null;
+  if (!editor) return null;
 
   return (
-    <main className="min-h-screen bg-black text-white p-8 max-w-[1200px] mx-auto">
+    <div className="p-8 max-w-4xl">
       {/* Header */}
       <div className="mb-8">
         <button
-          onClick={() => router.push("/faq")}
-          className="flex items-center text-gray-400 hover:text-white mb-6 transition-colors"
+          onClick={() => router.push("/admin/faq")}
+          className="flex items-center gap-1 text-sm mb-4 transition-colors"
+          style={{ color: "#6c6a64" }}
+          onMouseEnter={(e) => ((e.currentTarget as HTMLButtonElement).style.color = "#141413")}
+          onMouseLeave={(e) => ((e.currentTarget as HTMLButtonElement).style.color = "#6c6a64")}
         >
-          <ChevronLeft className="w-5 h-5 mr-1" />
+          <ChevronLeft className="w-4 h-4" />
           목록으로
         </button>
-        <h1 className="text-3xl font-bold">FAQ 글쓰기</h1>
+        <h1 className="text-2xl font-semibold" style={{ color: "#141413" }}>
+          FAQ 수정
+        </h1>
+        <p className="text-sm mt-1" style={{ color: "#6c6a64" }}>
+          FAQ 내용을 수정합니다.
+        </p>
       </div>
 
-      <div className="flex flex-col gap-8">
+      <div className="flex flex-col gap-6">
         {/* Title Input */}
-        <div className="flex flex-col gap-2">
-          <label className="font-bold text-lg">제목</label>
+        <div className="flex flex-col gap-1.5">
+          <label className="text-sm font-medium" style={{ color: "#141413" }}>
+            제목
+          </label>
           <input
             type="text"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             placeholder="제목을 입력해주세요."
-            className="w-full h-12 bg-zinc-800/50 border border-white/10 rounded-lg px-4 text-white placeholder:text-gray-600 focus:outline-none focus:border-brand-500 transition-colors"
+            className="w-full h-11 rounded-lg px-4 text-sm outline-none border transition-colors"
+            style={{ background: "#efe9de", borderColor: "#e6dfd8", color: "#141413" }}
+            onFocus={(e) => (e.currentTarget.style.borderColor = "#cc785c")}
+            onBlur={(e) => (e.currentTarget.style.borderColor = "#e6dfd8")}
           />
         </div>
 
         {/* Editor Area */}
-        <div className="flex flex-col gap-2">
-          <label className="font-bold text-lg">내용</label>
-          <div className="border border-white/10 rounded-lg overflow-hidden bg-zinc-900/30 flex flex-col min-h-[500px]">
+        <div className="flex flex-col gap-1.5">
+          <label className="text-sm font-medium" style={{ color: "#141413" }}>
+            내용
+          </label>
+          <div
+            className="rounded-xl border overflow-hidden flex flex-col min-h-[500px]"
+            style={{ borderColor: "#e6dfd8", background: "#18181b" }}
+          >
             {/* Toolbar */}
             <div className="flex items-center flex-wrap gap-1 p-2 border-b border-white/10 bg-zinc-800/30 sticky top-0 z-10">
               <select
-                className="bg-transparent text-sm text-gray-300 border border-white/10 rounded px-2 py-1 mr-2 focus:outline-none focus:border-brand-500"
+                className="bg-transparent text-sm text-gray-300 border border-white/10 rounded px-2 py-1 mr-2 focus:outline-none"
                 onChange={(e) => {
                   const value = e.target.value;
                   if (value === "paragraph") editor.chain().focus().setParagraph().run();
@@ -318,23 +361,38 @@ export default function FAQWritePage() {
               />
             </div>
 
-            {/* Editor Content */}
             <EditorContent editor={editor} className="flex-1 overflow-y-auto cursor-text" />
           </div>
         </div>
 
-        {/* Submit Button */}
-        <div className="flex justify-end mt-8 pb-12">
+        {/* Actions */}
+        <div className="flex justify-end gap-3 pb-8">
+          <button
+            onClick={() => router.push("/admin/faq")}
+            className="px-5 py-2 rounded-lg text-sm font-medium border transition-colors"
+            style={{ borderColor: "#e6dfd8", color: "#6c6a64", background: "transparent" }}
+            onMouseEnter={(e) => ((e.currentTarget as HTMLButtonElement).style.background = "#efe9de")}
+            onMouseLeave={(e) => ((e.currentTarget as HTMLButtonElement).style.background = "transparent")}
+          >
+            취소
+          </button>
           <button
             onClick={handleSubmit}
             disabled={submitting}
-            className="px-8 py-3 bg-brand-500 hover:bg-brand-600 text-white rounded-xl font-bold transition-colors disabled:opacity-50"
+            className="px-5 py-2 rounded-lg text-sm font-medium text-white transition-colors disabled:opacity-50"
+            style={{ background: "#cc785c" }}
+            onMouseEnter={(e) => {
+              if (!submitting) (e.currentTarget as HTMLButtonElement).style.background = "#a9583e";
+            }}
+            onMouseLeave={(e) => {
+              (e.currentTarget as HTMLButtonElement).style.background = "#cc785c";
+            }}
           >
-            {submitting ? "등록 중..." : "등록하기"}
+            {submitting ? "수정 중..." : "수정하기"}
           </button>
         </div>
       </div>
-    </main>
+    </div>
   );
 }
 

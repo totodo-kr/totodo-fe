@@ -1,22 +1,16 @@
 "use client";
 
 import { Search, ChevronLeft, ChevronRight } from "lucide-react";
-import Link from "next/link";
 import { Suspense, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useFaqs } from "@/hooks/useFaqs";
-import { useAuthStore } from "@/store/useAuthStore";
-import { useProfile } from "@/hooks/useProfile";
+import Link from "next/link";
 import LoadingSpinner from "@/components/LoadingSpinner";
 
 function FAQContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const initialPage = Number(searchParams.get("page")) || 1;
-
-  const { user } = useAuthStore();
-  const { profile } = useProfile(user);
-  const isAdmin = profile?.role === "admin";
 
   const { faqs, totalCount, loading, page, setPage, keyword, setKeyword, fetchFaqs, totalPages } =
     useFaqs(initialPage);
@@ -131,17 +125,6 @@ function FAQContent() {
         </div>
       )}
 
-      {/* Write Button (Admin only) */}
-      {isAdmin && (
-        <div className="flex justify-end mt-8">
-          <Link
-            href="/faq/write"
-            className="px-6 py-3 bg-brand-500 hover:bg-brand-600 text-white rounded-xl font-bold transition-colors flex items-center gap-2"
-          >
-            <span>글쓰기</span>
-          </Link>
-        </div>
-      )}
     </>
   );
 }
