@@ -367,3 +367,43 @@ ALTER TABLE product_details
   DROP COLUMN IF EXISTS published_by,
   DROP COLUMN IF EXISTS distributor,
   DROP COLUMN IF EXISTS specifications;
+
+
+-- =============================================
+-- 마이그레이션: 어드민 RLS 정책 추가 (is_admin() 기반)
+-- 기존 auth.jwt() 기반 정책과 병행 사용
+-- =============================================
+
+-- 어드민은 비활성 상품 포함 전체 조회 가능
+CREATE POLICY "products_read_admin"
+  ON products FOR SELECT
+  USING (public.is_admin());
+
+CREATE POLICY "products_insert_admin"
+  ON products FOR INSERT
+  WITH CHECK (public.is_admin());
+
+CREATE POLICY "products_update_admin"
+  ON products FOR UPDATE
+  USING (public.is_admin());
+
+CREATE POLICY "products_delete_admin"
+  ON products FOR DELETE
+  USING (public.is_admin());
+
+-- 상품 상세도 동일하게 적용
+CREATE POLICY "product_details_read_admin"
+  ON product_details FOR SELECT
+  USING (public.is_admin());
+
+CREATE POLICY "product_details_insert_admin"
+  ON product_details FOR INSERT
+  WITH CHECK (public.is_admin());
+
+CREATE POLICY "product_details_update_admin"
+  ON product_details FOR UPDATE
+  USING (public.is_admin());
+
+CREATE POLICY "product_categories_read_all"
+  ON product_categories FOR SELECT
+  USING (true);

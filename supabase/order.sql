@@ -147,3 +147,22 @@ COMMENT ON TABLE cart_items IS '장바구니';
 COMMENT ON TABLE wishlists IS '위시리스트';
 COMMENT ON TABLE orders IS '주문';
 COMMENT ON TABLE order_items IS '주문 상품';
+
+-- =============================================
+-- 마이그레이션: 어드민 RLS 정책 추가 (is_admin() 기반)
+-- 기존 auth.jwt() 기반 정책과 병행 사용
+-- =============================================
+
+-- 어드민은 모든 주문 조회/수정 가능
+CREATE POLICY "orders_select_admin"
+  ON orders FOR SELECT
+  USING (public.is_admin());
+
+CREATE POLICY "orders_update_admin"
+  ON orders FOR UPDATE
+  USING (public.is_admin());
+
+-- 어드민은 모든 주문 상품 조회 가능
+CREATE POLICY "order_items_select_admin"
+  ON order_items FOR SELECT
+  USING (public.is_admin());
