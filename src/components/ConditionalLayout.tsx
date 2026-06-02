@@ -9,8 +9,9 @@ import Footer from "@/components/Footer";
 export default function ConditionalLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const isFullPage = pathname?.includes("/session/");
+  const isAdminPage = pathname?.startsWith("/admin");
 
-  if (isFullPage) {
+  if (isFullPage || isAdminPage) {
     return <>{children}</>;
   }
 

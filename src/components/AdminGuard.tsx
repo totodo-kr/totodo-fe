@@ -1,0 +1,43 @@
+"use client";
+
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { useAuthStore } from "@/store/useAuthStore";
+import { useProfile } from "@/hooks/useProfile";
+
+export default function AdminGuard({ children }: { children: React.ReactNode }) {
+  const { user, isLoading } = useAuthStore();
+  const { profile, loading } = useProfile(user);
+  const router = useRouter();
+
+  useEffect(() => {
+    if (isLoading || loading) return;
+
+    // 유저 없음 → 로그인 페이지로
+    if (!user) {
+      router.replace("/");
+      return;
+    }
+
+    // 유저는 있지만 프로필 아직 미로드 → 대기
+    if (profile === null) return;
+
+    // 프로필 로드 완료 후 admin이 아니면 차단
+    if (profile.role !== "admin") {
+      router.replace("/");
+    }
+  }, [user, profile, isLoading, loading, router]);
+
+  // 유저 확인 중이거나 프로필 fetch 중이거나, 유저는 있는데 프로필 아직 없으면 스피너
+  if (isLoading || loading || (user && profile === null)) {
+    return (
+      <div className="min-h-screen flex items-center justify-center" style={{ background: "#faf9f5" }}>
+        <div className="w-8 h-8 border-2 border-[#cc785c] border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
+
+  if (!user || profile?.role !== "admin") return null;
+
+  return <>{children}</>;
+}
