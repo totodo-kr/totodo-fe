@@ -358,3 +358,34 @@ CREATE POLICY "lectures_update_admin"
 CREATE POLICY "lectures_delete_admin"
   ON lectures FOR DELETE
   USING (public.is_admin());
+
+-- =============================================
+-- 마이그레이션: 챕터·세션 어드민 CRUD 권한 추가
+-- (이미 운영 중인 DB에 실행)
+-- =============================================
+
+-- 챕터: 어드민 전체 접근
+CREATE POLICY "lecture_chapters_insert_admin"
+  ON lecture_chapters FOR INSERT
+  WITH CHECK (public.is_admin());
+
+CREATE POLICY "lecture_chapters_update_admin"
+  ON lecture_chapters FOR UPDATE
+  USING (public.is_admin());
+
+CREATE POLICY "lecture_chapters_delete_admin"
+  ON lecture_chapters FOR DELETE
+  USING (public.is_admin());
+
+-- 세션: 어드민 전체 접근
+CREATE POLICY "lecture_sessions_insert_admin"
+  ON lecture_sessions FOR INSERT
+  WITH CHECK (public.is_admin());
+
+CREATE POLICY "lecture_sessions_update_admin"
+  ON lecture_sessions FOR UPDATE
+  USING (public.is_admin());
+
+CREATE POLICY "lecture_sessions_delete_admin"
+  ON lecture_sessions FOR DELETE
+  USING (public.is_admin());

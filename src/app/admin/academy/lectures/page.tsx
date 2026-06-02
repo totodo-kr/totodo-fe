@@ -132,8 +132,14 @@ export default function AdminLecturesPage() {
                 }}
               >
                 {/* Title */}
-                <div className="min-w-0 pr-4">
-                  <p className="text-sm font-medium truncate" style={{ color: "#252523" }}>
+                <Link
+                  href={`/admin/academy/lectures/${lecture.id}`}
+                  className="min-w-0 pr-4 group"
+                >
+                  <p
+                    className="text-sm font-medium truncate group-hover:underline"
+                    style={{ color: "#252523" }}
+                  >
                     {lecture.title}
                   </p>
                   {lecture.subtitle && (
@@ -141,7 +147,7 @@ export default function AdminLecturesPage() {
                       {lecture.subtitle}
                     </p>
                   )}
-                </div>
+                </Link>
 
                 {/* Price */}
                 <div className="text-center">
