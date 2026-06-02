@@ -180,9 +180,10 @@ export default function FAQDetailPage() {
       </header>
 
       {/* Content */}
-      <div className="text-gray-300 leading-relaxed whitespace-pre-line text-lg min-h-[200px]">
-        {faq.content}
-      </div>
+      <div
+        className="prose prose-invert max-w-none text-gray-300 leading-relaxed min-h-[200px]"
+        dangerouslySetInnerHTML={{ __html: faq.content }}
+      />
     </main>
   );
 }

@@ -1,12 +1,38 @@
 "use client";
 
-import { ChevronLeft } from "lucide-react";
+import {
+  ChevronLeft,
+  Bold,
+  Italic,
+  Underline,
+  Strikethrough,
+  AlignLeft,
+  AlignCenter,
+  AlignRight,
+  AlignJustify,
+  List,
+  ListOrdered,
+  Image as ImageIcon,
+  Link as LinkIcon,
+  Quote,
+  Undo,
+  Redo,
+  Loader2,
+} from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useEditor, EditorContent } from "@tiptap/react";
+import StarterKit from "@tiptap/starter-kit";
+import { ResizableImage } from "@/components/ResizableImage";
+import LinkExtension from "@tiptap/extension-link";
+import TextAlign from "@tiptap/extension-text-align";
+import UnderlineExtension from "@tiptap/extension-underline";
+import Placeholder from "@tiptap/extension-placeholder";
 import { createClient } from "@/utils/supabase/client";
 import { useAuthStore } from "@/store/useAuthStore";
 import { useProfile } from "@/hooks/useProfile";
 import PageLoading from "@/components/PageLoading";
+import clsx from "clsx";
 
 export default function FAQWritePage() {
   const router = useRouter();
@@ -15,8 +41,9 @@ export default function FAQWritePage() {
   const supabase = useMemo(() => createClient(), []);
 
   const [title, setTitle] = useState("");
-  const [content, setContent] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
+  const imageInputRef = useRef<HTMLInputElement>(null);
 
   const isAdmin = profile?.role === "admin";
 
@@ -25,7 +52,6 @@ export default function FAQWritePage() {
     if (!user) {
       alert("로그인이 필요합니다.");
       router.push("/faq");
-      return;
     }
   }, [profileLoading, router, user]);
 
@@ -37,6 +63,57 @@ export default function FAQWritePage() {
     }
   }, [isAdmin, profile, profileLoading, router, user]);
 
+  const editor = useEditor({
+    immediatelyRender: false,
+    extensions: [
+      StarterKit,
+      ResizableImage,
+      LinkExtension.configure({ openOnClick: false }),
+      TextAlign.configure({ types: ["heading", "paragraph"] }),
+      UnderlineExtension,
+      Placeholder.configure({ placeholder: "내용을 입력하세요." }),
+    ],
+    editorProps: {
+      attributes: {
+        class: "prose prose-invert max-w-none focus:outline-none min-h-[400px] p-4",
+      },
+    },
+  });
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    e.target.value = "";
+
+    if (!file.type.startsWith("image/")) {
+      alert("이미지 파일만 첨부 가능합니다.");
+      return;
+    }
+
+    setIsUploadingImage(true);
+    try {
+      const fileExt = file.name.split(".").pop();
+      const fileName = `faq-images/${user?.id}/${Math.random()}.${fileExt}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from("totodo_pub_storage")
+        .upload(fileName, file);
+
+      if (uploadError) throw uploadError;
+
+      const {
+        data: { publicUrl },
+      } = supabase.storage.from("totodo_pub_storage").getPublicUrl(fileName);
+
+      editor?.chain().focus().insertContent({ type: "image", attrs: { src: publicUrl } }).run();
+    } catch (error) {
+      console.error(error);
+      alert("이미지 업로드 중 오류가 발생했습니다.");
+    } finally {
+      setIsUploadingImage(false);
+    }
+  };
+
   const handleSubmit = async () => {
     if (!user || !isAdmin) {
       alert("권한이 없습니다.");
@@ -46,7 +123,7 @@ export default function FAQWritePage() {
       alert("제목을 입력해주세요.");
       return;
     }
-    if (!content.trim()) {
+    if (!editor || editor.isEmpty) {
       alert("내용을 입력해주세요.");
       return;
     }
@@ -57,7 +134,7 @@ export default function FAQWritePage() {
         .from("faq")
         .insert({
           title,
-          content,
+          content: editor.getHTML(),
           author_id: user.id,
         })
         .select("id")
@@ -81,6 +158,10 @@ export default function FAQWritePage() {
   }
 
   if (!user || !isAdmin) {
+    return null;
+  }
+
+  if (!editor) {
     return null;
   }
 
@@ -111,15 +192,135 @@ export default function FAQWritePage() {
           />
         </div>
 
-        {/* Content Input */}
+        {/* Editor Area */}
         <div className="flex flex-col gap-2">
           <label className="font-bold text-lg">내용</label>
-          <textarea
-            value={content}
-            onChange={(e) => setContent(e.target.value)}
-            placeholder="내용을 입력해주세요."
-            className="w-full min-h-[300px] bg-zinc-900 border border-white/10 rounded-lg p-4 text-white placeholder:text-gray-600 focus:outline-none focus:border-brand-500 transition-colors resize-none"
-          />
+          <div className="border border-white/10 rounded-lg overflow-hidden bg-zinc-900/30 flex flex-col min-h-[500px]">
+            {/* Toolbar */}
+            <div className="flex items-center flex-wrap gap-1 p-2 border-b border-white/10 bg-zinc-800/30 sticky top-0 z-10">
+              <select
+                className="bg-transparent text-sm text-gray-300 border border-white/10 rounded px-2 py-1 mr-2 focus:outline-none focus:border-brand-500"
+                onChange={(e) => {
+                  const value = e.target.value;
+                  if (value === "paragraph") editor.chain().focus().setParagraph().run();
+                  else if (value === "h1") editor.chain().focus().toggleHeading({ level: 1 }).run();
+                  else if (value === "h2") editor.chain().focus().toggleHeading({ level: 2 }).run();
+                  else if (value === "h3") editor.chain().focus().toggleHeading({ level: 3 }).run();
+                }}
+              >
+                <option value="paragraph">Paragraph</option>
+                <option value="h1">Heading 1</option>
+                <option value="h2">Heading 2</option>
+                <option value="h3">Heading 3</option>
+              </select>
+
+              <div className="h-4 w-px bg-white/10 mx-1" />
+
+              <ToolbarButton
+                onClick={() => editor.chain().focus().toggleBold().run()}
+                isActive={editor.isActive("bold")}
+                icon={<Bold className="w-4 h-4" />}
+              />
+              <ToolbarButton
+                onClick={() => editor.chain().focus().toggleItalic().run()}
+                isActive={editor.isActive("italic")}
+                icon={<Italic className="w-4 h-4" />}
+              />
+              <ToolbarButton
+                onClick={() => editor.chain().focus().toggleUnderline().run()}
+                isActive={editor.isActive("underline")}
+                icon={<Underline className="w-4 h-4" />}
+              />
+              <ToolbarButton
+                onClick={() => editor.chain().focus().toggleStrike().run()}
+                isActive={editor.isActive("strike")}
+                icon={<Strikethrough className="w-4 h-4" />}
+              />
+
+              <div className="h-4 w-px bg-white/10 mx-1" />
+
+              <ToolbarButton
+                onClick={() => editor.chain().focus().setTextAlign("left").run()}
+                isActive={editor.isActive({ textAlign: "left" })}
+                icon={<AlignLeft className="w-4 h-4" />}
+              />
+              <ToolbarButton
+                onClick={() => editor.chain().focus().setTextAlign("center").run()}
+                isActive={editor.isActive({ textAlign: "center" })}
+                icon={<AlignCenter className="w-4 h-4" />}
+              />
+              <ToolbarButton
+                onClick={() => editor.chain().focus().setTextAlign("right").run()}
+                isActive={editor.isActive({ textAlign: "right" })}
+                icon={<AlignRight className="w-4 h-4" />}
+              />
+              <ToolbarButton
+                onClick={() => editor.chain().focus().setTextAlign("justify").run()}
+                isActive={editor.isActive({ textAlign: "justify" })}
+                icon={<AlignJustify className="w-4 h-4" />}
+              />
+
+              <div className="h-4 w-px bg-white/10 mx-1" />
+
+              <ToolbarButton
+                onClick={() => editor.chain().focus().toggleBulletList().run()}
+                isActive={editor.isActive("bulletList")}
+                icon={<List className="w-4 h-4" />}
+              />
+              <ToolbarButton
+                onClick={() => editor.chain().focus().toggleOrderedList().run()}
+                isActive={editor.isActive("orderedList")}
+                icon={<ListOrdered className="w-4 h-4" />}
+              />
+
+              <div className="h-4 w-px bg-white/10 mx-1" />
+
+              <ToolbarButton
+                onClick={() => {
+                  const url = window.prompt("URL을 입력하세요");
+                  if (url) editor.chain().focus().setLink({ href: url }).run();
+                }}
+                isActive={editor.isActive("link")}
+                icon={<LinkIcon className="w-4 h-4" />}
+              />
+              <input
+                type="file"
+                ref={imageInputRef}
+                onChange={handleImageUpload}
+                accept="image/*"
+                className="hidden"
+              />
+              <ToolbarButton
+                onClick={() => imageInputRef.current?.click()}
+                icon={
+                  isUploadingImage ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <ImageIcon className="w-4 h-4" />
+                  )
+                }
+              />
+              <ToolbarButton
+                onClick={() => editor.chain().focus().toggleBlockquote().run()}
+                isActive={editor.isActive("blockquote")}
+                icon={<Quote className="w-4 h-4" />}
+              />
+
+              <div className="h-4 w-px bg-white/10 mx-1" />
+
+              <ToolbarButton
+                onClick={() => editor.chain().focus().undo().run()}
+                icon={<Undo className="w-4 h-4" />}
+              />
+              <ToolbarButton
+                onClick={() => editor.chain().focus().redo().run()}
+                icon={<Redo className="w-4 h-4" />}
+              />
+            </div>
+
+            {/* Editor Content */}
+            <EditorContent editor={editor} className="flex-1 overflow-y-auto cursor-text" />
+          </div>
         </div>
 
         {/* Submit Button */}
@@ -137,3 +338,24 @@ export default function FAQWritePage() {
   );
 }
 
+function ToolbarButton({
+  icon,
+  onClick,
+  isActive,
+}: {
+  icon: React.ReactNode;
+  onClick?: () => void;
+  isActive?: boolean;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className={clsx(
+        "p-1.5 rounded transition-colors",
+        isActive ? "bg-white/20 text-white" : "text-gray-400 hover:text-white hover:bg-white/10"
+      )}
+    >
+      {icon}
+    </button>
+  );
+}
