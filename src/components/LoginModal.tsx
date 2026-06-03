@@ -116,7 +116,7 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
     const supabase = createClient();
     try {
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/auth/callback?next=/settings/password`,
+        redirectTo: `${window.location.origin}/auth/reset-password`,
       });
       if (error) throw error;
       setSuccessMessage("비밀번호 재설정 링크를 이메일로 발송했습니다.");

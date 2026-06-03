@@ -1,18 +1,36 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useEffect } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/utils/supabase/client";
 import { Eye, EyeOff } from "lucide-react";
 
 export default function ResetPasswordPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [exchanging, setExchanging] = useState(true);
   const [error, setError] = useState("");
+
+  useEffect(() => {
+    const code = searchParams.get("code");
+    if (!code) {
+      setExchanging(false);
+      return;
+    }
+
+    const supabase = createClient();
+    supabase.auth.exchangeCodeForSession(code).then(({ error }) => {
+      if (error) {
+        setError("링크가 만료되었거나 이미 사용된 링크입니다. 비밀번호 재설정을 다시 요청해 주세요.");
+      }
+      setExchanging(false);
+    });
+  }, [searchParams]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -41,6 +59,14 @@ export default function ResetPasswordPage() {
     }
   };
 
+  if (exchanging) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <p className="text-gray-400 text-sm">인증 확인 중...</p>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen flex items-center justify-center p-4">
       <div className="w-full max-w-sm flex flex-col gap-6">
@@ -49,59 +75,61 @@ export default function ResetPasswordPage() {
           <p className="text-gray-400 text-sm">새로 사용할 비밀번호를 입력해 주세요.</p>
         </div>
 
-        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-          <div className="flex flex-col gap-2">
-            <label className="text-sm font-medium text-gray-300">새 비밀번호</label>
-            <div className="relative">
-              <input
-                type={showPassword ? "text" : "password"}
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="6자 이상 입력"
-                required
-                className="w-full h-12 bg-zinc-900 rounded-xl px-4 pr-11 border border-white/10 text-white focus:outline-none focus:border-brand-500 transition-colors"
-              />
-              <button
-                type="button"
-                onClick={() => setShowPassword((v) => !v)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-300"
-              >
-                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-              </button>
+        {error ? (
+          <p className="text-red-400 text-sm">{error}</p>
+        ) : (
+          <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+            <div className="flex flex-col gap-2">
+              <label className="text-sm font-medium text-gray-300">새 비밀번호</label>
+              <div className="relative">
+                <input
+                  type={showPassword ? "text" : "password"}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="6자 이상 입력"
+                  required
+                  className="w-full h-12 bg-zinc-900 rounded-xl px-4 pr-11 border border-white/10 text-white focus:outline-none focus:border-brand-500 transition-colors"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((v) => !v)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-300"
+                >
+                  {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                </button>
+              </div>
             </div>
-          </div>
 
-          <div className="flex flex-col gap-2">
-            <label className="text-sm font-medium text-gray-300">비밀번호 확인</label>
-            <div className="relative">
-              <input
-                type={showConfirm ? "text" : "password"}
-                value={confirm}
-                onChange={(e) => setConfirm(e.target.value)}
-                placeholder="비밀번호를 한 번 더 입력"
-                required
-                className="w-full h-12 bg-zinc-900 rounded-xl px-4 pr-11 border border-white/10 text-white focus:outline-none focus:border-brand-500 transition-colors"
-              />
-              <button
-                type="button"
-                onClick={() => setShowConfirm((v) => !v)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-300"
-              >
-                {showConfirm ? <EyeOff size={18} /> : <Eye size={18} />}
-              </button>
+            <div className="flex flex-col gap-2">
+              <label className="text-sm font-medium text-gray-300">비밀번호 확인</label>
+              <div className="relative">
+                <input
+                  type={showConfirm ? "text" : "password"}
+                  value={confirm}
+                  onChange={(e) => setConfirm(e.target.value)}
+                  placeholder="비밀번호를 한 번 더 입력"
+                  required
+                  className="w-full h-12 bg-zinc-900 rounded-xl px-4 pr-11 border border-white/10 text-white focus:outline-none focus:border-brand-500 transition-colors"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowConfirm((v) => !v)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-300"
+                >
+                  {showConfirm ? <EyeOff size={18} /> : <Eye size={18} />}
+                </button>
+              </div>
             </div>
-          </div>
 
-          {error && <p className="text-red-400 text-sm">{error}</p>}
-
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full h-12 rounded-xl bg-brand-500 hover:bg-brand-600 text-white font-medium text-sm transition-colors disabled:opacity-50 mt-2"
-          >
-            {loading ? "변경 중..." : "비밀번호 변경"}
-          </button>
-        </form>
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full h-12 rounded-xl bg-brand-500 hover:bg-brand-600 text-white font-medium text-sm transition-colors disabled:opacity-50 mt-2"
+            >
+              {loading ? "변경 중..." : "비밀번호 변경"}
+            </button>
+          </form>
+        )}
       </div>
     </div>
   );
