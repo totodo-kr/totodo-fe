@@ -186,7 +186,6 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         >
           <Link
             href="/"
-            target="_blank"
             title={collapsed ? "TOTODO 바로가기" : undefined}
             className="flex items-center py-2.5 rounded-lg text-sm font-medium w-full transition-all mb-0.5"
             style={{

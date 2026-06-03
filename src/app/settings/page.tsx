@@ -1,14 +1,17 @@
 "use client";
 
 import { useAuthStore } from "@/store/useAuthStore";
+import { useProfile } from "@/hooks/useProfile";
 import { createClient } from "@/utils/supabase/client";
-import { ChevronRight, User as UserIcon } from "lucide-react";
+import { ChevronRight, User as UserIcon, ExternalLink } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
+import Link from "next/link";
 import PageLoading from "@/components/PageLoading";
 
 export default function SettingsPage() {
   const { user, isLoading } = useAuthStore();
+  const { profile } = useProfile(user);
   const router = useRouter();
 
   // 로그인하지 않은 경우 리다이렉트 (선택 사항)
@@ -73,6 +76,21 @@ export default function SettingsPage() {
                 {maskMemberCode(user.id)}
               </span>
             </div>
+
+            {/* 역할 */}
+            {profile?.role && (
+              <div className="flex items-center gap-2">
+                <span className="text-gray-400 text-sm">역할</span>
+                <span className="text-xs font-medium px-2 py-0.5 rounded bg-brand-500/20 text-brand-400">
+                  {profile.role === "admin" ? "관리자" : profile.role}
+                </span>
+                {profile.role === "admin" && (
+                  <Link href="/admin" className="text-gray-500 hover:text-gray-300 transition-colors">
+                    <ExternalLink size={13} />
+                  </Link>
+                )}
+              </div>
+            )}
           </div>
 
           {/* 프로필 수정 버튼 */}
