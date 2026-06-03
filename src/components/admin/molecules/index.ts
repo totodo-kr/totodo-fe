@@ -4,3 +4,5 @@ export { default as Pagination } from "./Pagination";
 export { default as FilterTabs } from "./FilterTabs";
 export { default as ToggleButton } from "./ToggleButton";
 export { default as IconActionButton } from "./IconActionButton";
+export { default as SearchSelect } from "./SearchSelect";
+export type { SearchSelectOption } from "./SearchSelect";

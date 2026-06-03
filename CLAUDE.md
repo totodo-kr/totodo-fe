@@ -159,7 +159,8 @@ export default function AdminXxxPage() {
 
 ### 컴포넌트별 사용 지침
 
-- **`ToggleButton`**: 공개/비공개, 활성/비활성 등 on/off 토글에 사용. `activeColor`로 활성 상태 색상 지정 (`#5db872` 초록, `#cc785c` 브랜드, `#e8a55a` 골드 등).
+- **`ToggleButton`**: 공개/비공개, 활성/비활성 등 on/off 토글에 사용. `activeColor`로 활성 색상, `activeBg`/`inactiveBg`로 배경색, `pill`로 `rounded-full` 형태 지정 가능. (`#5db872` 초록, `#cc785c` 브랜드, `#e8a55a` 골드 등)
+- **`SearchSelect`**: 탭 개수가 늘어날 수 있는 필터 선택에 사용. 드롭다운에 검색 인풋이 포함된 자동완성 셀렉트. `options`에 `prefix` 필드를 주면 코드값 등 작은 배지로 표시됨.
 - **`IconActionButton`**: 수정(`variant="default"`)·삭제(`variant="danger"`) 아이콘 버튼. `loading` prop으로 pending 스피너 처리.
 - **`FilterTabs`**: 제네릭 타입 `T`를 사용하므로 `string | number | undefined` 범위 내 어떤 값이든 가능.
 - **`Badge`**: 주문 상태 등 색상이 동적으로 결정되는 배지. `bg`/`color` props에 직접 hex 값 전달.
