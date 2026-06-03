@@ -65,6 +65,19 @@ function InlineEdit({
   );
 }
 
+// mm:ss ↔ seconds 변환 헬퍼
+function parseMmss(s: string): number {
+  const [m, sec] = s.split(":").map(Number);
+  if (isNaN(m) || isNaN(sec)) return 0;
+  return m * 60 + sec;
+}
+
+function toMmss(seconds: number): string {
+  const m = Math.floor(seconds / 60);
+  const s = seconds % 60;
+  return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
+}
+
 // ─── Session row ──────────────────────────────────────────────────────────────
 
 function SessionRow({
@@ -77,12 +90,29 @@ function SessionRow({
   onDelete: (id: number) => Promise<void>;
 }) {
   const [editing, setEditing] = useState(false);
+  const [editTitle, setEditTitle] = useState(session.title);
+  const [editDuration, setEditDuration] = useState(toMmss(session.duration_seconds));
+  const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
-  const handleSave = async (title: string) => {
-    if (!title) return;
-    await onUpdate(session.id, { title });
-    setEditing(false);
+  const openEdit = () => {
+    setEditTitle(session.title);
+    setEditDuration(toMmss(session.duration_seconds));
+    setEditing(true);
+  };
+
+  const handleSave = async () => {
+    if (!editTitle.trim()) return;
+    setSaving(true);
+    try {
+      await onUpdate(session.id, {
+        title: editTitle.trim(),
+        duration_seconds: parseMmss(editDuration),
+      });
+      setEditing(false);
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handleDelete = async () => {
@@ -95,19 +125,60 @@ function SessionRow({
     }
   };
 
+  const inputStyle = {
+    borderColor: "#cc785c",
+    background: "#faf9f5",
+    color: "#141413",
+  };
+
   return (
     <div
-      className="flex items-center gap-3 px-4 py-2.5 border-b last:border-b-0 hover:bg-[#efe9de]/20 transition-colors"
+      className="flex items-center gap-2 px-4 py-2.5 border-b last:border-b-0 hover:bg-[#efe9de]/20 transition-colors"
       style={{ borderColor: "#e6dfd8" }}
     >
       <Video className="w-3.5 h-3.5 shrink-0" style={{ color: "#8e8b82" }} />
 
       {editing ? (
-        <InlineEdit
-          value={session.title}
-          onSave={handleSave}
-          onCancel={() => setEditing(false)}
-        />
+        <>
+          <input
+            autoFocus
+            value={editTitle}
+            onChange={(e) => setEditTitle(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") handleSave();
+              if (e.key === "Escape") setEditing(false);
+            }}
+            placeholder="세션 제목"
+            className="flex-1 min-w-0 text-sm px-2 py-1 rounded border outline-none"
+            style={inputStyle}
+          />
+          <input
+            value={editDuration}
+            onChange={(e) => setEditDuration(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") handleSave();
+              if (e.key === "Escape") setEditing(false);
+            }}
+            placeholder="mm:ss"
+            className="w-16 text-sm px-2 py-1 rounded border outline-none text-center font-mono shrink-0"
+            style={inputStyle}
+          />
+          <button
+            onClick={handleSave}
+            disabled={saving || !editTitle.trim()}
+            className="p-1 rounded hover:bg-[#efe9de] disabled:opacity-40 shrink-0"
+            style={{ color: "#5db872" }}
+          >
+            <Check className="w-4 h-4" />
+          </button>
+          <button
+            onClick={() => setEditing(false)}
+            className="p-1 rounded hover:bg-[#efe9de] shrink-0"
+            style={{ color: "#8e8b82" }}
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </>
       ) : (
         <>
           <span className="flex-1 text-sm min-w-0 truncate" style={{ color: "#252523" }}>
@@ -123,7 +194,7 @@ function SessionRow({
             </span>
           )}
 
-          <span className="text-xs shrink-0" style={{ color: "#8e8b82" }}>
+          <span className="text-xs font-mono shrink-0" style={{ color: "#8e8b82" }}>
             {formatDuration(session.duration_seconds)}
           </span>
 
@@ -137,7 +208,7 @@ function SessionRow({
           </button>
 
           <button
-            onClick={() => setEditing(true)}
+            onClick={openEdit}
             className="p-1 rounded hover:bg-[#efe9de] shrink-0 transition-colors"
             style={{ color: "#8e8b82" }}
           >
@@ -338,6 +409,7 @@ export default function AdminLectureDetailPage({
     info,
     chapters,
     loading,
+    updateLecture,
     addChapter,
     updateChapter,
     deleteChapter,
@@ -345,6 +417,34 @@ export default function AdminLectureDetailPage({
     updateSession,
     deleteSession,
   } = useAdminLectureDetail(id);
+
+  const [editingInfo, setEditingInfo] = useState(false);
+  const [editTitle, setEditTitle] = useState("");
+  const [editSubtitle, setEditSubtitle] = useState("");
+  const [editDescription, setEditDescription] = useState("");
+  const [savingInfo, setSavingInfo] = useState(false);
+
+  const openInfoEdit = () => {
+    setEditTitle(info?.title ?? "");
+    setEditSubtitle(info?.subtitle ?? "");
+    setEditDescription(info?.description ?? "");
+    setEditingInfo(true);
+  };
+
+  const handleSaveInfo = async () => {
+    if (!editTitle.trim()) return;
+    setSavingInfo(true);
+    try {
+      await updateLecture({
+        title: editTitle.trim(),
+        subtitle: editSubtitle.trim() || null,
+        description: editDescription.trim() || null,
+      });
+      setEditingInfo(false);
+    } finally {
+      setSavingInfo(false);
+    }
+  };
 
   const [addingChapter, setAddingChapter] = useState(false);
   const [newChapterTitle, setNewChapterTitle] = useState("");
@@ -389,46 +489,140 @@ export default function AdminLectureDetailPage({
       ) : (
         <>
           {/* Header */}
-          <div className="flex items-start justify-between mb-8 gap-4">
-            <div>
-              <div className="flex items-center gap-2 mb-1">
-                <h1 className="text-2xl font-semibold" style={{ color: "#141413" }}>
+          <div className="rounded-xl border mb-8 overflow-hidden" style={{ borderColor: "#e6dfd8" }}>
+            {/* Title bar */}
+            <div
+              className="flex items-center justify-between gap-3 px-5 py-4"
+              style={{ background: "#efe9de" }}
+            >
+              <div className="flex items-center gap-2 min-w-0">
+                <h1 className="text-xl font-semibold truncate" style={{ color: "#141413" }}>
                   {info.title}
                 </h1>
                 <span
-                  className="text-xs px-2 py-0.5 rounded-full font-medium"
+                  className="text-xs px-2 py-0.5 rounded-full font-medium shrink-0"
                   style={
                     info.is_published
                       ? { background: "#e8f7eb", color: "#5db872" }
-                      : { background: "#efe9de", color: "#8e8b82" }
+                      : { background: "#fff", color: "#8e8b82" }
                   }
                 >
                   {info.is_published ? "공개 중" : "비공개"}
                 </span>
               </div>
-              {info.subtitle && (
-                <p className="text-sm" style={{ color: "#6c6a64" }}>
-                  {info.subtitle}
-                </p>
+              <div className="flex items-center gap-2 shrink-0">
+                <Link
+                  href={`/academy/${id}`}
+                  target="_blank"
+                  className="flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg border transition-colors"
+                  style={{ borderColor: "#d0c9c0", color: "#6c6a64", background: "transparent" }}
+                  onMouseEnter={(e) => {
+                    (e.currentTarget as HTMLAnchorElement).style.borderColor = "#cc785c";
+                    (e.currentTarget as HTMLAnchorElement).style.color = "#cc785c";
+                  }}
+                  onMouseLeave={(e) => {
+                    (e.currentTarget as HTMLAnchorElement).style.borderColor = "#d0c9c0";
+                    (e.currentTarget as HTMLAnchorElement).style.color = "#6c6a64";
+                  }}
+                >
+                  <ExternalLink className="w-3.5 h-3.5" />
+                  강의 페이지
+                </Link>
+                {!editingInfo && (
+                  <button
+                    onClick={openInfoEdit}
+                    className="flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg border transition-colors"
+                    style={{ borderColor: "#d0c9c0", color: "#6c6a64", background: "transparent" }}
+                    onMouseEnter={(e) => {
+                      (e.currentTarget as HTMLButtonElement).style.borderColor = "#cc785c";
+                      (e.currentTarget as HTMLButtonElement).style.color = "#cc785c";
+                    }}
+                    onMouseLeave={(e) => {
+                      (e.currentTarget as HTMLButtonElement).style.borderColor = "#d0c9c0";
+                      (e.currentTarget as HTMLButtonElement).style.color = "#6c6a64";
+                    }}
+                  >
+                    <Pencil className="w-3.5 h-3.5" />
+                    수정
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Info body */}
+            <div className="px-5 py-4" style={{ background: "#faf9f5" }}>
+              {editingInfo ? (
+                <div className="flex flex-col gap-3">
+                  <div className="flex flex-col gap-1">
+                    <label className="text-xs font-medium" style={{ color: "#6c6a64" }}>제목</label>
+                    <input
+                      autoFocus
+                      value={editTitle}
+                      onChange={(e) => setEditTitle(e.target.value)}
+                      className="text-sm px-3 py-2 rounded-lg border outline-none"
+                      style={{ borderColor: "#cc785c", background: "#fff", color: "#141413" }}
+                    />
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <label className="text-xs font-medium" style={{ color: "#6c6a64" }}>부제목</label>
+                    <input
+                      value={editSubtitle}
+                      onChange={(e) => setEditSubtitle(e.target.value)}
+                      placeholder="부제목 (선택)"
+                      className="text-sm px-3 py-2 rounded-lg border outline-none"
+                      style={{ borderColor: "#e6dfd8", background: "#fff", color: "#141413" }}
+                      onFocus={(e) => (e.currentTarget.style.borderColor = "#cc785c")}
+                      onBlur={(e) => (e.currentTarget.style.borderColor = "#e6dfd8")}
+                    />
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <label className="text-xs font-medium" style={{ color: "#6c6a64" }}>설명</label>
+                    <textarea
+                      value={editDescription}
+                      onChange={(e) => setEditDescription(e.target.value)}
+                      placeholder="강의 설명 (선택)"
+                      rows={5}
+                      className="text-sm px-3 py-2 rounded-lg border outline-none resize-y"
+                      style={{ borderColor: "#e6dfd8", background: "#fff", color: "#141413" }}
+                      onFocus={(e) => (e.currentTarget.style.borderColor = "#cc785c")}
+                      onBlur={(e) => (e.currentTarget.style.borderColor = "#e6dfd8")}
+                    />
+                  </div>
+                  <div className="flex gap-2 justify-end">
+                    <button
+                      onClick={() => setEditingInfo(false)}
+                      className="text-sm px-4 py-1.5 rounded-lg border transition-colors"
+                      style={{ borderColor: "#e6dfd8", color: "#6c6a64" }}
+                    >
+                      취소
+                    </button>
+                    <button
+                      onClick={handleSaveInfo}
+                      disabled={savingInfo || !editTitle.trim()}
+                      className="text-sm px-4 py-1.5 rounded-lg transition-colors disabled:opacity-40"
+                      style={{ background: "#cc785c", color: "#fff" }}
+                    >
+                      {savingInfo ? "저장 중…" : "저장"}
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex flex-col gap-1.5">
+                  {info.subtitle && (
+                    <p className="text-sm font-medium" style={{ color: "#3d3d3a" }}>
+                      {info.subtitle}
+                    </p>
+                  )}
+                  {info.description ? (
+                    <p className="text-sm whitespace-pre-wrap leading-relaxed" style={{ color: "#6c6a64" }}>
+                      {info.description}
+                    </p>
+                  ) : (
+                    <p className="text-sm" style={{ color: "#b0aca4" }}>설명 없음</p>
+                  )}
+                </div>
               )}
             </div>
-            <Link
-              href={`/academy/${id}`}
-              target="_blank"
-              className="flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg border transition-colors shrink-0"
-              style={{ borderColor: "#e6dfd8", color: "#6c6a64" }}
-              onMouseEnter={(e) => {
-                (e.currentTarget as HTMLAnchorElement).style.borderColor = "#cc785c";
-                (e.currentTarget as HTMLAnchorElement).style.color = "#cc785c";
-              }}
-              onMouseLeave={(e) => {
-                (e.currentTarget as HTMLAnchorElement).style.borderColor = "#e6dfd8";
-                (e.currentTarget as HTMLAnchorElement).style.color = "#6c6a64";
-              }}
-            >
-              <ExternalLink className="w-3.5 h-3.5" />
-              강의 페이지
-            </Link>
           </div>
 
           {/* Curriculum section */}
