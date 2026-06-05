@@ -17,12 +17,14 @@ import {
   ChevronLeft,
   ChevronRight,
   ExternalLink,
+  LayoutTemplate,
 } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
 import { useRouter } from "next/navigation";
 
 const navItems = [
   { href: "/admin", label: "대시보드", icon: LayoutDashboard, phase: 1 },
+  { href: "/admin/pages/home", label: "홈 페이지 편집", icon: LayoutTemplate, phase: 1 },
   { href: "/admin/users", label: "유저 관리", icon: Users, phase: 1 },
   { href: "/admin/academy/lectures", label: "강의 관리", icon: GraduationCap, phase: 2 },
   { href: "/admin/shop/products", label: "상품 관리", icon: ShoppingBag, phase: 3 },
