@@ -28,8 +28,8 @@ export default function AdminGuard({ children }: { children: React.ReactNode }) 
     }
   }, [user, profile, isLoading, loading, router]);
 
-  // 유저 확인 중이거나 프로필 fetch 중이거나, 유저는 있는데 프로필 아직 없으면 스피너
-  if (isLoading || loading || (user && profile === null)) {
+  // 초기 로드 중일 때만 스피너 (profile이 이미 있으면 재검증 중에도 children 유지)
+  if (isLoading || (loading && !profile) || (user && profile === null)) {
     return (
       <div className="min-h-screen flex items-center justify-center" style={{ background: "#faf9f5" }}>
         <div className="w-8 h-8 border-2 border-[#cc785c] border-t-transparent rounded-full animate-spin" />

@@ -24,7 +24,7 @@ export default async function Home() {
       ) : (
         <div className="flex flex-col">
           {pageBlocks.map((block) => (
-            <section key={block.id} className="w-full px-4 py-12 max-w-4xl mx-auto">
+            <section key={block.id} className="w-full px-4 py-6 max-w-4xl mx-auto">
               <BlockRenderer block={block} />
             </section>
           ))}
