@@ -2,8 +2,9 @@ import Image from "next/image";
 import type { ImageBlockData } from "@/types/blocks";
 
 export default function ImageBlock({ data }: { data: ImageBlockData }) {
+  const maxW = data.maxWidth ?? 100;
   const img = (
-    <figure className="flex flex-col items-center gap-2 w-full">
+    <figure className="flex flex-col items-center gap-2" style={{ width: `${maxW}%`, margin: "0 auto" }}>
       <div className="relative w-full">
         <Image
           src={data.src}

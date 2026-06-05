@@ -10,6 +10,7 @@ export interface ImageBlockData {
   caption?: string;
   href?: string;
   storagePath?: string; // Storage 경로 (삭제 시 사용)
+  maxWidth?: number; // % 단위, 기본 100
 }
 
 export interface FadeTextBlockData {
@@ -20,6 +21,7 @@ export interface FadeTextBlockData {
 export interface VideoBlockData {
   url: string;
   type: 'youtube' | 'file';
+  maxWidth?: number; // % 단위, 기본 100
 }
 
 export interface ActionButton {

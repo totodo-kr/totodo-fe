@@ -120,6 +120,28 @@ export default function ImageBlockEditor({ data, onChange }: Props) {
       {field("대체 텍스트 (alt)", data.alt, "alt", "이미지 설명")}
       {field("캡션 (선택)", data.caption ?? "", "caption", "이미지 아래 표시될 설명")}
       {field("링크 URL (선택)", data.href ?? "", "href", "https://...")}
+
+      {/* 너비 */}
+      <div className="flex flex-col gap-1.5">
+        <label className="text-sm font-medium" style={{ color: "#141413" }}>너비</label>
+        <div className="flex gap-2">
+          {[25, 50, 75, 100].map((w) => (
+            <button
+              key={w}
+              type="button"
+              onClick={() => onChange({ ...data, maxWidth: w })}
+              className="flex-1 py-2 rounded-lg text-sm font-medium border transition-colors"
+              style={{
+                borderColor: (data.maxWidth ?? 100) === w ? "#cc785c" : "#e6dfd8",
+                background: (data.maxWidth ?? 100) === w ? "#cc785c" : "transparent",
+                color: (data.maxWidth ?? 100) === w ? "#fff" : "#6c6a64",
+              }}
+            >
+              {w}%
+            </button>
+          ))}
+        </div>
+      </div>
     </div>
   );
 }

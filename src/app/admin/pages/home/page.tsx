@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createClient } from "@/utils/supabase/client";
 import { Spinner } from "@/components/admin/atoms";
 import { ToggleButton, IconActionButton } from "@/components/admin/molecules";
@@ -19,6 +19,16 @@ export default function AdminHomePage() {
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [editorBlock, setEditorBlock] = useState<Partial<PageBlock> | null>(null);
   const [hoveredId, setHoveredId] = useState<string | null>(null);
+  const [previewColWidth, setPreviewColWidth] = useState(0);
+  const previewColRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const el = previewColRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver(([entry]) => setPreviewColWidth(entry.contentRect.width));
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
 
   const fetchBlocks = useCallback(async () => {
     setLoading(true);
@@ -109,6 +119,7 @@ export default function AdminHomePage() {
 
         {/* ── 좌: 미리보기 ── */}
         <div
+          ref={previewColRef}
           className="flex flex-col border-r flex-1 min-w-0"
           style={{ borderColor: "#e6dfd8" }}
         >
@@ -123,7 +134,7 @@ export default function AdminHomePage() {
           </div>
 
           {/* 미리보기 본문 */}
-          <div className="flex-1 bg-black text-white" style={{ overflowY: "auto", overflowX: "hidden" }}>
+          <div className="flex-1 bg-black text-white px-2" style={{ overflowY: "auto", overflowX: "hidden" }}>
             {loading ? (
               <div className="flex justify-center py-12"><Spinner size="sm" color="white" /></div>
             ) : blocks.length === 0 ? (
@@ -131,7 +142,7 @@ export default function AdminHomePage() {
                 블록을 추가하면 여기에 표시됩니다.
               </div>
             ) : (
-              <div style={{ zoom: 0.5, width: "1200px" }}>
+              <div style={{ zoom: previewColWidth / 1200, width: "1200px", visibility: previewColWidth ? "visible" : "hidden" }}>
                 {blocks.map((block) => (
                   <div
                     key={block.id}
