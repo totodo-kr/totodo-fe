@@ -53,7 +53,14 @@ function ResetPasswordContent() {
       alert("비밀번호가 변경되었습니다.");
       router.replace("/settings");
     } catch (err: any) {
-      setError(err.message || "비밀번호 변경 중 오류가 발생했습니다.");
+      const msg: string = err.message || "";
+      if (msg.includes("different from the old password")) {
+        setError("이전 비밀번호와 동일한 비밀번호는 사용할 수 없습니다.");
+      } else if (msg.includes("at least")) {
+        setError("비밀번호는 6자 이상이어야 합니다.");
+      } else {
+        setError(msg || "비밀번호 변경 중 오류가 발생했습니다.");
+      }
     } finally {
       setLoading(false);
     }
@@ -75,61 +82,59 @@ function ResetPasswordContent() {
           <p className="text-gray-400 text-sm">새로 사용할 비밀번호를 입력해 주세요.</p>
         </div>
 
-        {error ? (
-          <p className="text-red-400 text-sm">{error}</p>
-        ) : (
-          <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-            <div className="flex flex-col gap-2">
-              <label className="text-sm font-medium text-gray-300">새 비밀번호</label>
-              <div className="relative">
-                <input
-                  type={showPassword ? "text" : "password"}
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="6자 이상 입력"
-                  required
-                  className="w-full h-12 bg-zinc-900 rounded-xl px-4 pr-11 border border-white/10 text-white focus:outline-none focus:border-brand-500 transition-colors"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword((v) => !v)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-300"
-                >
-                  {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-                </button>
-              </div>
+        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+          <div className="flex flex-col gap-2">
+            <label className="text-sm font-medium text-gray-300">새 비밀번호</label>
+            <div className="relative">
+              <input
+                type={showPassword ? "text" : "password"}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="6자 이상 입력"
+                required
+                className="w-full h-12 bg-zinc-900 rounded-xl px-4 pr-11 border border-white/10 text-white focus:outline-none focus:border-brand-500 transition-colors"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword((v) => !v)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-300"
+              >
+                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+              </button>
             </div>
+          </div>
 
-            <div className="flex flex-col gap-2">
-              <label className="text-sm font-medium text-gray-300">비밀번호 확인</label>
-              <div className="relative">
-                <input
-                  type={showConfirm ? "text" : "password"}
-                  value={confirm}
-                  onChange={(e) => setConfirm(e.target.value)}
-                  placeholder="비밀번호를 한 번 더 입력"
-                  required
-                  className="w-full h-12 bg-zinc-900 rounded-xl px-4 pr-11 border border-white/10 text-white focus:outline-none focus:border-brand-500 transition-colors"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowConfirm((v) => !v)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-300"
-                >
-                  {showConfirm ? <EyeOff size={18} /> : <Eye size={18} />}
-                </button>
-              </div>
+          <div className="flex flex-col gap-2">
+            <label className="text-sm font-medium text-gray-300">비밀번호 확인</label>
+            <div className="relative">
+              <input
+                type={showConfirm ? "text" : "password"}
+                value={confirm}
+                onChange={(e) => setConfirm(e.target.value)}
+                placeholder="비밀번호를 한 번 더 입력"
+                required
+                className="w-full h-12 bg-zinc-900 rounded-xl px-4 pr-11 border border-white/10 text-white focus:outline-none focus:border-brand-500 transition-colors"
+              />
+              <button
+                type="button"
+                onClick={() => setShowConfirm((v) => !v)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-300"
+              >
+                {showConfirm ? <EyeOff size={18} /> : <Eye size={18} />}
+              </button>
             </div>
+          </div>
 
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full h-12 rounded-xl bg-brand-500 hover:bg-brand-600 text-white font-medium text-sm transition-colors disabled:opacity-50 mt-2"
-            >
-              {loading ? "변경 중..." : "비밀번호 변경"}
-            </button>
-          </form>
-        )}
+          {error && <p className="text-red-400 text-sm">{error}</p>}
+
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full h-12 rounded-xl bg-brand-500 hover:bg-brand-600 text-white font-medium text-sm transition-colors disabled:opacity-50 mt-2"
+          >
+            {loading ? "변경 중..." : "비밀번호 변경"}
+          </button>
+        </form>
       </div>
     </div>
   );
