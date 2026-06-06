@@ -8,9 +8,11 @@ import SettingsLayout from "@/components/SettingsLayout";
 import PageLoading from "@/components/PageLoading";
 import DeleteAccountModal from "@/components/DeleteAccountModal";
 import { createClient } from "@/utils/supabase/client";
+import { useProfile } from "@/hooks/useProfile";
 
 export default function AccountSettingPage() {
   const { user, isLoading, setUser } = useAuthStore();
+  const { profile } = useProfile(user);
   const router = useRouter();
   const [showDeleteModal, setShowDeleteModal] = useState(false);
 
@@ -90,7 +92,9 @@ export default function AccountSettingPage() {
         <div className="bg-[#1a1a1a] rounded-2xl p-6 border border-white/5 shadow-lg">
           <button
             onClick={() => setShowDeleteModal(true)}
-            className="text-red-500 font-medium hover:text-red-400 transition-colors"
+            disabled={profile?.role === "admin"}
+            title={profile?.role === "admin" ? "관리자 계정은 탈퇴할 수 없습니다." : undefined}
+            className="text-red-500 font-medium hover:text-red-400 transition-colors disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:text-red-500"
           >
             서비스 탈퇴
           </button>
