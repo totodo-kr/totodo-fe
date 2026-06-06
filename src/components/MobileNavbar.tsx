@@ -10,6 +10,7 @@ import LoginModal from "./LoginModal";
 import NotificationDropdown from "./NotificationDropdown";
 import { useNotifications } from "@/hooks/useNotifications";
 import { useMenus } from "@/hooks/useMenus";
+import { useProfile } from "@/hooks/useProfile";
 
 const ICON_MAP: Record<string, LucideIcon> = { Heart, ShoppingCart };
 
@@ -21,8 +22,17 @@ export default function MobileNavbar() {
   const [isNotificationOpen, setIsNotificationOpen] = useState(false);
   const notificationRef = useRef<HTMLDivElement>(null);
   const { user } = useAuthStore();
+  const { profile } = useProfile(user);
   const { notifications, loading, unreadCount, markAsRead, markAllAsRead } = useNotifications(user);
   const { menus, subMenus } = useMenus();
+
+  const avatarUrl = profile?.avatar_url || user?.user_metadata?.avatar_url;
+  const displayName =
+    profile?.display_name ||
+    user?.user_metadata?.full_name ||
+    user?.user_metadata?.name ||
+    user?.email?.split("@")[0] ||
+    "사용자";
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent | TouchEvent) {
@@ -140,9 +150,9 @@ export default function MobileNavbar() {
                   className="flex items-center gap-3 flex-1 min-w-0 px-2 py-2 rounded-lg hover:bg-white/5 transition-colors"
                 >
                   <div className="w-10 h-10 rounded-full bg-gray-800 overflow-hidden border border-white/10 flex items-center justify-center shrink-0">
-                    {user.user_metadata?.avatar_url ? (
+                    {avatarUrl ? (
                       <img
-                        src={user.user_metadata.avatar_url}
+                        src={avatarUrl}
                         alt="Profile"
                         className="w-full h-full object-cover"
                       />
@@ -150,12 +160,7 @@ export default function MobileNavbar() {
                       <UserIcon size={20} className="text-gray-400" />
                     )}
                   </div>
-                  <span className="text-white font-medium truncate">
-                    {user.user_metadata?.full_name ||
-                      user.user_metadata?.name ||
-                      user.email?.split("@")[0] ||
-                      "사용자"}
-                  </span>
+                  <span className="text-white font-medium truncate">{displayName}</span>
                 </Link>
                 <div ref={notificationRef} className="relative flex items-center shrink-0">
                   <button

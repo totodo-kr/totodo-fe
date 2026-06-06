@@ -16,6 +16,7 @@ import LoginModal from "./LoginModal";
 import NotificationDropdown from "./NotificationDropdown";
 import { useNotifications } from "@/hooks/useNotifications";
 import { useMenus } from "@/hooks/useMenus";
+import { useProfile } from "@/hooks/useProfile";
 
 // 서브메뉴 우측 아이콘 이름 → 컴포넌트 매핑
 const ICON_MAP: Record<string, LucideIcon> = {
@@ -30,9 +31,12 @@ export default function Navbar() {
   const [isNotificationOpen, setIsNotificationOpen] = useState(false);
   const notificationRef = useRef<HTMLDivElement>(null);
   const { user } = useAuthStore();
+  const { profile } = useProfile(user);
   const { notifications, loading: notifLoading, unreadCount, markAsRead, markAllAsRead } =
     useNotifications(user);
   const { menus, subMenus } = useMenus();
+
+  const avatarUrl = profile?.avatar_url || user?.user_metadata?.avatar_url;
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
@@ -135,9 +139,9 @@ export default function Navbar() {
                   </div>
                   <Link href="/settings">
                     <div className="w-9 h-9 rounded-full bg-gray-800 overflow-hidden border border-white/10 flex items-center justify-center cursor-pointer hover:border-brand-500 transition-colors">
-                      {user.user_metadata?.avatar_url ? (
+                      {avatarUrl ? (
                         <img
-                          src={user.user_metadata.avatar_url}
+                          src={avatarUrl}
                           alt="Profile"
                           className="w-full h-full object-cover"
                         />

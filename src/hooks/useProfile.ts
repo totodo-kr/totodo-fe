@@ -87,15 +87,15 @@ export function useProfile(user: User | null) {
     try {
       const fileExt = file.name.split(".").pop();
       const fileName = `${user.id}-${Math.random()}.${fileExt}`;
-      const filePath = `${fileName}`;
+      const filePath = `avatars/${fileName}`;
 
       const { error: uploadError } = await supabase.storage
-        .from("review_files") // Consider changing to 'avatars' bucket later
+        .from("totodo_pub_storage")
         .upload(filePath, file);
 
       if (uploadError) throw uploadError;
 
-      const { data } = supabase.storage.from("review_files").getPublicUrl(filePath);
+      const { data } = supabase.storage.from("totodo_pub_storage").getPublicUrl(filePath);
       return data.publicUrl;
     } catch (err: any) {
       console.error("Error uploading avatar:", err);

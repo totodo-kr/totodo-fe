@@ -58,9 +58,9 @@ export default function SettingsPage() {
           <div className="flex flex-col items-center gap-4">
             {/* 프로필 사진 */}
             <div className="w-24 h-24 rounded-full bg-gray-800 overflow-hidden border-2 border-white/10 flex items-center justify-center">
-              {user.user_metadata?.avatar_url ? (
+              {(profile?.avatar_url || user.user_metadata?.avatar_url) ? (
                 <img
-                  src={user.user_metadata.avatar_url}
+                  src={profile?.avatar_url || user.user_metadata?.avatar_url}
                   alt="Profile"
                   className="w-full h-full object-cover"
                 />
