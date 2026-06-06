@@ -1,33 +1,53 @@
-import { createClient } from "@/utils/supabase/server";
-import { NextResponse } from "next/server";
+import { createServerClient } from "@supabase/ssr";
+import { NextResponse, type NextRequest } from "next/server";
 
-export async function GET(request: Request) {
+export async function GET(request: NextRequest) {
   const { searchParams, origin } = new URL(request.url);
   const code = searchParams.get("code");
   const token_hash = searchParams.get("token_hash");
   const type = searchParams.get("type") as "recovery" | "email" | "signup" | null;
   const next = searchParams.get("next") ?? "/";
 
-  const supabase = await createClient();
-  let exchangeError = null;
+  const forwardedHost = request.headers.get("x-forwarded-host");
+  const isLocalEnv = process.env.NODE_ENV === "development";
+  const redirectBase =
+    forwardedHost && !isLocalEnv ? `https://${forwardedHost}` : origin;
 
-  if (code) {
-    const { error } = await supabase.auth.exchangeCodeForSession(code);
-    exchangeError = error;
-  } else if (token_hash && type) {
-    const { error } = await supabase.auth.verifyOtp({ token_hash, type });
-    exchangeError = error;
-  }
+  if (code || (token_hash && type)) {
+    const cookiesToSet: { name: string; value: string; options: Record<string, unknown> }[] = [];
 
-  if (!exchangeError && (code || token_hash)) {
-    const forwardedHost = request.headers.get("x-forwarded-host");
-    const isLocalEnv = process.env.NODE_ENV === "development";
-    if (isLocalEnv) {
-      return NextResponse.redirect(`${origin}${next}`);
-    } else if (forwardedHost) {
-      return NextResponse.redirect(`https://${forwardedHost}${next}`);
-    } else {
-      return NextResponse.redirect(`${origin}${next}`);
+    const supabase = createServerClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        cookies: {
+          getAll() {
+            return request.cookies.getAll();
+          },
+          setAll(cookies) {
+            cookiesToSet.push(...cookies);
+          },
+        },
+      }
+    );
+
+    let exchangeError = null;
+
+    if (code) {
+      const { error } = await supabase.auth.exchangeCodeForSession(code);
+      exchangeError = error;
+    } else if (token_hash && type) {
+      const { error } = await supabase.auth.verifyOtp({ token_hash, type });
+      exchangeError = error;
+    }
+
+    if (!exchangeError) {
+      const response = NextResponse.redirect(`${redirectBase}${next}`);
+      // 쿠키를 redirect 응답에 직접 붙여야 브라우저가 수신함
+      cookiesToSet.forEach(({ name, value, options }) =>
+        response.cookies.set(name, value, options as Parameters<typeof response.cookies.set>[2])
+      );
+      return response;
     }
   }
 

@@ -10,32 +10,28 @@ export default function AuthStateSync() {
   const router = useRouter();
   const pathname = usePathname();
   const pathnameRef = useRef(pathname);
+  const routerRef = useRef(router);
 
   useEffect(() => {
     pathnameRef.current = pathname;
   }, [pathname]);
 
   useEffect(() => {
+    routerRef.current = router;
+  }, [router]);
+
+  useEffect(() => {
     const supabase = createClient();
 
-    const checkUser = async () => {
-      try {
-        const {
-          data: { session },
-        } = await supabase.auth.getSession();
-        setUser(session?.user ?? null);
-      } catch (error) {
-        console.error("Session check error:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    checkUser();
+    // 안전망: 3초 내 onAuthStateChange가 fire 안 되면 강제로 loading 해제
+    const fallbackTimer = setTimeout(() => {
+      setLoading(false);
+    }, 3000);
 
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (event, session) => {
+      clearTimeout(fallbackTimer);
       setUser(session?.user ?? null);
       setLoading(false);
 
@@ -49,15 +45,16 @@ export default function AuthStateSync() {
           .single();
 
         if (!profile?.display_name && pathnameRef.current !== "/onboarding") {
-          router.push("/onboarding");
+          routerRef.current.push("/onboarding");
         }
       }
     });
 
     return () => {
+      clearTimeout(fallbackTimer);
       subscription.unsubscribe();
     };
-  }, [setUser, setLoading, router]);
+  }, [setUser, setLoading]);
 
   return null;
 }
