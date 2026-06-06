@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { ChevronLeft, Camera, ChevronDown } from "lucide-react";
 import { useAuthStore } from "@/store/useAuthStore";
 import { useProfile } from "@/hooks/useProfile";
+import VerifyPasswordModal from "@/components/VerifyPasswordModal";
 
 export default function ProfileEditPage() {
   const router = useRouter();
@@ -13,6 +14,7 @@ export default function ProfileEditPage() {
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const [showVerifyModal, setShowVerifyModal] = useState(false);
   const [displayName, setDisplayName] = useState("");
   const [avatarUrl, setAvatarUrl] = useState("");
   const [name, setName] = useState("");
@@ -122,6 +124,17 @@ export default function ProfileEditPage() {
           />
         </div>
 
+        {/* 비밀번호 변경 (이메일 로그인 전용) */}
+        {user?.app_metadata?.provider === "email" && (
+          <button
+            type="button"
+            onClick={() => setShowVerifyModal(true)}
+            className="self-start text-sm text-brand-400 hover:text-brand-300 transition-colors"
+          >
+            비밀번호 변경
+          </button>
+        )}
+
         <div className="border-t border-white/5" />
 
         {/* 이름 */}
@@ -227,6 +240,16 @@ export default function ProfileEditPage() {
         </button>
 
       </div>
+      {showVerifyModal && user?.email && (
+        <VerifyPasswordModal
+          email={user.email}
+          onSuccess={() => {
+            setShowVerifyModal(false);
+            router.push("/settings/change-password");
+          }}
+          onClose={() => setShowVerifyModal(false)}
+        />
+      )}
     </main>
   );
 }
