@@ -25,6 +25,7 @@ export interface AdminLectureInfo {
   title: string;
   subtitle: string | null;
   description: string | null;
+  thumbnail_url: string | null;
   is_published: boolean;
 }
 
@@ -41,7 +42,7 @@ export function useAdminLectureDetail(lectureId: string | undefined) {
       const [lectureRes, chaptersRes] = await Promise.all([
         supabase
           .from("lectures")
-          .select("id, title, subtitle, description, is_published")
+          .select("id, title, subtitle, description, thumbnail_url, is_published")
           .eq("id", lectureId)
           .single(),
         supabase
@@ -86,7 +87,7 @@ export function useAdminLectureDetail(lectureId: string | undefined) {
   useEffect(() => { fetchAll(); }, [fetchAll]);
 
   const updateLecture = useCallback(
-    async (updates: Partial<Pick<AdminLectureInfo, "title" | "subtitle" | "description">>) => {
+    async (updates: Partial<Pick<AdminLectureInfo, "title" | "subtitle" | "description" | "thumbnail_url">>) => {
       if (!lectureId) return;
       const { error } = await supabase
         .from("lectures")
