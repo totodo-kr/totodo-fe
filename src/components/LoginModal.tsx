@@ -99,7 +99,13 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
     setError(null);
     const supabase = createClient();
     try {
-      const { error } = await supabase.auth.signUp({ email, password });
+      const { error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          emailRedirectTo: `${window.location.origin}/auth/callback?next=/onboarding`,
+        },
+      });
       if (error) throw error;
       setSuccessMessage("가입 확인 이메일을 발송했습니다. 메일함을 확인해주세요.");
     } catch (err: any) {
