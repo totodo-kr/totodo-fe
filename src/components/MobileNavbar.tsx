@@ -4,11 +4,14 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState, useEffect, useRef } from "react";
 import { clsx } from "clsx";
-import { Bell, User as UserIcon, Menu, X, Heart, ShoppingCart } from "lucide-react";
+import { Bell, User as UserIcon, Menu, X, Heart, ShoppingCart, type LucideIcon } from "lucide-react";
 import { useAuthStore } from "@/store/useAuthStore";
 import LoginModal from "./LoginModal";
 import NotificationDropdown from "./NotificationDropdown";
 import { useNotifications } from "@/hooks/useNotifications";
+import { useMenus } from "@/hooks/useMenus";
+
+const ICON_MAP: Record<string, LucideIcon> = { Heart, ShoppingCart };
 
 export default function MobileNavbar() {
   const pathname = usePathname();
@@ -19,6 +22,7 @@ export default function MobileNavbar() {
   const notificationRef = useRef<HTMLDivElement>(null);
   const { user } = useAuthStore();
   const { notifications, loading, unreadCount, markAsRead, markAllAsRead } = useNotifications(user);
+  const { menus, subMenus } = useMenus();
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent | TouchEvent) {
@@ -66,34 +70,13 @@ export default function MobileNavbar() {
     };
   }, [isSidebarOpen]);
 
-  const menuItems = [
-    { name: "홈", href: "/" },
-    { name: "이세계 학원", href: "/academy" },
-    { name: "상점", href: "/shop" },
-    { name: "강의 후기", href: "/reviews" },
-    { name: "자주 묻는 질문", href: "/faq" },
-  ];
-
-  // 서브 메뉴 정의
-  const subMenus: Record<string, { name: string; href: string }[]> = {
-    "/academy": [
-      { name: "홈", href: "/academy" },
-      { name: "내 강의실", href: "/academy/my-lectures" },
-      { name: "나의 북마크", href: "/academy/bookmarks" },
-    ],
-    "/shop": [
-      { name: "홈", href: "/shop" },
-      { name: "도서", href: "/shop/books" },
-      { name: "잡화", href: "/shop/goods" },
-    ],
-  };
-
-  // 현재 경로에 맞는 서브 메뉴 찾기
-  const activeSubMenuKey = Object.keys(subMenus).find((key) => pathname.startsWith(key));
-  const currentSubMenus = activeSubMenuKey ? subMenus[activeSubMenuKey] : null;
-
-  // 상점 메뉴인지 확인
-  const isShopMenu = activeSubMenuKey === "/shop";
+  // 현재 경로에 해당하는 메인 메뉴
+  const activeMenu = menus.find((m) =>
+    m.href === "/" ? pathname === "/" : pathname.startsWith(m.href) && m.href !== "/"
+  );
+  const menuSubMenus = activeMenu ? subMenus.filter((s) => s.menu_id === activeMenu.id) : [];
+  const centerSubs = menuSubMenus.filter((s) => s.position === "center");
+  const rightSubs  = menuSubMenus.filter((s) => s.position === "right");
 
   return (
     <>
@@ -126,12 +109,12 @@ export default function MobileNavbar() {
 
           {/* 사이드바 메뉴 */}
           <nav className="flex-1 px-4 py-6 overflow-y-auto">
-            {menuItems.map((item) => {
+            {menus.map((item) => {
               const isActive =
                 item.href === "/" ? pathname === "/" : pathname.startsWith(item.href);
               return (
                 <Link
-                  key={item.name}
+                  key={item.id}
                   href={item.href}
                   onClick={() => setIsSidebarOpen(false)}
                   className={clsx(
@@ -227,68 +210,56 @@ export default function MobileNavbar() {
               <span className="text-2xl font-bold text-brand-500 tracking-tight">TOTODO</span>
             </Link>
 
-            {/* 중앙: 서브메뉴 (있으면 표시, 없으면 비워둠) */}
+            {/* 중앙: 서브메뉴 */}
             <div className="flex items-center gap-3 flex-1 justify-center">
-              {currentSubMenus?.map((subItem) => {
+              {centerSubs.map((sub) => {
                 const isSubActive =
-                  subItem.href === activeSubMenuKey
-                    ? pathname === subItem.href
-                    : pathname.startsWith(subItem.href);
+                  sub.href === activeMenu?.href
+                    ? pathname === sub.href
+                    : pathname.startsWith(sub.href);
                 return (
                   <Link
-                    key={subItem.name}
-                    href={subItem.href}
+                    key={sub.id}
+                    href={sub.href}
                     className={clsx(
                       "text-xs font-medium transition-colors",
                       isSubActive ? "text-brand-500 font-bold" : "text-gray-400 hover:text-white"
                     )}
                   >
-                    {subItem.name}
+                    {sub.name}
                   </Link>
                 );
               })}
             </div>
 
-            {/* 오른쪽: 상점이면 하트/장바구니/햄버거, 일반이면 알림/프로필/햄버거 */}
+            {/* 오른쪽: 우측 서브메뉴 아이콘 or 시작하기 버튼 */}
             <div className="flex items-center gap-3 shrink-0">
-              {isShopMenu ? (
-                <>
-                  <Link
-                    href="/shop/wishlist"
-                    className={clsx(
-                      "transition-colors",
-                      pathname === "/shop/wishlist"
-                        ? "text-brand-500"
-                        : "text-gray-400 hover:text-white"
-                    )}
-                    aria-label="위시리스트"
-                  >
-                    <Heart size={20} />
-                  </Link>
-                  <Link
-                    href="/shop/cart"
-                    className={clsx(
-                      "transition-colors",
-                      pathname === "/shop/cart"
-                        ? "text-brand-500"
-                        : "text-gray-400 hover:text-white"
-                    )}
-                    aria-label="장바구니"
-                  >
-                    <ShoppingCart size={20} />
-                  </Link>
-                </>
-              ) : (
-                <>
-                  {!user && (
-                    <button
-                      onClick={() => setIsModalOpen(true)}
-                      className="px-3 py-1.5 bg-white text-brand-500 rounded-lg font-bold text-xs hover:bg-gray-100 transition-colors"
+              {rightSubs.length > 0 ? (
+                rightSubs.map((sub) => {
+                  const IconComponent = sub.icon ? ICON_MAP[sub.icon] : null;
+                  return (
+                    <Link
+                      key={sub.id}
+                      href={sub.href}
+                      className={clsx(
+                        "transition-colors",
+                        pathname === sub.href ? "text-brand-500" : "text-gray-400 hover:text-white"
+                      )}
+                      aria-label={sub.name}
                     >
-                      시작하기
-                    </button>
-                  )}
-                </>
+                      {IconComponent ? <IconComponent size={20} /> : sub.name}
+                    </Link>
+                  );
+                })
+              ) : (
+                !user && (
+                  <button
+                    onClick={() => setIsModalOpen(true)}
+                    className="px-3 py-1.5 bg-white text-brand-500 rounded-lg font-bold text-xs hover:bg-gray-100 transition-colors"
+                  >
+                    시작하기
+                  </button>
+                )
               )}
               <button
                 onClick={() => setIsSidebarOpen(true)}

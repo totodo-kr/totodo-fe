@@ -4,11 +4,24 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState, useEffect, useRef } from "react";
 import { clsx } from "clsx";
-import { Bell, User as UserIcon, Heart, ShoppingCart } from "lucide-react";
+import {
+  Bell,
+  User as UserIcon,
+  Heart,
+  ShoppingCart,
+  type LucideIcon,
+} from "lucide-react";
 import { useAuthStore } from "@/store/useAuthStore";
 import LoginModal from "./LoginModal";
 import NotificationDropdown from "./NotificationDropdown";
 import { useNotifications } from "@/hooks/useNotifications";
+import { useMenus } from "@/hooks/useMenus";
+
+// 서브메뉴 우측 아이콘 이름 → 컴포넌트 매핑
+const ICON_MAP: Record<string, LucideIcon> = {
+  Heart,
+  ShoppingCart,
+};
 
 export default function Navbar() {
   const pathname = usePathname();
@@ -17,7 +30,9 @@ export default function Navbar() {
   const [isNotificationOpen, setIsNotificationOpen] = useState(false);
   const notificationRef = useRef<HTMLDivElement>(null);
   const { user } = useAuthStore();
-  const { notifications, loading, unreadCount, markAsRead, markAllAsRead } = useNotifications(user);
+  const { notifications, loading: notifLoading, unreadCount, markAsRead, markAllAsRead } =
+    useNotifications(user);
+  const { menus, subMenus } = useMenus();
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
@@ -29,45 +44,27 @@ export default function Navbar() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  // Listen for data-hide-navbar attribute changes
   useEffect(() => {
     const observer = new MutationObserver(() => {
       setIsHidden(document.body.hasAttribute("data-hide-navbar"));
     });
-
-    observer.observe(document.body, {
-      attributes: true,
-      attributeFilter: ["data-hide-navbar"],
-    });
-
+    observer.observe(document.body, { attributes: true, attributeFilter: ["data-hide-navbar"] });
     return () => observer.disconnect();
   }, []);
 
-  const menuItems = [
-    { name: "홈", href: "/" },
-    { name: "이세계 학원", href: "/academy" },
-    { name: "상점", href: "/shop" },
-    { name: "강의 후기", href: "/reviews" },
-    { name: "자주 묻는 질문", href: "/faq" },
-  ];
+  // 현재 경로에 해당하는 메인 메뉴 찾기
+  const activeMenu = menus.find((m) =>
+    m.href === "/" ? pathname === "/" : pathname.startsWith(m.href) && m.href !== "/"
+  );
 
-  // 서브 메뉴 정의
-  const subMenus: Record<string, { name: string; href: string }[]> = {
-    "/academy": [
-      { name: "홈", href: "/academy" },
-      { name: "내 강의실", href: "/academy/my-lectures" },
-      { name: "나의 북마크", href: "/academy/bookmarks" },
-    ],
-    "/shop": [
-      { name: "홈", href: "/shop" },
-      { name: "도서", href: "/shop/books" },
-      { name: "잡화", href: "/shop/goods" },
-    ],
-  };
-
-  // 현재 경로에 맞는 서브 메뉴 찾기
-  const activeSubMenuKey = Object.keys(subMenus).find((key) => pathname.startsWith(key));
-  const currentSubMenus = activeSubMenuKey ? subMenus[activeSubMenuKey] : null;
+  // 해당 메뉴의 서브메뉴 (중앙/좌/우 분리)
+  const menuSubMenus = activeMenu
+    ? subMenus.filter((s) => s.menu_id === activeMenu.id)
+    : [];
+  const centerSubs = menuSubMenus.filter((s) => s.position === "center");
+  const leftSubs   = menuSubMenus.filter((s) => s.position === "left");
+  const rightSubs  = menuSubMenus.filter((s) => s.position === "right");
+  const hasSubBar  = menuSubMenus.length > 0;
 
   return (
     <>
@@ -81,7 +78,7 @@ export default function Navbar() {
         <nav
           className={clsx(
             "bg-black backdrop-blur-md h-16 w-full",
-            currentSubMenus ? "border-b-0" : "border-b border-white/10"
+            hasSubBar ? "border-b-0" : "border-b border-white/10"
           )}
         >
           <div className="max-w-[1600px] mx-auto px-4 h-full flex items-center justify-between">
@@ -92,12 +89,12 @@ export default function Navbar() {
 
             {/* Center: Menu */}
             <div className="flex items-center gap-8">
-              {menuItems.map((item) => {
+              {menus.map((item) => {
                 const isActive =
                   item.href === "/" ? pathname === "/" : pathname.startsWith(item.href);
                 return (
                   <Link
-                    key={item.name}
+                    key={item.id}
                     href={item.href}
                     className={clsx(
                       "text-lg font-medium transition-colors",
@@ -129,7 +126,7 @@ export default function Navbar() {
                     {isNotificationOpen && (
                       <NotificationDropdown
                         notifications={notifications}
-                        loading={loading}
+                        loading={notifLoading}
                         onClose={() => setIsNotificationOpen(false)}
                         onMarkAsRead={markAsRead}
                         onMarkAllAsRead={markAllAsRead}
@@ -162,24 +159,39 @@ export default function Navbar() {
           </div>
         </nav>
 
-        {/* 2단: 서브 탭 (조건부 렌더링) */}
-        {currentSubMenus && (
+        {/* 2단: 서브 탭 (서브메뉴가 있는 메뉴에서만 표시) */}
+        {hasSubBar && (
           <div className="bg-black border-b border-white/10 h-12 w-full">
             <div className="flex mx-auto max-w-[1600px] px-4 h-full">
+              {/* 좌측 */}
               <div className="flex items-center justify-start w-1/8 h-full gap-6">
-                <div>1-1</div>
-                <div>1-2</div>
+                {leftSubs.map((sub) => (
+                  <Link
+                    key={sub.id}
+                    href={sub.href}
+                    className={clsx(
+                      "h-full flex items-center text-sm font-medium border-b-2 transition-colors px-1",
+                      pathname.startsWith(sub.href)
+                        ? "text-brand-500 border-brand-500"
+                        : "text-gray-400 border-transparent hover:text-white"
+                    )}
+                  >
+                    {sub.name}
+                  </Link>
+                ))}
               </div>
+
+              {/* 중앙 */}
               <div className="flex items-center justify-center w-6/8 h-full gap-6">
-                {currentSubMenus.map((subItem) => {
+                {centerSubs.map((sub) => {
                   const isSubActive =
-                    subItem.href === activeSubMenuKey
-                      ? pathname === subItem.href
-                      : pathname.startsWith(subItem.href);
+                    sub.href === activeMenu?.href
+                      ? pathname === sub.href
+                      : pathname.startsWith(sub.href);
                   return (
                     <Link
-                      key={subItem.name}
-                      href={subItem.href}
+                      key={sub.id}
+                      href={sub.href}
                       className={clsx(
                         "h-full flex items-center text-sm font-medium border-b-2 transition-colors px-1",
                         isSubActive
@@ -187,63 +199,38 @@ export default function Navbar() {
                           : "text-gray-400 border-transparent hover:text-white"
                       )}
                     >
-                      {subItem.name}
+                      {sub.name}
                     </Link>
                   );
                 })}
               </div>
+
+              {/* 우측 */}
               <div className="flex items-center justify-end w-1/8 h-full gap-6">
-                {activeSubMenuKey === "/shop" && (
-                  <>
+                {rightSubs.map((sub) => {
+                  const IconComponent = sub.icon ? ICON_MAP[sub.icon] : null;
+                  return (
                     <Link
-                      href="/shop/wishlist"
+                      key={sub.id}
+                      href={sub.href}
                       className={clsx(
                         "transition-colors",
-                        pathname === "/shop/wishlist"
-                          ? "text-brand-500"
-                          : "text-gray-400 hover:text-white"
+                        pathname === sub.href ? "text-brand-500" : "text-gray-400 hover:text-white"
                       )}
-                      aria-label="위시리스트"
+                      aria-label={sub.name}
                     >
-                      <Heart size={20} />
+                      {IconComponent ? <IconComponent size={20} /> : sub.name}
                     </Link>
-                    <Link
-                      href="/shop/cart"
-                      className={clsx(
-                        "transition-colors",
-                        pathname === "/shop/cart"
-                          ? "text-brand-500"
-                          : "text-gray-400 hover:text-white"
-                      )}
-                      aria-label="장바구니"
-                    >
-                      <ShoppingCart size={20} />
-                    </Link>
-                  </>
-                )}
+                  );
+                })}
               </div>
             </div>
           </div>
         )}
       </div>
 
-      {/* 컨텐츠 여백 확보: 2단 메뉴 유무에 따라 상단 여백 조절을 위해 body나 main에 pt를 동적으로 줘야 하지만, 
-          간단하게 Navbar 컴포넌트 자체가 공간을 차지하지 않으므로(fixed), 
-          페이지 레이아웃에서 pt를 조절하거나, 여기서 투명한 div로 공간을 밀어줄 수 있음.
-          하지만 Next.js App Router 구조상 Navbar는 Layout에 있고 Page는 children으로 들어감.
-          Layout에서 Navbar의 상태를 알기 어려우므로, 전역적인 padding 처리가 필요함.
-          여기서는 간단하게, 2단 메뉴가 있을 때 추가적인 여백을 주는 방식보다는, 
-          Navbar가 fixed이므로 메인 컨텐츠가 가려지지 않게 하는 것이 중요함.
-          
-          RootLayout의 pt-16은 1단 높이만큼임. 2단일 땐 더 내려와야 함.
-          이를 해결하기 위해 CSS 변수나 Context를 쓸 수도 있지만, 
-          가장 쉬운 방법은 Navbar 내부에 '공간 차지용 div'를 두거나, 
-          Navbar가 fixed가 아닌 sticky 등을 사용하는 것임.
-          하지만 요구사항의 '상단 고정'을 유지하려면 fixed가 적합함.
-          
-          여기서는 Navbar 아래에 높이만큼의 빈 div를 렌더링하여 컨텐츠가 밀리도록 처리.
-      */}
-      <div className={clsx("w-full", currentSubMenus ? "h-28" : "h-16")} />
+      {/* 컨텐츠 여백 확보 */}
+      <div className={clsx("w-full", hasSubBar ? "h-28" : "h-16")} />
 
       <LoginModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} />
     </>
