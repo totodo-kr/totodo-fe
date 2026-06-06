@@ -47,6 +47,13 @@ export default function OnboardingPage() {
   const [phone, setPhone] = useState("");
   const [jobDescription, setJobDescription] = useState("");
 
+  // 소셜 로그인 메타데이터로 닉네임 프리필
+  useEffect(() => {
+    if (user?.user_metadata?.full_name && !displayName) {
+      setDisplayName(user.user_metadata.full_name);
+    }
+  }, [user]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // 이미 닉네임 있으면 온보딩 불필요
   useEffect(() => {
     if (!isLoading && !profileLoading && profile?.display_name) {
