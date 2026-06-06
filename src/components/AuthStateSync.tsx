@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { createClient } from "@/utils/supabase/client";
 import { useAuthStore } from "@/store/useAuthStore";
@@ -9,6 +9,11 @@ export default function AuthStateSync() {
   const { setUser, setLoading } = useAuthStore();
   const router = useRouter();
   const pathname = usePathname();
+  const pathnameRef = useRef(pathname);
+
+  useEffect(() => {
+    pathnameRef.current = pathname;
+  }, [pathname]);
 
   useEffect(() => {
     const supabase = createClient();
@@ -41,7 +46,7 @@ export default function AuthStateSync() {
           .eq("id", session.user.id)
           .single();
 
-        if (!profile?.display_name && pathname !== "/onboarding") {
+        if (!profile?.display_name && pathnameRef.current !== "/onboarding") {
           router.push("/onboarding");
         }
       }
@@ -50,7 +55,7 @@ export default function AuthStateSync() {
     return () => {
       subscription.unsubscribe();
     };
-  }, [setUser, setLoading, router, pathname]);
+  }, [setUser, setLoading, router]);
 
   return null;
 }
