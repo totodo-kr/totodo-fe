@@ -57,7 +57,7 @@ export function useMenus(): MenuData {
     const supabase = createClient();
 
     async function fetch() {
-      const [{ data: menuData }, { data: subData }] = await Promise.all([
+      const [{ data: menuData, error: menuError }, { data: subData, error: subError }] = await Promise.all([
         supabase
           .from("menus")
           .select("id, name, href, sort_order, is_visible")
@@ -69,6 +69,9 @@ export function useMenus(): MenuData {
           .eq("is_visible", true)
           .order("sort_order"),
       ]);
+
+      if (menuError) console.error("[useMenus] menus fetch error:", menuError);
+      if (subError) console.error("[useMenus] sub_menus fetch error:", subError);
 
       if (menuData && menuData.length > 0) setMenus(menuData);
       if (subData) setSubMenus(subData);

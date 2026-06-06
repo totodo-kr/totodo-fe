@@ -39,7 +39,9 @@ export default function AuthStateSync() {
       setUser(session?.user ?? null);
       setLoading(false);
 
-      if (event === "SIGNED_IN" && session?.user) {
+      // SIGNED_IN: 모달 로그인 (이메일/비밀번호)
+      // INITIAL_SESSION: 소셜 로그인 콜백 후 리다이렉트로 페이지가 새로 로드될 때
+      if ((event === "SIGNED_IN" || event === "INITIAL_SESSION") && session?.user) {
         const { data: profile } = await supabase
           .from("profiles")
           .select("display_name")

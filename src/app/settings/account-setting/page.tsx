@@ -30,7 +30,7 @@ export default function AccountSettingPage() {
     }
     // 세션 정리 후 홈으로
     const supabase = createClient();
-    await supabase.auth.signOut({ scope: "local" });
+    await supabase.auth.signOut();
     setUser(null);
     router.push("/");
   };
