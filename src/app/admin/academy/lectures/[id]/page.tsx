@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, use } from "react";
+import { useState, use, useRef, useMemo } from "react";
 import Link from "next/link";
 import {
   ChevronLeft,
@@ -14,8 +14,10 @@ import {
   Eye,
   Video,
   ExternalLink,
+  ImageIcon,
 } from "lucide-react";
 import { useAdminLectureDetail, AdminChapter, AdminSession } from "@/hooks/useAdminLectureDetail";
+import { createClient } from "@/utils/supabase/client";
 
 function formatDuration(s: number) {
   const m = Math.floor(s / 60);
@@ -418,6 +420,33 @@ export default function AdminLectureDetailPage({
     deleteSession,
   } = useAdminLectureDetail(id);
 
+  const supabase = useMemo(() => createClient(), []);
+  const thumbnailInputRef = useRef<HTMLInputElement>(null);
+  const [uploadingThumbnail, setUploadingThumbnail] = useState(false);
+
+  const handleThumbnailUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      alert("이미지 파일만 업로드 가능합니다.");
+      return;
+    }
+    setUploadingThumbnail(true);
+    try {
+      const ext = file.name.split(".").pop();
+      const path = `lecture-thumbnails/${id}/${Date.now()}.${ext}`;
+      const { error } = await supabase.storage.from("totodo_pub_storage").upload(path, file, { upsert: true });
+      if (error) throw error;
+      const { data: { publicUrl } } = supabase.storage.from("totodo_pub_storage").getPublicUrl(path);
+      await updateLecture({ thumbnail_url: publicUrl });
+    } catch {
+      alert("이미지 업로드 중 오류가 발생했습니다.");
+    } finally {
+      setUploadingThumbnail(false);
+    }
+  };
+
   const [editingInfo, setEditingInfo] = useState(false);
   const [editTitle, setEditTitle] = useState("");
   const [editSubtitle, setEditSubtitle] = useState("");
@@ -607,19 +636,73 @@ export default function AdminLectureDetailPage({
                   </div>
                 </div>
               ) : (
-                <div className="flex flex-col gap-1.5">
-                  {info.subtitle && (
-                    <p className="text-sm font-medium" style={{ color: "#3d3d3a" }}>
-                      {info.subtitle}
-                    </p>
-                  )}
-                  {info.description ? (
-                    <p className="text-sm whitespace-pre-wrap leading-relaxed" style={{ color: "#6c6a64" }}>
-                      {info.description}
-                    </p>
-                  ) : (
-                    <p className="text-sm" style={{ color: "#b0aca4" }}>설명 없음</p>
-                  )}
+                <div className="flex flex-col gap-3">
+                  {/* Thumbnail */}
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-xs font-medium" style={{ color: "#6c6a64" }}>썸네일 이미지</label>
+                    <input
+                      ref={thumbnailInputRef}
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={handleThumbnailUpload}
+                    />
+                    <button
+                      onClick={() => thumbnailInputRef.current?.click()}
+                      disabled={uploadingThumbnail}
+                      className="relative group w-full rounded-lg border overflow-hidden transition-colors"
+                      style={{ borderColor: "#e6dfd8", background: "#fff", aspectRatio: "16/9" }}
+                    >
+                      {info.thumbnail_url ? (
+                        <>
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img
+                            src={info.thumbnail_url}
+                            alt="강의 썸네일"
+                            className="w-full h-full object-cover"
+                          />
+                          <div className="absolute inset-0 flex flex-col items-center justify-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity"
+                            style={{ background: "rgba(0,0,0,0.45)" }}>
+                            <ImageIcon className="w-5 h-5 text-white" />
+                            <span className="text-xs text-white font-medium">
+                              {uploadingThumbnail ? "업로드 중…" : "이미지 변경"}
+                            </span>
+                          </div>
+                        </>
+                      ) : (
+                        <div className="absolute inset-0 flex flex-col items-center justify-center gap-1.5"
+                          style={{ color: "#b0aca4" }}>
+                          <ImageIcon className="w-6 h-6" />
+                          <span className="text-xs font-medium">
+                            {uploadingThumbnail ? "업로드 중…" : "클릭하여 이미지 업로드"}
+                          </span>
+                        </div>
+                      )}
+                      {uploadingThumbnail && (
+                        <div className="absolute inset-0 flex items-center justify-center"
+                          style={{ background: "rgba(255,255,255,0.7)" }}>
+                          <div className="w-6 h-6 border-2 border-t-transparent rounded-full animate-spin"
+                            style={{ borderColor: "#cc785c", borderTopColor: "transparent" }} />
+                        </div>
+                      )}
+                    </button>
+                  </div>
+
+                  {/* Text info */}
+                  <div className="flex flex-col gap-1.5">
+                    {info.subtitle && (
+                      <p className="text-sm font-medium" style={{ color: "#3d3d3a" }}>
+                        {info.subtitle}
+                      </p>
+                    )}
+                    {info.description ? (
+                      <p className="text-sm whitespace-pre-wrap leading-relaxed" style={{ color: "#6c6a64" }}>
+                        {info.description}
+                      </p>
+                    ) : (
+                      <p className="text-sm" style={{ color: "#b0aca4" }}>설명 없음</p>
+                    )}
+                  </div>
                 </div>
               )}
             </div>
