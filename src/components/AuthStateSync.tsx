@@ -23,15 +23,17 @@ export default function AuthStateSync() {
   useEffect(() => {
     const supabase = createClient();
 
-    // 안전망: 3초 내 onAuthStateChange가 fire 안 되면 강제로 loading 해제
-    const fallbackTimer = setTimeout(() => {
+    // 즉시 쿠키에서 세션을 읽어 auth 상태 초기화 (onAuthStateChange보다 빠름)
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setUser(session?.user ?? null);
       setLoading(false);
-    }, 3000);
+    }).catch(() => {
+      setLoading(false);
+    });
 
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (event, session) => {
-      clearTimeout(fallbackTimer);
       setUser(session?.user ?? null);
       setLoading(false);
 
@@ -51,7 +53,6 @@ export default function AuthStateSync() {
     });
 
     return () => {
-      clearTimeout(fallbackTimer);
       subscription.unsubscribe();
     };
   }, [setUser, setLoading]);
