@@ -78,7 +78,7 @@ export default function SettingsPage() {
             </div>
 
             {/* 역할 */}
-            {profile?.role && (
+            {profile?.role === "admin" && (
               <div className="flex items-center gap-2">
                 <span className="text-gray-400 text-sm">역할</span>
                 <span className="text-xs font-medium px-2 py-0.5 rounded bg-brand-500/20 text-brand-400">

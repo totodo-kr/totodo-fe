@@ -61,7 +61,7 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
     const supabase = createClient();
     await supabase.auth.signInWithOAuth({
       provider: "google",
-      options: { redirectTo: `${window.location.origin}/auth/callback?next=/onboarding` },
+      options: { redirectTo: `${window.location.origin}/auth/callback` },
     });
   };
 
@@ -69,7 +69,7 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
     const supabase = createClient();
     await supabase.auth.signInWithOAuth({
       provider: "kakao",
-      options: { redirectTo: `${window.location.origin}/auth/callback?next=/onboarding` },
+      options: { redirectTo: `${window.location.origin}/auth/callback` },
     });
   };
 
@@ -103,7 +103,7 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
         email,
         password,
         options: {
-          emailRedirectTo: `${window.location.origin}/auth/callback?next=/onboarding`,
+          emailRedirectTo: `${window.location.origin}/auth/callback`,
         },
       });
       if (error) throw error;

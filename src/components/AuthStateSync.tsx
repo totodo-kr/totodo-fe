@@ -1,16 +1,18 @@
 "use client";
 
 import { useEffect } from "react";
+import { useRouter, usePathname } from "next/navigation";
 import { createClient } from "@/utils/supabase/client";
 import { useAuthStore } from "@/store/useAuthStore";
 
 export default function AuthStateSync() {
   const { setUser, setLoading } = useAuthStore();
+  const router = useRouter();
+  const pathname = usePathname();
 
   useEffect(() => {
     const supabase = createClient();
 
-    // 초기 세션 확인
     const checkUser = async () => {
       try {
         const {
@@ -26,18 +28,29 @@ export default function AuthStateSync() {
 
     checkUser();
 
-    // 인증 상태 변경 리스너 (로그인, 로그아웃 감지)
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
+    } = supabase.auth.onAuthStateChange(async (event, session) => {
       setUser(session?.user ?? null);
       setLoading(false);
+
+      if (event === "SIGNED_IN" && session?.user) {
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("display_name")
+          .eq("id", session.user.id)
+          .single();
+
+        if (!profile?.display_name && pathname !== "/onboarding") {
+          router.push("/onboarding");
+        }
+      }
     });
 
     return () => {
       subscription.unsubscribe();
     };
-  }, [setUser, setLoading]);
+  }, [setUser, setLoading, router, pathname]);
 
-  return null; // UI를 렌더링하지 않는 유틸리티 컴포넌트
+  return null;
 }
