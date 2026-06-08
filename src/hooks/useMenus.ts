@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { createClient } from "@/utils/supabase/client";
+import { useAuthStore } from "@/store/useAuthStore";
 
 export type MenuRow = {
   id: string;
@@ -52,8 +53,12 @@ export function useMenus(): MenuData {
   const [menus, setMenus] = useState<MenuRow[]>(FALLBACK_MENUS);
   const [subMenus, setSubMenus] = useState<SubMenuRow[]>(FALLBACK_SUB_MENUS);
   const [loading, setLoading] = useState(true);
+  const { isLoading: authLoading } = useAuthStore();
 
   useEffect(() => {
+    // auth 초기화가 끝난 뒤에 fetch해야 RLS가 있어도 세션이 준비된 상태로 쿼리가 나감
+    if (authLoading) return;
+
     const supabase = createClient();
 
     async function fetch() {
@@ -79,7 +84,7 @@ export function useMenus(): MenuData {
     }
 
     fetch();
-  }, []);
+  }, [authLoading]);
 
   return { menus, subMenus, loading };
 }
