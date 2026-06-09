@@ -6,7 +6,7 @@ import { createClient } from "@/utils/supabase/client";
 import { useAuthStore } from "@/store/useAuthStore";
 
 export default function AuthStateSync() {
-  const { setUser, setLoading } = useAuthStore();
+  const { setUser, setLoading, user } = useAuthStore();
   const router = useRouter();
   const pathname = usePathname();
   const pathnameRef = useRef(pathname);
@@ -20,10 +20,12 @@ export default function AuthStateSync() {
     routerRef.current = router;
   }, [router]);
 
+  // onAuthStateChange 내부에서 Supabase 쿼리를 호출하면 내부 lock 충돌로 hang됨
+  // (https://github.com/supabase/auth-js/issues/762)
+  // → 리스너는 상태 동기화만 담당, Supabase 호출은 별도 useEffect에서 처리
   useEffect(() => {
     const supabase = createClient();
 
-    // 즉시 쿠키에서 세션을 읽어 auth 상태 초기화 (onAuthStateChange보다 빠름)
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user ?? null);
       setLoading(false);
@@ -31,31 +33,32 @@ export default function AuthStateSync() {
       setLoading(false);
     });
 
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       setUser(session?.user ?? null);
       setLoading(false);
-
-      // SIGNED_IN: 모달 로그인 (이메일/비밀번호)
-      // INITIAL_SESSION: 소셜 로그인 콜백 후 리다이렉트로 페이지가 새로 로드될 때
-      if ((event === "SIGNED_IN" || event === "INITIAL_SESSION") && session?.user) {
-        const { data: profile } = await supabase
-          .from("profiles")
-          .select("display_name")
-          .eq("id", session.user.id)
-          .single();
-
-        if (!profile?.display_name && pathnameRef.current !== "/onboarding") {
-          routerRef.current.push("/onboarding");
-        }
-      }
     });
 
     return () => {
       subscription.unsubscribe();
     };
   }, [setUser, setLoading]);
+
+  // 온보딩 체크: user가 생긴 후 onAuthStateChange 바깥에서 실행 (deadlock 방지)
+  useEffect(() => {
+    if (!user) return;
+
+    const supabase = createClient();
+    supabase
+      .from("profiles")
+      .select("display_name")
+      .eq("id", user.id)
+      .single()
+      .then(({ data: profile }) => {
+        if (!profile?.display_name && pathnameRef.current !== "/onboarding") {
+          routerRef.current.push("/onboarding");
+        }
+      });
+  }, [user]);
 
   return null;
 }
