@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useMyPurchasedLectures } from "@/hooks/useLecture";
@@ -7,6 +8,31 @@ import LoadingSpinner from "@/components/LoadingSpinner";
 
 export default function PurchasedPage() {
   const { lectures, loading } = useMyPurchasedLectures();
+  const [cancellingId, setCancellingId] = useState<number | null>(null);
+  const [cancelledIds, setCancelledIds] = useState<Set<number>>(new Set());
+
+  const handleRefund = async (e: React.MouseEvent, enrollmentId: number) => {
+    e.preventDefault();
+    if (!confirm("수강을 취소하시겠습니까? 이 작업은 되돌릴 수 없습니다.")) return;
+
+    setCancellingId(enrollmentId);
+    try {
+      const res = await fetch("/api/enroll/cancel", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ enrollmentId }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      setCancelledIds((prev) => new Set(prev).add(enrollmentId));
+    } catch (err: unknown) {
+      alert(err instanceof Error ? err.message : "수강 취소에 실패했습니다.");
+    } finally {
+      setCancellingId(null);
+    }
+  };
+
+  const visibleLectures = lectures.filter((l) => !cancelledIds.has(l.enrollment_id));
 
   return (
     <>
@@ -14,16 +40,16 @@ export default function PurchasedPage() {
 
       {loading ? (
         <LoadingSpinner className="py-24" />
-      ) : lectures.length === 0 ? (
+      ) : visibleLectures.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-24">
           <p className="text-gray-500 text-center">구매한 클래스가 없습니다.</p>
           <p className="text-gray-500 text-center">지금 바로 클래스를 구매해보세요!</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8 w-full">
-          {lectures.map((lecture) => (
-            <Link href={`/academy/${lecture.id}`} key={lecture.id}>
-              <div className="flex flex-col gap-4 group cursor-pointer">
+          {visibleLectures.map((lecture) => (
+            <div key={lecture.id} className="flex flex-col gap-4">
+              <Link href={`/academy/${lecture.id}`} className="group cursor-pointer">
                 <div className="relative overflow-hidden rounded-2xl w-full aspect-[750/450] bg-zinc-800 border border-white/5">
                   {lecture.thumbnail_url && (
                     <Image
@@ -35,7 +61,7 @@ export default function PurchasedPage() {
                   )}
                   <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors" />
                 </div>
-                <div className="flex flex-col gap-2">
+                <div className="flex flex-col gap-2 mt-4">
                   <h3 className="text-2xl font-bold text-white group-hover:text-purple-500 transition-colors">
                     {lecture.title}
                   </h3>
@@ -45,8 +71,23 @@ export default function PurchasedPage() {
                     <span>{lecture.instructor_name}</span>
                   </div>
                 </div>
-              </div>
-            </Link>
+              </Link>
+
+              <button
+                onClick={(e) => handleRefund(e, lecture.enrollment_id)}
+                disabled={cancellingId === lecture.enrollment_id}
+                className="self-start px-4 py-2 text-sm font-medium rounded-lg transition-colors disabled:opacity-50"
+                style={{
+                  background: "rgba(198, 69, 69, 0.12)",
+                  color: "#c64545",
+                  border: "1px solid rgba(198, 69, 69, 0.25)",
+                }}
+                onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = "rgba(198,69,69,0.22)"; }}
+                onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = "rgba(198,69,69,0.12)"; }}
+              >
+                {cancellingId === lecture.enrollment_id ? "처리 중…" : "수강 취소"}
+              </button>
+            </div>
           ))}
         </div>
       )}

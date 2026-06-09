@@ -5,11 +5,13 @@ import { useParams } from "next/navigation";
 import Link from "next/link";
 import { useLectureChapters, formatDuration } from "@/hooks/useLecture";
 import LoadingSpinner from "@/components/LoadingSpinner";
+import { useLectureContext } from "@/contexts/LectureContext";
 
 export default function ChaptersPage() {
   const params = useParams();
   const { chapters, totalSessions, loading } = useLectureChapters(params.id);
   const [openChapters, setOpenChapters] = useState<number[]>([0]);
+  const { isEnrolled } = useLectureContext();
 
   const toggleChapter = (index: number) => {
     setOpenChapters((prev) =>
@@ -25,7 +27,9 @@ export default function ChaptersPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between mb-6">
         <h2 className="text-2xl font-bold text-white">목차</h2>
-        <p className="text-gray-400 text-sm">클래스 구매 후 수강이 가능합니다.</p>
+        {!isEnrolled && (
+          <p className="text-gray-400 text-sm">클래스 구매 후 수강이 가능합니다.</p>
+        )}
       </div>
 
       <div className="bg-zinc-900/50 rounded-lg p-4 mb-4">
@@ -82,7 +86,7 @@ export default function ChaptersPage() {
                       <p className="text-gray-400 text-sm">{formatDuration(session.duration_seconds)}</p>
                     </div>
                   </div>
-                  {!session.is_preview && (
+                  {!session.is_preview && !isEnrolled && (
                     <svg className="w-5 h-5 text-gray-500" fill="currentColor" viewBox="0 0 24 24">
                       <path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zM9 6c0-1.66 1.34-3 3-3s3 1.34 3 3v2H9V6z" />
                     </svg>

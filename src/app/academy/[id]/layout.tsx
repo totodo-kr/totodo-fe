@@ -8,6 +8,9 @@ import { useLecture } from "@/hooks/useLecture";
 import { useAuthStore } from "@/store/useAuthStore";
 import { createClient } from "@/utils/supabase/client";
 import LoginModal from "@/components/LoginModal";
+import EnrollSuccessOverlay from "@/components/EnrollSuccessOverlay";
+import { LectureContext } from "@/contexts/LectureContext";
+import BookmarkButton from "@/components/BookmarkButton";
 
 export default function LectureLayout({ children }: { children: React.ReactNode }) {
   const params = useParams();
@@ -25,6 +28,7 @@ export default function LectureLayout({ children }: { children: React.ReactNode 
   const [firstPreviewSessionId, setFirstPreviewSessionId] = useState<number | null>(null);
   const [enrolling, setEnrolling] = useState(false);
   const [showLoginModal, setShowLoginModal] = useState(false);
+  const [showEnrollOverlay, setShowEnrollOverlay] = useState(false);
 
   // 수강 여부 확인
   useEffect(() => {
@@ -62,19 +66,23 @@ export default function LectureLayout({ children }: { children: React.ReactNode 
     if (!user) { setShowLoginModal(true); return; }
     if (!lecture) return;
     if (lecture.price > 0) {
+      // TODO: 결제 페이지로 이동
       alert("유료 강의입니다. 결제 페이지로 이동합니다.");
       return;
     }
     setEnrolling(true);
     try {
-      const { error } = await supabase
-        .from("lecture_enrollments")
-        .insert({ user_id: user.id, lecture_id: Number(lectureIdStr), status: "active" });
-      if (error) throw error;
+      const res = await fetch("/api/enroll", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ lectureId: Number(lectureIdStr) }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
       setIsEnrolled(true);
-      router.push(`/academy/${lectureIdStr}/chapters`);
-    } catch {
-      alert("수강 신청 중 오류가 발생했습니다.");
+      setShowEnrollOverlay(true);
+    } catch (e: unknown) {
+      alert(e instanceof Error ? e.message : "수강 신청 중 오류가 발생했습니다.");
     } finally {
       setEnrolling(false);
     }
@@ -83,6 +91,11 @@ export default function LectureLayout({ children }: { children: React.ReactNode 
   if (isWatchPage) {
     return <>{children}</>;
   }
+
+  const handleEnrollComplete = () => {
+    setShowEnrollOverlay(false);
+    router.push(`/academy/${lectureIdStr}/chapters`);
+  };
 
   const tabs = [
     { path: `/academy/${lectureId}/information`, label: "강의 소개" },
@@ -94,6 +107,8 @@ export default function LectureLayout({ children }: { children: React.ReactNode 
   const isActive = (path: string) => pathname === path;
 
   return (
+    <LectureContext.Provider value={{ isEnrolled }}>
+    {showEnrollOverlay && <EnrollSuccessOverlay onComplete={handleEnrollComplete} />}
     <div className="min-h-screen">
       <div className="w-full mb-8" style={{ background: "linear-gradient(135deg, #111 0%, #1a0f0f 100%)" }}>
         <div className="max-w-[1200px] mx-auto flex flex-col md:flex-row items-center gap-10 px-8 py-10">
@@ -111,9 +126,9 @@ export default function LectureLayout({ children }: { children: React.ReactNode 
                   onClick={handleEnroll}
                   disabled={enrolling}
                   className="px-6 py-2.5 rounded-full text-sm font-bold transition-colors disabled:opacity-50"
-                  style={{ background: "#cc785c", color: "#fff" }}
-                  onMouseEnter={(e) => { if (!enrolling) (e.currentTarget as HTMLButtonElement).style.background = "#a9583e"; }}
-                  onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = "#cc785c"; }}
+                  style={{ background: "#a200cb", color: "#fff" }}
+                  onMouseEnter={(e) => { if (!enrolling) (e.currentTarget as HTMLButtonElement).style.background = "#8e00b2"; }}
+                  onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = "#a200cb"; }}
                 >
                   {enrolling ? "처리 중…" : "수강하기"}
                 </button>
@@ -132,7 +147,7 @@ export default function LectureLayout({ children }: { children: React.ReactNode 
           {/* Right: image — no cropping */}
           {lecture?.thumbnail_url && (
             <div
-              className="shrink-0 w-full md:w-[420px] rounded-2xl overflow-hidden shadow-2xl"
+              className="relative shrink-0 w-full md:w-[420px] rounded-2xl overflow-hidden shadow-2xl"
               style={{ background: "#000" }}
             >
               <Image
@@ -143,6 +158,12 @@ export default function LectureLayout({ children }: { children: React.ReactNode 
                 className="w-full h-auto"
                 priority
               />
+              <div className="absolute top-3 right-3">
+                <BookmarkButton
+                  lectureId={Number(lectureIdStr)}
+                  onNeedLogin={() => setShowLoginModal(true)}
+                />
+              </div>
             </div>
           )}
         </div>
@@ -171,5 +192,6 @@ export default function LectureLayout({ children }: { children: React.ReactNode 
 
       <LoginModal isOpen={showLoginModal} onClose={() => setShowLoginModal(false)} />
     </div>
+    </LectureContext.Provider>
   );
 }

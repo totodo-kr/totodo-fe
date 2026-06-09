@@ -1,13 +1,22 @@
 "use client";
 
+import { useState } from "react";
 import AuthGuard from "@/components/AuthGuard";
 import Image from "next/image";
 import Link from "next/link";
 import { useMyBookmarks } from "@/hooks/useLecture";
 import LoadingSpinner from "@/components/LoadingSpinner";
+import BookmarkButton from "@/components/BookmarkButton";
 
 export default function BookmarksPage() {
   const { lectures, loading } = useMyBookmarks();
+  const [removedIds, setRemovedIds] = useState<Set<number>>(new Set());
+
+  const handleUnbookmark = (id: number) => {
+    setRemovedIds((prev) => new Set(prev).add(id));
+  };
+
+  const visibleLectures = lectures.filter((l) => !removedIds.has(l.id));
 
   return (
     <AuthGuard>
@@ -16,13 +25,13 @@ export default function BookmarksPage() {
 
         {loading ? (
           <LoadingSpinner className="py-24" />
-        ) : lectures.length === 0 ? (
+        ) : visibleLectures.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-24">
             <p className="text-gray-500 text-center">저장된 북마크가 없습니다.</p>
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8 w-full mx-auto">
-            {lectures.map((lecture) => (
+            {visibleLectures.map((lecture) => (
               <Link href={`/academy/${lecture.id}`} key={lecture.id}>
                 <div className="flex flex-col gap-4 group cursor-pointer">
                   <div className="relative overflow-hidden rounded-2xl w-full aspect-[750/450] bg-zinc-800 border border-white/5">
@@ -35,6 +44,12 @@ export default function BookmarksPage() {
                       />
                     )}
                     <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors" />
+                    <div className="absolute top-3 right-3">
+                      <BookmarkButton
+                        lectureId={lecture.id}
+                        onUnbookmark={() => handleUnbookmark(lecture.id)}
+                      />
+                    </div>
                   </div>
                   <div className="flex flex-col gap-2">
                     <h3 className="text-2xl font-bold text-white group-hover:text-brand-500 transition-colors">

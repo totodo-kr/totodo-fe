@@ -191,6 +191,7 @@ CREATE POLICY "lecture_board_posts_read_published" ON lecture_board_posts       
 CREATE POLICY "lecture_notices_read_published"     ON lecture_notices             FOR SELECT USING (is_published = true);
 
 -- 수강 등록: 본인 것만 조회
+-- INSERT는 /api/enroll (service role) 에서만 처리 — 유저 직접 INSERT 정책 없음
 CREATE POLICY "lecture_enrollments_read_own"
   ON lecture_enrollments FOR SELECT
   USING (auth.uid() = user_id);

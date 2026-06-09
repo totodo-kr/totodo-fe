@@ -17,6 +17,10 @@ export interface LectureCard {
   instructor_avatar: string | null;
 }
 
+export interface PurchasedLectureCard extends LectureCard {
+  enrollment_id: number;
+}
+
 export interface LectureDetail {
   id: number;
   title: string;
@@ -378,7 +382,7 @@ export function useMyLectures() {
 // =============================================
 
 export function useMyPurchasedLectures() {
-  const [lectures, setLectures] = useState<LectureCard[]>([]);
+  const [lectures, setLectures] = useState<PurchasedLectureCard[]>([]);
   const [loading, setLoading] = useState(true);
   const supabase = useMemo(() => createClient(), []);
   const { user } = useAuthStore();
@@ -390,6 +394,7 @@ export function useMyPurchasedLectures() {
       const { data, error } = await supabase
         .from("lecture_enrollments")
         .select(`
+          id,
           lecture:lectures!inner(
             id, title, subtitle, thumbnail_url, price,
             instructors!inner(user_id),
@@ -412,6 +417,7 @@ export function useMyPurchasedLectures() {
           const allSessions = (l.lecture_chapters ?? []).flatMap((c: any) => c.lecture_sessions ?? []);
           const profile = profileMap[l.instructors.user_id];
           return {
+            enrollment_id: e.id,
             id: l.id,
             title: l.title,
             subtitle: l.subtitle,

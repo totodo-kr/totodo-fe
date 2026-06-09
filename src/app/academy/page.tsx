@@ -1,12 +1,16 @@
 "use client";
 
+import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useLectures } from "@/hooks/useLecture";
 import LoadingSpinner from "@/components/LoadingSpinner";
+import BookmarkButton from "@/components/BookmarkButton";
+import LoginModal from "@/components/LoginModal";
 
 export default function AcademyPage() {
   const { lectures, loading } = useLectures();
+  const [showLoginModal, setShowLoginModal] = useState(false);
 
   return (
     <main className="min-h-screen p-8">
@@ -27,6 +31,12 @@ export default function AcademyPage() {
                     />
                   )}
                   <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors" />
+                  <div className="absolute top-3 right-3">
+                    <BookmarkButton
+                      lectureId={lecture.id}
+                      onNeedLogin={() => setShowLoginModal(true)}
+                    />
+                  </div>
                 </div>
                 <div className="flex flex-col gap-2">
                   <h3 className="text-2xl font-bold text-white group-hover:text-brand-500 transition-colors">
@@ -43,6 +53,7 @@ export default function AcademyPage() {
           ))}
         </div>
       )}
+      <LoginModal isOpen={showLoginModal} onClose={() => setShowLoginModal(false)} />
     </main>
   );
 }
