@@ -17,6 +17,9 @@ import {
   ImageIcon,
 } from "lucide-react";
 import { useAdminLectureDetail, AdminChapter, AdminSession } from "@/hooks/useAdminLectureDetail";
+import { VideoUploader, VideoChangeResult } from "@/components/admin/molecules";
+
+type SessionVideoData = { video_url?: string | null; video_storage_path?: string | null; duration_seconds?: number };
 import { createClient } from "@/utils/supabase/client";
 
 function formatDuration(s: number) {
@@ -84,10 +87,12 @@ function toMmss(seconds: number): string {
 
 function SessionRow({
   session,
+  lectureId,
   onUpdate,
   onDelete,
 }: {
   session: AdminSession;
+  lectureId: string;
   onUpdate: (id: number, updates: Partial<AdminSession>) => Promise<void>;
   onDelete: (id: number) => Promise<void>;
 }) {
@@ -127,105 +132,140 @@ function SessionRow({
     }
   };
 
-  const inputStyle = {
-    borderColor: "#cc785c",
-    background: "#faf9f5",
-    color: "#141413",
+  // 동영상 변경 — 비동기 비블로킹: 업로드 완료 즉시 저장
+  const handleVideoChange = async (result: VideoChangeResult) => {
+    const updates: Partial<AdminSession> = {
+      video_url: result.video_url,
+      video_storage_path: result.video_storage_path,
+    };
+    if (result.duration_seconds !== undefined) {
+      updates.duration_seconds = result.duration_seconds;
+      setEditDuration(toMmss(result.duration_seconds));
+    }
+    await onUpdate(session.id, updates);
   };
 
+  const inputStyle = { borderColor: "#cc785c", background: "#faf9f5", color: "#141413" };
+  const hasVideo = !!session.video_url || !!session.video_storage_path;
+
   return (
-    <div
-      className="flex items-center gap-2 px-4 py-2.5 border-b last:border-b-0 hover:bg-[#efe9de]/20 transition-colors"
-      style={{ borderColor: "#e6dfd8" }}
-    >
-      <Video className="w-3.5 h-3.5 shrink-0" style={{ color: "#8e8b82" }} />
+    <div className="border-b last:border-b-0" style={{ borderColor: "#e6dfd8" }}>
+      {/* 메인 행 */}
+      <div
+        className="flex items-center gap-2 px-4 py-2.5 hover:bg-[#efe9de]/20 transition-colors"
+        style={{ background: editing ? "#fffdf9" : undefined }}
+      >
+        <Video className="w-3.5 h-3.5 shrink-0" style={{ color: "#8e8b82" }} />
 
-      {editing ? (
-        <>
-          <input
-            autoFocus
-            value={editTitle}
-            onChange={(e) => setEditTitle(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") handleSave();
-              if (e.key === "Escape") setEditing(false);
-            }}
-            placeholder="세션 제목"
-            className="flex-1 min-w-0 text-sm px-2 py-1 rounded border outline-none"
-            style={inputStyle}
-          />
-          <input
-            value={editDuration}
-            onChange={(e) => setEditDuration(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") handleSave();
-              if (e.key === "Escape") setEditing(false);
-            }}
-            placeholder="mm:ss"
-            className="w-16 text-sm px-2 py-1 rounded border outline-none text-center font-mono shrink-0"
-            style={inputStyle}
-          />
-          <button
-            onClick={handleSave}
-            disabled={saving || !editTitle.trim()}
-            className="p-1 rounded hover:bg-[#efe9de] disabled:opacity-40 shrink-0"
-            style={{ color: "#5db872" }}
-          >
-            <Check className="w-4 h-4" />
-          </button>
-          <button
-            onClick={() => setEditing(false)}
-            className="p-1 rounded hover:bg-[#efe9de] shrink-0"
-            style={{ color: "#8e8b82" }}
-          >
-            <X className="w-4 h-4" />
-          </button>
-        </>
-      ) : (
-        <>
-          <span className="flex-1 text-sm min-w-0 truncate" style={{ color: "#252523" }}>
-            {session.title}
-          </span>
-
-          {session.is_preview && (
-            <span
-              className="text-xs px-1.5 py-0.5 rounded font-medium shrink-0"
-              style={{ background: "#efe9de", color: "#cc785c" }}
+        {editing ? (
+          <>
+            <input
+              autoFocus
+              value={editTitle}
+              onChange={(e) => setEditTitle(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") handleSave();
+                if (e.key === "Escape") setEditing(false);
+              }}
+              placeholder="세션 제목"
+              className="flex-1 min-w-0 text-sm px-2 py-1 rounded border outline-none"
+              style={inputStyle}
+            />
+            <input
+              value={editDuration}
+              onChange={(e) => setEditDuration(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") handleSave();
+                if (e.key === "Escape") setEditing(false);
+              }}
+              placeholder="mm:ss"
+              className="w-16 text-sm px-2 py-1 rounded border outline-none text-center font-mono shrink-0"
+              style={inputStyle}
+            />
+            <button
+              onClick={handleSave}
+              disabled={saving || !editTitle.trim()}
+              className="p-1 rounded hover:bg-[#efe9de] disabled:opacity-40 shrink-0"
+              style={{ color: "#5db872" }}
             >
-              미리보기
+              <Check className="w-4 h-4" />
+            </button>
+            <button
+              onClick={() => setEditing(false)}
+              className="p-1 rounded hover:bg-[#efe9de] shrink-0"
+              style={{ color: "#8e8b82" }}
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </>
+        ) : (
+          <>
+            <span className="flex-1 text-sm min-w-0 truncate" style={{ color: "#252523" }}>
+              {session.title}
             </span>
-          )}
 
-          <span className="text-xs font-mono shrink-0" style={{ color: "#8e8b82" }}>
-            {formatDuration(session.duration_seconds)}
-          </span>
+            {session.is_preview && (
+              <span
+                className="text-xs px-1.5 py-0.5 rounded font-medium shrink-0"
+                style={{ background: "#efe9de", color: "#cc785c" }}
+              >
+                미리보기
+              </span>
+            )}
 
-          <button
-            onClick={() => onUpdate(session.id, { is_preview: !session.is_preview })}
-            title={session.is_preview ? "미리보기 해제" : "미리보기 설정"}
-            className="p-1 rounded hover:bg-[#efe9de] shrink-0 transition-colors"
-            style={{ color: session.is_preview ? "#cc785c" : "#8e8b82" }}
-          >
-            <Eye className="w-3.5 h-3.5" />
-          </button>
+            {hasVideo && (
+              <span
+                className="text-xs px-1.5 py-0.5 rounded font-medium shrink-0"
+                style={{ background: "#e8f7eb", color: "#5db872" }}
+              >
+                영상
+              </span>
+            )}
 
-          <button
-            onClick={openEdit}
-            className="p-1 rounded hover:bg-[#efe9de] shrink-0 transition-colors"
-            style={{ color: "#8e8b82" }}
-          >
-            <Pencil className="w-3.5 h-3.5" />
-          </button>
+            <span className="text-xs font-mono shrink-0" style={{ color: "#8e8b82" }}>
+              {formatDuration(session.duration_seconds)}
+            </span>
 
-          <button
-            onClick={handleDelete}
-            disabled={deleting}
-            className="p-1 rounded hover:bg-red-50 shrink-0 transition-colors disabled:opacity-40"
-            style={{ color: "#e05252" }}
-          >
-            <Trash2 className="w-3.5 h-3.5" />
-          </button>
-        </>
+            <button
+              onClick={() => onUpdate(session.id, { is_preview: !session.is_preview })}
+              title={session.is_preview ? "미리보기 해제" : "미리보기 설정"}
+              className="p-1 rounded hover:bg-[#efe9de] shrink-0 transition-colors"
+              style={{ color: session.is_preview ? "#cc785c" : "#8e8b82" }}
+            >
+              <Eye className="w-3.5 h-3.5" />
+            </button>
+
+            <button
+              onClick={openEdit}
+              className="p-1 rounded hover:bg-[#efe9de] shrink-0 transition-colors"
+              style={{ color: "#8e8b82" }}
+            >
+              <Pencil className="w-3.5 h-3.5" />
+            </button>
+
+            <button
+              onClick={handleDelete}
+              disabled={deleting}
+              className="p-1 rounded hover:bg-red-50 shrink-0 transition-colors disabled:opacity-40"
+              style={{ color: "#e05252" }}
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+            </button>
+          </>
+        )}
+      </div>
+
+      {/* 편집 중일 때 VideoUploader 확장 */}
+      {editing && (
+        <div className="px-4 pb-3" style={{ background: "#fffdf9" }}>
+          <VideoUploader
+            lectureId={lectureId}
+            sessionId={session.id}
+            currentVideoUrl={session.video_url}
+            currentStoragePath={session.video_storage_path}
+            onVideoChange={handleVideoChange}
+          />
+        </div>
       )}
     </div>
   );
@@ -235,6 +275,7 @@ function SessionRow({
 
 function ChapterBlock({
   chapter,
+  lectureId,
   onUpdateChapter,
   onDeleteChapter,
   onAddSession,
@@ -242,9 +283,10 @@ function ChapterBlock({
   onDeleteSession,
 }: {
   chapter: AdminChapter;
+  lectureId: string;
   onUpdateChapter: (id: number, title: string) => Promise<void>;
   onDeleteChapter: (id: number) => Promise<void>;
-  onAddSession: (chapterId: number, title: string) => Promise<void>;
+  onAddSession: (chapterId: number, title: string, videoData?: SessionVideoData) => Promise<void>;
   onUpdateSession: (id: number, updates: Partial<AdminSession>) => Promise<void>;
   onDeleteSession: (id: number) => Promise<void>;
 }) {
@@ -252,6 +294,7 @@ function ChapterBlock({
   const [editingTitle, setEditingTitle] = useState(false);
   const [addingSession, setAddingSession] = useState(false);
   const [newSessionTitle, setNewSessionTitle] = useState("");
+  const [pendingVideo, setPendingVideo] = useState<VideoChangeResult | null>(null);
   const [saving, setSaving] = useState(false);
 
   const handleSaveChapter = async (title: string) => {
@@ -275,12 +318,19 @@ function ChapterBlock({
     if (!title) return;
     setSaving(true);
     try {
-      await onAddSession(chapter.id, title);
+      await onAddSession(chapter.id, title, pendingVideo ?? undefined);
       setNewSessionTitle("");
+      setPendingVideo(null);
       setAddingSession(false);
     } finally {
       setSaving(false);
     }
+  };
+
+  const cancelAddSession = () => {
+    setAddingSession(false);
+    setNewSessionTitle("");
+    setPendingVideo(null);
   };
 
   return (
@@ -337,6 +387,7 @@ function ChapterBlock({
             <SessionRow
               key={session.id}
               session={session}
+              lectureId={lectureId}
               onUpdate={onUpdateSession}
               onDelete={onDeleteSession}
             />
@@ -345,43 +396,48 @@ function ChapterBlock({
           {/* Add session row */}
           {addingSession ? (
             <div
-              className="flex items-center gap-2 px-4 py-2.5 border-t"
-              style={{ borderColor: "#e6dfd8" }}
+              className="border-t px-4 py-3"
+              style={{ borderColor: "#e6dfd8", background: "#fffdf9" }}
             >
-              <Video className="w-3.5 h-3.5 shrink-0" style={{ color: "#8e8b82" }} />
-              <input
-                autoFocus
-                value={newSessionTitle}
-                onChange={(e) => setNewSessionTitle(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") handleAddSession();
-                  if (e.key === "Escape") {
-                    setAddingSession(false);
-                    setNewSessionTitle("");
-                  }
-                }}
-                placeholder="세션 제목 입력"
-                className="flex-1 text-sm px-2 py-1 rounded border outline-none"
-                style={{ borderColor: "#cc785c", background: "#faf9f5", color: "#141413" }}
+              {/* 제목 행 */}
+              <div className="flex items-center gap-2 mb-2">
+                <Video className="w-3.5 h-3.5 shrink-0" style={{ color: "#8e8b82" }} />
+                <input
+                  autoFocus
+                  value={newSessionTitle}
+                  onChange={(e) => setNewSessionTitle(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") handleAddSession();
+                    if (e.key === "Escape") cancelAddSession();
+                  }}
+                  placeholder="세션 제목 입력"
+                  className="flex-1 text-sm px-2 py-1 rounded border outline-none"
+                  style={{ borderColor: "#cc785c", background: "#faf9f5", color: "#141413" }}
+                />
+                <button
+                  onClick={handleAddSession}
+                  disabled={saving || !newSessionTitle.trim()}
+                  className="p-1 rounded hover:bg-[#efe9de] disabled:opacity-40 shrink-0"
+                  style={{ color: "#5db872" }}
+                >
+                  <Check className="w-4 h-4" />
+                </button>
+                <button
+                  onClick={cancelAddSession}
+                  className="p-1 rounded hover:bg-[#efe9de] shrink-0"
+                  style={{ color: "#8e8b82" }}
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              {/* VideoUploader */}
+              <VideoUploader
+                lectureId={lectureId}
+                currentVideoUrl={pendingVideo?.video_url ?? null}
+                currentStoragePath={pendingVideo?.video_storage_path ?? null}
+                onVideoChange={async (result) => setPendingVideo(result)}
               />
-              <button
-                onClick={handleAddSession}
-                disabled={saving || !newSessionTitle.trim()}
-                className="p-1 rounded hover:bg-[#efe9de] disabled:opacity-40"
-                style={{ color: "#5db872" }}
-              >
-                <Check className="w-4 h-4" />
-              </button>
-              <button
-                onClick={() => {
-                  setAddingSession(false);
-                  setNewSessionTitle("");
-                }}
-                className="p-1 rounded hover:bg-[#efe9de]"
-                style={{ color: "#8e8b82" }}
-              >
-                <X className="w-4 h-4" />
-              </button>
             </div>
           ) : (
             <button
@@ -747,6 +803,7 @@ export default function AdminLectureDetailPage({
               <ChapterBlock
                 key={chapter.id}
                 chapter={chapter}
+                lectureId={id}
                 onUpdateChapter={updateChapter}
                 onDeleteChapter={deleteChapter}
                 onAddSession={addSession}

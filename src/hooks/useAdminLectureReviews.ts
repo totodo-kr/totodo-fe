@@ -35,11 +35,7 @@ export function useAdminLectureReviews(lectureId: number | string) {
 
       let query = supabase
         .from("lecture_reviews")
-        .select(
-          `id, lecture_id, user_id, rating, content, is_pinned, is_hidden, created_at,
-           profiles:user_id (display_name, name)`,
-          { count: "exact" }
-        )
+        .select("id, lecture_id, user_id, rating, content, is_pinned, is_hidden, created_at", { count: "exact" })
         .eq("lecture_id", lectureId)
         .order("is_pinned", { ascending: false })
         .order("created_at", { ascending: false })
@@ -50,7 +46,25 @@ export function useAdminLectureReviews(lectureId: number | string) {
       }
 
       const { data, count } = await query;
-      setReviews((data as unknown as AdminLectureReview[]) ?? []);
+      const rows = (data ?? []) as Omit<AdminLectureReview, "profiles">[];
+
+      // profiles 별도 조회
+      const userIds = [...new Set(rows.map((r) => r.user_id))];
+      let profileMap: Record<string, { display_name: string | null; name: string | null }> = {};
+      if (userIds.length > 0) {
+        const { data: profileData } = await supabase
+          .from("profiles")
+          .select("id, display_name, name")
+          .in("id", userIds);
+        profileMap = Object.fromEntries(
+          (profileData ?? []).map((p: { id: string; display_name: string | null; name: string | null }) => [
+            p.id,
+            { display_name: p.display_name, name: p.name },
+          ])
+        );
+      }
+
+      setReviews(rows.map((r) => ({ ...r, profiles: profileMap[r.user_id] ?? null })));
       setTotal(count ?? 0);
       setLoading(false);
     },

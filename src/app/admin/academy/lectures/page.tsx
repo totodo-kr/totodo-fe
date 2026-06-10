@@ -58,6 +58,7 @@ export default function AdminLecturesPage() {
       <AdminPageHeader
         title="강의 관리"
         description="강의 목록을 조회하고 공개 여부를 관리합니다."
+        action={{ label: "강의 등록", href: "/admin/academy/lectures/write" }}
       />
 
       <div className="flex items-center justify-between mb-4 gap-4 flex-wrap">

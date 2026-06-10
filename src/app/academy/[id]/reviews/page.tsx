@@ -45,12 +45,14 @@ function StarRating({
 function ReviewForm({
   initialRating = 0,
   initialContent = "",
+  isEdit = false,
   onSubmit,
   onCancel,
   submitting,
 }: {
   initialRating?: number;
   initialContent?: string;
+  isEdit?: boolean;
   onSubmit: (rating: number, content: string) => void;
   onCancel?: () => void;
   submitting: boolean;
@@ -99,7 +101,7 @@ function ReviewForm({
           disabled={submitting}
           className="px-6 py-2 bg-brand-500 hover:bg-brand-600 text-white rounded-lg font-bold text-sm transition-colors disabled:opacity-50"
         >
-          {submitting ? "등록 중..." : "등록하기"}
+          {submitting ? (isEdit ? "수정 중..." : "등록 중...") : (isEdit ? "수정하기" : "등록하기")}
         </button>
       </div>
     </form>
@@ -138,16 +140,16 @@ export default function LectureReviewsPage() {
 
   const handleSubmit = async (rating: number, content: string) => {
     setSubmitting(true);
-    const ok = myReview
+    const result = myReview
       ? await updateReview(rating, content)
       : await submitReview(rating, content);
     setSubmitting(false);
 
-    if (ok) {
+    if (result.ok) {
       setShowForm(false);
       fetchReviews();
     } else {
-      alert("리뷰 등록 중 오류가 발생했습니다.");
+      alert(`리뷰 등록 중 오류가 발생했습니다.\n\n${result.error ?? ""}`);
     }
   };
 
@@ -157,7 +159,7 @@ export default function LectureReviewsPage() {
     <div className="py-4">
       {/* Summary Header */}
       <div className="flex items-center gap-4 mb-8">
-        <div className="text-5xl font-bold text-white">{averageRating > 0 ? averageRating.toFixed(1) : "-"}</div>
+        <div className="text-5xl font-bold text-white">{averageRating.toFixed(1)}</div>
         <div>
           <StarRating value={Math.round(averageRating)} readOnly size="md" />
           <p className="text-sm text-gray-500 mt-1">총 {totalCount}개 리뷰</p>
@@ -185,6 +187,7 @@ export default function LectureReviewsPage() {
         <ReviewForm
           initialRating={myReview?.rating ?? 0}
           initialContent={myReview?.content ?? ""}
+          isEdit={!!myReview}
           onSubmit={handleSubmit}
           onCancel={() => setShowForm(false)}
           submitting={submitting}

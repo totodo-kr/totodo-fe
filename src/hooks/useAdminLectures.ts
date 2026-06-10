@@ -64,3 +64,56 @@ export function useAdminLectures() {
 
   return { lectures, total, loading, pendingId, fetchLectures, togglePublished };
 }
+
+export interface InstructorOption {
+  id: number;
+  user_id: string;
+  display_name: string | null;
+  name: string | null;
+}
+
+// 강사 목록 조회
+export async function fetchInstructorOptions(): Promise<InstructorOption[]> {
+  const supabase = createClient();
+  const { data: instructors } = await supabase
+    .from("instructors")
+    .select("id, user_id")
+    .order("id");
+  if (!instructors?.length) return [];
+
+  const userIds = instructors.map((i: { user_id: string }) => i.user_id);
+  const { data: profiles } = await supabase
+    .from("profiles")
+    .select("id, display_name, name")
+    .in("id", userIds);
+
+  const profileMap = Object.fromEntries(
+    (profiles ?? []).map((p: { id: string; display_name: string | null; name: string | null }) => [p.id, p])
+  );
+
+  return instructors.map((i: { id: number; user_id: string }) => ({
+    id: i.id,
+    user_id: i.user_id,
+    display_name: profileMap[i.user_id]?.display_name ?? null,
+    name: profileMap[i.user_id]?.name ?? null,
+  }));
+}
+
+// 강의 등록
+export async function createLecture(fields: {
+  title: string;
+  subtitle: string | null;
+  description: string | null;
+  price: number;
+  instructor_id: number;
+}): Promise<{ id: number } | { error: string }> {
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from("lectures")
+    .insert({ ...fields, is_published: false })
+    .select("id")
+    .single();
+
+  if (error || !data) return { error: error?.message ?? "강의 등록 중 오류가 발생했습니다." };
+  return { id: data.id };
+}

@@ -27,8 +27,8 @@ export function useMyLectureReview(lectureId: number | string, userId: string | 
     setLoading(false);
   }, [lectureId, userId]);
 
-  const submitReview = async (rating: number, content: string): Promise<boolean> => {
-    if (!lectureId || !userId) return false;
+  const submitReview = async (rating: number, content: string): Promise<{ ok: boolean; error?: string }> => {
+    if (!lectureId || !userId) return { ok: false, error: "로그인이 필요합니다." };
     const supabase = createClient();
 
     const { error } = await supabase.from("lecture_reviews").insert({
@@ -40,13 +40,14 @@ export function useMyLectureReview(lectureId: number | string, userId: string | 
 
     if (!error) {
       await fetchMyReview();
-      return true;
+      return { ok: true };
     }
-    return false;
+    console.error("submitReview error:", error);
+    return { ok: false, error: error.message };
   };
 
-  const updateReview = async (rating: number, content: string): Promise<boolean> => {
-    if (!myReview) return false;
+  const updateReview = async (rating: number, content: string): Promise<{ ok: boolean; error?: string }> => {
+    if (!myReview) return { ok: false, error: "수정할 리뷰가 없습니다." };
     const supabase = createClient();
 
     const { error } = await supabase
@@ -56,9 +57,10 @@ export function useMyLectureReview(lectureId: number | string, userId: string | 
 
     if (!error) {
       await fetchMyReview();
-      return true;
+      return { ok: true };
     }
-    return false;
+    console.error("updateReview error:", error);
+    return { ok: false, error: error.message };
   };
 
   return { myReview, loading, fetchMyReview, submitReview, updateReview };

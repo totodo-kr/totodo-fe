@@ -8,6 +8,7 @@ export interface AdminSession {
   title: string;
   description: string | null;
   video_url: string | null;
+  video_storage_path: string | null;
   duration_seconds: number;
   order_index: number;
   is_preview: boolean;
@@ -50,7 +51,7 @@ export function useAdminLectureDetail(lectureId: string | undefined) {
           .from("lecture_chapters")
           .select(`
             id, title, order_index,
-            lecture_sessions(id, title, description, video_url, duration_seconds, order_index, is_preview)
+            lecture_sessions(id, title, description, video_url, video_storage_path, duration_seconds, order_index, is_preview)
           `)
           .eq("lecture_id", lectureId)
           .order("order_index"),
@@ -72,6 +73,7 @@ export function useAdminLectureDetail(lectureId: string | undefined) {
               title: s.title,
               description: s.description ?? null,
               video_url: s.video_url ?? null,
+              video_storage_path: s.video_storage_path ?? null,
               duration_seconds: s.duration_seconds,
               order_index: s.order_index,
               is_preview: s.is_preview,
@@ -132,7 +134,11 @@ export function useAdminLectureDetail(lectureId: string | undefined) {
     setChapters((prev) => prev.filter((c) => c.id !== chapterId));
   }, [supabase]);
 
-  const addSession = useCallback(async (chapterId: number, title: string) => {
+  const addSession = useCallback(async (
+    chapterId: number,
+    title: string,
+    videoData?: { video_url?: string | null; video_storage_path?: string | null; duration_seconds?: number }
+  ) => {
     const chapter = chapters.find((c) => c.id === chapterId);
     const nextOrder =
       chapter && chapter.sessions.length > 0
@@ -140,7 +146,14 @@ export function useAdminLectureDetail(lectureId: string | undefined) {
         : 1;
     const { error } = await supabase
       .from("lecture_sessions")
-      .insert({ chapter_id: chapterId, title, order_index: nextOrder, duration_seconds: 0 });
+      .insert({
+        chapter_id: chapterId,
+        title,
+        order_index: nextOrder,
+        duration_seconds: videoData?.duration_seconds ?? 0,
+        video_url: videoData?.video_url ?? null,
+        video_storage_path: videoData?.video_storage_path ?? null,
+      });
     if (error) throw error;
     await fetchAll();
   }, [chapters, supabase, fetchAll]);
@@ -148,7 +161,7 @@ export function useAdminLectureDetail(lectureId: string | undefined) {
   const updateSession = useCallback(
     async (
       sessionId: number,
-      updates: Partial<Pick<AdminSession, "title" | "is_preview" | "video_url" | "duration_seconds">>
+      updates: Partial<Pick<AdminSession, "title" | "is_preview" | "video_url" | "video_storage_path" | "duration_seconds">>
     ) => {
       const { error } = await supabase
         .from("lecture_sessions")

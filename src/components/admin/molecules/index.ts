@@ -6,3 +6,5 @@ export { default as ToggleButton } from "./ToggleButton";
 export { default as IconActionButton } from "./IconActionButton";
 export { default as SearchSelect } from "./SearchSelect";
 export type { SearchSelectOption } from "./SearchSelect";
+export { default as VideoUploader } from "./VideoUploader";
+export type { VideoChangeResult } from "./VideoUploader";
