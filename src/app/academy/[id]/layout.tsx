@@ -5,6 +5,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { useState, useEffect, useMemo } from "react";
 import { useLecture } from "@/hooks/useLecture";
+import { useLecturePromotion } from "@/hooks/useLecturePromotion";
 import { useAuthStore } from "@/store/useAuthStore";
 import { createClient } from "@/utils/supabase/client";
 import LoginModal from "@/components/LoginModal";
@@ -21,6 +22,7 @@ export default function LectureLayout({ children }: { children: React.ReactNode 
 
   const isWatchPage = pathname?.includes("/session/");
   const { lecture } = useLecture(lectureId);
+  const { promotion } = useLecturePromotion(lectureId);
   const { user } = useAuthStore();
   const supabase = useMemo(() => createClient(), []);
 
@@ -120,6 +122,36 @@ export default function LectureLayout({ children }: { children: React.ReactNode 
               <p className="text-gray-400 text-base mb-2">{lecture.subtitle}</p>
             )}
             <p className="text-gray-400 text-sm mb-6">{lecture?.instructor_name}</p>
+
+            {/* 가격 표시 */}
+            {lecture && !isEnrolled && (
+              <div className="mb-3">
+                {promotion ? (
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-2xl font-bold text-white">
+                      {promotion.price.toLocaleString()}원
+                    </span>
+                    <span className="text-gray-400 line-through text-base">
+                      {lecture.price.toLocaleString()}원
+                    </span>
+                    <span
+                      className="px-2 py-0.5 rounded-full text-xs font-bold"
+                      style={{ background: "#cc785c", color: "#fff" }}
+                    >
+                      {promotion.name}
+                    </span>
+                  </div>
+                ) : lecture.price > 0 ? (
+                  <span className="text-2xl font-bold text-white">
+                    {lecture.price.toLocaleString()}원
+                  </span>
+                ) : (
+                  <span className="text-2xl font-bold" style={{ color: "#a200cb" }}>
+                    무료
+                  </span>
+                )}
+              </div>
+            )}
 
             {!isEnrolled && (
               <div className="flex items-center gap-3">

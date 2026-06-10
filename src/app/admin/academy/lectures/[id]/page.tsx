@@ -451,12 +451,14 @@ export default function AdminLectureDetailPage({
   const [editTitle, setEditTitle] = useState("");
   const [editSubtitle, setEditSubtitle] = useState("");
   const [editDescription, setEditDescription] = useState("");
+  const [editPrice, setEditPrice] = useState(0);
   const [savingInfo, setSavingInfo] = useState(false);
 
   const openInfoEdit = () => {
     setEditTitle(info?.title ?? "");
     setEditSubtitle(info?.subtitle ?? "");
     setEditDescription(info?.description ?? "");
+    setEditPrice(info?.price ?? 0);
     setEditingInfo(true);
   };
 
@@ -468,6 +470,7 @@ export default function AdminLectureDetailPage({
         title: editTitle.trim(),
         subtitle: editSubtitle.trim() || null,
         description: editDescription.trim() || null,
+        price: editPrice,
       });
       setEditingInfo(false);
     } finally {
@@ -617,6 +620,20 @@ export default function AdminLectureDetailPage({
                       onBlur={(e) => (e.currentTarget.style.borderColor = "#e6dfd8")}
                     />
                   </div>
+                  <div className="flex flex-col gap-1">
+                    <label className="text-xs font-medium" style={{ color: "#6c6a64" }}>정가 (원)</label>
+                    <input
+                      type="number"
+                      min={0}
+                      value={editPrice || ""}
+                      onChange={(e) => setEditPrice(Number(e.target.value))}
+                      placeholder="0 입력 시 무료"
+                      className="text-sm px-3 py-2 rounded-lg border outline-none"
+                      style={{ borderColor: "#e6dfd8", background: "#fff", color: "#141413" }}
+                      onFocus={(e) => (e.currentTarget.style.borderColor = "#cc785c")}
+                      onBlur={(e) => (e.currentTarget.style.borderColor = "#e6dfd8")}
+                    />
+                  </div>
                   <div className="flex gap-2 justify-end">
                     <button
                       onClick={() => setEditingInfo(false)}
@@ -702,6 +719,12 @@ export default function AdminLectureDetailPage({
                     ) : (
                       <p className="text-sm" style={{ color: "#b0aca4" }}>설명 없음</p>
                     )}
+                    <div className="flex items-center gap-1.5 mt-1">
+                      <span className="text-xs font-medium" style={{ color: "#8e8b82" }}>정가</span>
+                      <span className="text-sm font-semibold" style={{ color: "#141413" }}>
+                        {info.price > 0 ? `${info.price.toLocaleString()}원` : "무료"}
+                      </span>
+                    </div>
                   </div>
                 </div>
               )}
