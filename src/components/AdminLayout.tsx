@@ -9,41 +9,66 @@ import {
   GraduationCap,
   ShoppingBag,
   ClipboardList,
-  MessageSquare,
   HelpCircle,
   Bell,
   Code2,
   LogOut,
   ChevronLeft,
   ChevronRight,
+  ChevronDown,
   ExternalLink,
   LayoutTemplate,
   Menu,
+  List,
 } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
 import { useRouter } from "next/navigation";
 
-const navItems = [
-  { href: "/admin", label: "대시보드", icon: LayoutDashboard, phase: 1 },
-  { href: "/admin/pages/home", label: "메인 페이지 편집", icon: LayoutTemplate, phase: 1 },
-  { href: "/admin/menus", label: "메뉴 관리", icon: Menu, phase: 1 },
-  { href: "/admin/users", label: "유저 관리", icon: Users, phase: 1 },
-  { href: "/admin/academy/lectures", label: "강의 관리", icon: GraduationCap, phase: 2 },
-  { href: "/admin/shop/products", label: "상품 관리", icon: ShoppingBag, phase: 3 },
-  { href: "/admin/orders", label: "주문 관리", icon: ClipboardList, phase: 3 },
-  { href: "/admin/reviews", label: "후기 관리", icon: MessageSquare, phase: 2 },
-  { href: "/admin/faq", label: "FAQ 관리", icon: HelpCircle, phase: 2 },
-  { href: "/admin/notifications", label: "알림 발송", icon: Bell, phase: 4 },
-  { href: "/admin/codes", label: "코드 관리", icon: Code2, phase: 4 },
-];
+type NavItem =
+  | { kind: "link"; href: string; label: string; icon: React.ElementType }
+  | {
+      kind: "group";
+      label: string;
+      icon: React.ElementType;
+      basePath: string;
+      children: { href: string; label: string }[];
+    };
 
-const activeItems = navItems;
-const inactiveItems: typeof navItems = [];
+const navItems: NavItem[] = [
+  { kind: "link", href: "/admin", label: "대시보드", icon: LayoutDashboard },
+  { kind: "link", href: "/admin/pages/home", label: "메인 페이지 편집", icon: LayoutTemplate },
+  { kind: "link", href: "/admin/menus", label: "메뉴 관리", icon: Menu },
+  { kind: "link", href: "/admin/users", label: "유저 관리", icon: Users },
+  {
+    kind: "group",
+    label: "강의 관리",
+    icon: GraduationCap,
+    basePath: "/admin/academy",
+    children: [
+      { href: "/admin/academy/lectures", label: "강의 목록" },
+    ],
+  },
+  { kind: "link", href: "/admin/shop/products", label: "상품 관리", icon: ShoppingBag },
+  { kind: "link", href: "/admin/orders", label: "주문 관리", icon: ClipboardList },
+  { kind: "link", href: "/admin/faq", label: "FAQ 관리", icon: HelpCircle },
+  { kind: "link", href: "/admin/notifications", label: "알림 발송", icon: Bell },
+  { kind: "link", href: "/admin/codes", label: "코드 관리", icon: Code2 },
+];
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const [collapsed, setCollapsed] = useState(false);
+  const [openGroups, setOpenGroups] = useState<Set<string>>(() => {
+    // 현재 경로가 속한 그룹을 초기 오픈 상태로
+    const initial = new Set<string>();
+    for (const item of navItems) {
+      if (item.kind === "group" && pathname.startsWith(item.basePath)) {
+        initial.add(item.basePath);
+      }
+    }
+    return initial;
+  });
 
   const handleSignOut = async () => {
     const supabase = createClient();
@@ -51,10 +76,41 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     router.replace("/");
   };
 
-  const isActive = (href: string) => {
+  const isLinkActive = (href: string) => {
     if (href === "/admin") return pathname === "/admin";
     return pathname.startsWith(href);
   };
+
+  const toggleGroup = (basePath: string) => {
+    setOpenGroups((prev) => {
+      const next = new Set(prev);
+      if (next.has(basePath)) next.delete(basePath);
+      else next.add(basePath);
+      return next;
+    });
+  };
+
+  const linkStyle = (active: boolean) => ({
+    ...(active ? { background: "#cc785c", color: "#ffffff" } : { color: "#8e8b82" }),
+    gap: collapsed ? undefined : "0.75rem",
+    padding: collapsed ? "0.625rem 0" : "0.625rem 0.75rem",
+    justifyContent: collapsed ? ("center" as const) : undefined,
+  });
+
+  const hoverHandlers = (active: boolean) => ({
+    onMouseEnter: (e: React.MouseEvent<HTMLElement>) => {
+      if (!active) {
+        (e.currentTarget as HTMLElement).style.color = "#faf9f5";
+        (e.currentTarget as HTMLElement).style.background = "#252320";
+      }
+    },
+    onMouseLeave: (e: React.MouseEvent<HTMLElement>) => {
+      if (!active) {
+        (e.currentTarget as HTMLElement).style.color = "#8e8b82";
+        (e.currentTarget as HTMLElement).style.background = "transparent";
+      }
+    },
+  });
 
   return (
     <div className="flex min-h-screen" style={{ background: "#faf9f5" }}>
@@ -63,7 +119,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         className={`fixed top-0 left-0 h-full flex flex-col z-40 transition-all duration-300 ${collapsed ? "w-16" : "w-60"}`}
         style={{ background: "#181715" }}
       >
-        {/* 접기/펼치기 버튼 — 우측 모서리 수직 중앙 */}
+        {/* 접기/펼치기 버튼 */}
         <button
           onClick={() => setCollapsed((v) => !v)}
           className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-1/2 w-6 h-6 rounded-full flex items-center justify-center z-50 border transition-colors"
@@ -80,11 +136,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           }}
           title={collapsed ? "사이드바 펼치기" : "사이드바 접기"}
         >
-          {collapsed ? (
-            <ChevronRight className="w-3 h-3" />
-          ) : (
-            <ChevronLeft className="w-3 h-3" />
-          )}
+          {collapsed ? <ChevronRight className="w-3 h-3" /> : <ChevronLeft className="w-3 h-3" />}
         </button>
 
         {/* Logo */}
@@ -113,76 +165,89 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
         {/* Nav */}
         <nav
-          className="flex-1 py-4 overflow-y-auto"
+          className="flex-1 overflow-y-auto"
           style={{ padding: collapsed ? "1rem 0.5rem" : "1rem 0.75rem" }}
         >
-          <div className="mb-1">
-            {activeItems.map(({ href, label, icon: Icon }) => (
-              <Link
-                key={href}
-                href={href}
-                title={collapsed ? label : undefined}
-                className="flex items-center py-2.5 rounded-lg text-sm font-medium transition-all mb-0.5"
-                style={{
-                  ...(isActive(href)
-                    ? { background: "#cc785c", color: "#ffffff" }
-                    : { color: "#8e8b82" }),
-                  gap: collapsed ? undefined : "0.75rem",
-                  padding: collapsed ? "0.625rem 0" : "0.625rem 0.75rem",
-                  justifyContent: collapsed ? "center" : undefined,
-                }}
-                onMouseEnter={(e) => {
-                  if (!isActive(href)) {
-                    (e.currentTarget as HTMLAnchorElement).style.color = "#faf9f5";
-                    (e.currentTarget as HTMLAnchorElement).style.background = "#252320";
-                  }
-                }}
-                onMouseLeave={(e) => {
-                  if (!isActive(href)) {
-                    (e.currentTarget as HTMLAnchorElement).style.color = "#8e8b82";
-                    (e.currentTarget as HTMLAnchorElement).style.background = "transparent";
-                  }
-                }}
-              >
-                <Icon className="w-4 h-4 flex-shrink-0" />
-                {!collapsed && label}
-              </Link>
-            ))}
-          </div>
+          {navItems.map((item) => {
+            if (item.kind === "link") {
+              const active = isLinkActive(item.href);
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  title={collapsed ? item.label : undefined}
+                  className="flex items-center py-2.5 rounded-lg text-sm font-medium transition-all mb-0.5"
+                  style={linkStyle(active)}
+                  {...hoverHandlers(active)}
+                >
+                  <item.icon className="w-4 h-4 flex-shrink-0" />
+                  {!collapsed && item.label}
+                </Link>
+              );
+            }
 
-          {inactiveItems.length > 0 && (
-            <div className="mt-4 pt-4 border-t" style={{ borderColor: "#2a2826" }}>
-              {!collapsed && (
-                <p
-                  className="px-3 mb-2 text-xs font-medium uppercase tracking-widest"
-                  style={{ color: "#3d3b37" }}
-                >
-                  준비 중
-                </p>
-              )}
-              {inactiveItems.map(({ href, label, icon: Icon }) => (
-                <div
-                  key={href}
-                  title={collapsed ? label : undefined}
-                  className="flex items-center py-2.5 rounded-lg text-sm font-medium mb-0.5 cursor-not-allowed opacity-40"
+            // group
+            const groupActive = pathname.startsWith(item.basePath);
+            const isOpen = openGroups.has(item.basePath) || groupActive;
+
+            return (
+              <div key={item.basePath} className="mb-0.5">
+                {/* 그룹 헤더 */}
+                <button
+                  onClick={() => !collapsed && toggleGroup(item.basePath)}
+                  title={collapsed ? item.label : undefined}
+                  className="flex items-center w-full py-2.5 rounded-lg text-sm font-medium transition-all"
                   style={{
-                    color: "#6c6a64",
-                    justifyContent: collapsed ? "center" : undefined,
-                    padding: collapsed ? "0.625rem 0" : "0.625rem 0.75rem",
+                    ...(groupActive ? { background: "#2a1a10", color: "#cc785c" } : { color: "#8e8b82" }),
                     gap: collapsed ? undefined : "0.75rem",
+                    padding: collapsed ? "0.625rem 0" : "0.625rem 0.75rem",
+                    justifyContent: collapsed ? "center" : undefined,
                   }}
+                  {...hoverHandlers(false)}
                 >
-                  <Icon className="w-4 h-4 flex-shrink-0" />
-                  {!collapsed && label}
-                </div>
-              ))}
-            </div>
-          )}
+                  <item.icon className="w-4 h-4 flex-shrink-0" />
+                  {!collapsed && (
+                    <>
+                      <span className="flex-1 text-left">{item.label}</span>
+                      <ChevronDown
+                        className={`w-3.5 h-3.5 transition-transform ${isOpen ? "rotate-180" : ""}`}
+                      />
+                    </>
+                  )}
+                </button>
+
+                {/* 하위 메뉴 */}
+                {!collapsed && isOpen && (
+                  <div className="mt-0.5 ml-4 pl-3 border-l" style={{ borderColor: "#2a2826" }}>
+                    {item.children.map((child) => {
+                      const childActive = pathname.startsWith(child.href);
+                      return (
+                        <Link
+                          key={child.href}
+                          href={child.href}
+                          className="flex items-center gap-2 py-2 px-2.5 rounded-lg text-sm font-medium transition-all mb-0.5"
+                          style={
+                            childActive
+                              ? { background: "#cc785c", color: "#fff" }
+                              : { color: "#8e8b82" }
+                          }
+                          {...hoverHandlers(childActive)}
+                        >
+                          <List className="w-3.5 h-3.5 flex-shrink-0" />
+                          {child.label}
+                        </Link>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </nav>
 
         {/* Bottom: site link + sign out */}
         <div
-          className="py-4 border-t"
+          className="border-t"
           style={{
             borderColor: "#2a2826",
             padding: collapsed ? "1rem 0.5rem" : "1rem 0.75rem",
