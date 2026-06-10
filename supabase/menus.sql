@@ -69,7 +69,7 @@ insert into public.menus (name, href, sort_order, is_visible) values
   ('홈',           '/',        0, true),
   ('이세계 학원', '/academy', 1, true),
   ('상점',         '/shop',    2, true),
-  ('강의 후기',   '/reviews', 3, true),
+  ('커뮤니티',    '/community', 3, true),
   ('자주 묻는 질문', '/faq',  4, true);
 
 -- 학원 서브 메뉴
@@ -103,3 +103,11 @@ from public.menus m,
     ('장바구니',   '/shop/cart',     'right', 'ShoppingCart', 1)
   ) as v(name, href, position, icon, sort_order)
 where m.href = '/shop';
+
+-- =============================================
+-- 마이그레이션: 강의 후기 → 커뮤니티 (2026-06-10)
+-- 이미 운영 중인 DB에 실행
+-- =============================================
+UPDATE public.menus
+SET name = '커뮤니티', href = '/community'
+WHERE href = '/reviews';

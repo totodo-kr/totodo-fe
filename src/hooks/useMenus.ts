@@ -34,7 +34,7 @@ const FALLBACK_MENUS: MenuRow[] = [
   { id: "1", name: "홈",           href: "/",        sort_order: 0, is_visible: true },
   // { id: "2", name: "이세계 학원", href: "/academy", sort_order: 1, is_visible: true },
   // { id: "3", name: "상점",         href: "/shop",    sort_order: 2, is_visible: true },
-  // { id: "4", name: "강의 후기",   href: "/reviews", sort_order: 3, is_visible: true },
+  // { id: "4", name: "커뮤니티",    href: "/community", sort_order: 3, is_visible: true },
   // { id: "5", name: "자주 묻는 질문", href: "/faq",  sort_order: 4, is_visible: true },
 ];
 
