@@ -100,8 +100,9 @@ export default function LectureLayout({ children }: { children: React.ReactNode 
   const tabs = [
     { path: `/academy/${lectureId}/information`, label: "강의 소개" },
     { path: `/academy/${lectureId}/chapters`, label: "목차" },
-    { path: `/academy/${lectureId}/notices`, label: "강의 공지" },
-    { path: `/academy/${lectureId}/board`, label: "마호 칼럼" },
+    { path: `/academy/${lectureId}/board`, label: "게시판" },
+    { path: `/academy/${lectureId}/reviews`, label: "리뷰" },
+    ...(isEnrolled ? [{ path: `/academy/${lectureId}/missions`, label: "과제" }] : []),
   ];
 
   const isActive = (path: string) => pathname === path;
