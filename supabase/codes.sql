@@ -61,7 +61,12 @@ INSERT INTO codes (group_code, code, label, sort_order) VALUES
   ('AGE_LIMIT',   'all', '전연령',    1),
   ('AGE_LIMIT',   '12',  '12세 이상', 2),
   ('AGE_LIMIT',   '15',  '15세 이상', 3),
-  ('AGE_LIMIT',   '18',  '18세 이상', 4)
+  ('AGE_LIMIT',   '18',  '18세 이상', 4),
+
+  ('BOARD_CATEGORY', 'notice', '공지', 1),
+  ('BOARD_CATEGORY', 'question', '질문', 2),
+  ('BOARD_CATEGORY', 'general', '일반', 3),
+  ('BOARD_CATEGORY', 'column', '칼럼', 4)
 ON CONFLICT (group_code, code) DO NOTHING;
 
 
