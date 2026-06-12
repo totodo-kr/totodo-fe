@@ -5,6 +5,7 @@ export interface MyLectureReview {
   id: string;
   rating: number;
   content: string | null;
+  is_hidden: boolean;
 }
 
 export function useMyLectureReview(lectureId: number | string, userId: string | undefined) {
@@ -18,7 +19,7 @@ export function useMyLectureReview(lectureId: number | string, userId: string | 
 
     const { data } = await supabase
       .from("lecture_reviews")
-      .select("id, rating, content")
+      .select("id, rating, content, is_hidden")
       .eq("lecture_id", lectureId)
       .eq("user_id", userId)
       .maybeSingle();

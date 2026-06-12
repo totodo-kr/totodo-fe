@@ -34,9 +34,9 @@ const EMPTY_FORM: PromotionInput = {
 };
 
 const COLUMNS = [
-  { label: "프로모션명" },
-  { label: "기간" },
-  { label: "가격", className: "text-right" },
+  { label: "프로모션명", className: "text-center" },
+  { label: "기간", className: "text-center" },
+  { label: "가격", className: "text-center" },
   { label: "활성", className: "text-center" },
   { label: "관리", className: "text-center" },
 ];
@@ -134,7 +134,7 @@ export default function AdminLecturePromotionsPage() {
   };
 
   return (
-    <div className="p-8 max-w-5xl">
+    <div className="p-8 max-w-6xl">
       {/* 헤더 */}
       <div className="flex items-start justify-between mb-6 gap-4 flex-wrap">
         <div>
@@ -302,27 +302,17 @@ export default function AdminLecturePromotionsPage() {
               style={{ gridTemplateColumns: GRID, borderColor: "#e6dfd8" }}
             >
               {/* 이름 */}
-              <div className="flex items-center gap-2">
-                <span className="text-sm font-medium truncate" style={{ color: "#141413" }}>
-                  {p.name}
-                </span>
-                {isOngoing && (
-                  <span
-                    className="shrink-0 px-1.5 py-0.5 rounded text-[10px] font-bold"
-                    style={{ background: "#5db872", color: "#fff" }}
-                  >
-                    진행중
-                  </span>
-                )}
+              <div className="text-sm font-medium truncate text-center" style={{ color: "#141413" }}>
+                {p.name}
               </div>
 
               {/* 기간 */}
-              <div className="text-xs truncate" style={{ color: "#6c6a64" }}>
+              <div className="text-xs truncate text-center" style={{ color: "#6c6a64" }}>
                 {formatDateRange(p.start_at, p.end_at)}
               </div>
 
               {/* 가격 */}
-              <div className="text-sm font-semibold text-right pr-4" style={{ color: "#141413" }}>
+              <div className="text-sm font-semibold text-center" style={{ color: "#141413" }}>
                 {p.price.toLocaleString()}원
               </div>
 
@@ -331,7 +321,7 @@ export default function AdminLecturePromotionsPage() {
                 <ToggleButton
                   active={p.is_active}
                   pending={pendingId === p.id}
-                  activeLabel="활성"
+                  activeLabel={isOngoing ? "진행중" : "활성"}
                   inactiveLabel="비활성"
                   activeColor="#5db872"
                   onClick={() => toggleActive(p.id, p.is_active)}

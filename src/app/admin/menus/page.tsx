@@ -148,7 +148,7 @@ export default function AdminMenusPage() {
   };
 
   return (
-    <div className="p-8 max-w-5xl">
+    <div className="p-8 max-w-6xl">
       <AdminPageHeader
         title="메뉴 관리"
         description="사이트 상단 네비게이션 메뉴의 이름, 경로, 노출 여부를 관리합니다."

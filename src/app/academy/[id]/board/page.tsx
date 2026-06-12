@@ -52,7 +52,7 @@ export default function BoardPage() {
             className="px-4 py-1.5 rounded-full text-sm font-semibold transition-all border"
             style={
               activeCategory === tab.value
-                ? { background: "#cc785c", color: "#fff", borderColor: "#cc785c" }
+                ? { background: "#a200cb", color: "#fff", borderColor: "#a200cb" }
                 : { background: "transparent", color: "#9ca3af", borderColor: "rgba(255,255,255,0.15)" }
             }
           >

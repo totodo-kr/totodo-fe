@@ -9,15 +9,17 @@ interface FilterTabsProps<T> {
   tabs: Tab<T>[];
   active: T;
   onChange: (value: T) => void;
+  className?: string;
 }
 
 export default function FilterTabs<T extends string | number | undefined>({
   tabs,
   active,
   onChange,
+  className = "",
 }: FilterTabsProps<T>) {
   return (
-    <div className="flex items-center gap-2 flex-wrap">
+    <div className={`flex items-center gap-2 flex-wrap ${className}`}>
       {tabs.map((tab) => (
         <button
           key={String(tab.value ?? "all")}

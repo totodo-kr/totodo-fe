@@ -196,8 +196,8 @@ export default function AdminLectureBoardPage() {
           <form onSubmit={handleSave} className="flex flex-col gap-4">
             {/* 카테고리 + 공개 여부 */}
             <div className="flex items-center gap-6 flex-wrap">
-              <div className="flex flex-col gap-1">
-                <label className="text-xs font-semibold" style={{ color: "#6c6a64" }}>
+              <div className="flex items-center gap-2">
+                <label className="text-xs font-semibold shrink-0" style={{ color: "#6c6a64" }}>
                   카테고리 <span style={{ color: "#c64545" }}>*</span>
                 </label>
                 <div className="flex gap-2">
@@ -313,6 +313,7 @@ export default function AdminLectureBoardPage() {
         tabs={FILTER_TABS}
         active={activeCategory}
         onChange={handleCategoryFilter}
+        className="mb-3"
       />
 
       {/* 테이블 */}

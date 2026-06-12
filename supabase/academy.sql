@@ -590,3 +590,35 @@ CREATE POLICY "lecture_mission_submissions_update_admin"
 CREATE POLICY "lecture_mission_submissions_delete_admin"
   ON lecture_mission_submissions FOR DELETE
   USING (public.is_admin());
+
+-- =============================================
+-- 마이그레이션
+-- =============================================
+
+-- lecture_reviews: 작성자 본인은 숨김 리뷰도 본인 것은 조회 가능하도록 공개 SELECT 정책 수정
+DROP POLICY IF EXISTS "lecture_reviews_select_public" ON lecture_reviews;
+CREATE POLICY "lecture_reviews_select_public"
+  ON lecture_reviews FOR SELECT
+  USING (is_hidden = false OR user_id = auth.uid());
+
+-- =============================================
+-- 마이그레이션: lecture_board_posts 어드민 CRUD 권한 추가
+-- (이미 운영 중인 DB에 실행)
+-- =============================================
+
+-- 어드민은 비공개 포함 전체 게시글 조회 가능
+CREATE POLICY "lecture_board_posts_select_admin"
+  ON lecture_board_posts FOR SELECT
+  USING (public.is_admin());
+
+CREATE POLICY "lecture_board_posts_insert_admin"
+  ON lecture_board_posts FOR INSERT
+  WITH CHECK (public.is_admin());
+
+CREATE POLICY "lecture_board_posts_update_admin"
+  ON lecture_board_posts FOR UPDATE
+  USING (public.is_admin());
+
+CREATE POLICY "lecture_board_posts_delete_admin"
+  ON lecture_board_posts FOR DELETE
+  USING (public.is_admin());

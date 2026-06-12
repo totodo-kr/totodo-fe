@@ -54,11 +54,11 @@ export function useAdminLectureBoard(lectureId: string) {
 
         if (authorIds.length > 0) {
           const { data: profiles } = await supabase
-            .from("user_profiles")
-            .select("user_id, display_name, name")
-            .in("user_id", authorIds);
+            .from("profiles")
+            .select("id, display_name, name")
+            .in("id", authorIds);
           (profiles ?? []).forEach((p: any) => {
-            profileMap[p.user_id] = { display_name: p.display_name, name: p.name };
+            profileMap[p.id] = { display_name: p.display_name, name: p.name };
           });
         }
 

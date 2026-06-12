@@ -2,7 +2,7 @@
 
 import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
-import { Star, Pin } from "lucide-react";
+import { Star, Pin, EyeOff } from "lucide-react";
 import { useLectureReviews } from "@/hooks/useLectureReviews";
 import { useMyLectureReview } from "@/hooks/useMyLectureReview";
 import { useLectureContext } from "@/contexts/LectureContext";
@@ -192,6 +192,29 @@ export default function LectureReviewsPage() {
           onCancel={() => setShowForm(false)}
           submitting={submitting}
         />
+      )}
+
+      {/* 본인 리뷰가 숨김 처리된 경우 안내 카드 */}
+      {!showForm && myReview?.is_hidden && (
+        <div className="rounded-xl border border-yellow-500/30 bg-yellow-500/5 mb-6 overflow-hidden">
+          <div className="flex items-center gap-2 px-6 py-3 bg-yellow-500/10 border-b border-yellow-500/20">
+            <EyeOff className="w-4 h-4 text-yellow-400 shrink-0" />
+            <p className="text-sm text-yellow-400 font-medium">
+              이 리뷰는 관리자에 의해 숨김 처리되어 다른 사용자에게 보이지 않습니다.
+            </p>
+          </div>
+          <div className="px-6 py-5">
+            <div className="flex items-center gap-2 mb-3">
+              <StarRating value={myReview.rating} readOnly size="sm" />
+              <span className="text-xs text-gray-500">내 리뷰</span>
+            </div>
+            {myReview.content && (
+              <p className="text-gray-400 text-sm leading-relaxed whitespace-pre-wrap">
+                {myReview.content}
+              </p>
+            )}
+          </div>
+        </div>
       )}
 
       {/* Reviews List */}

@@ -1,9 +1,7 @@
 "use client";
 
 import { useState, use, useRef, useMemo } from "react";
-import Link from "next/link";
 import {
-  ChevronLeft,
   ChevronDown,
   ChevronRight,
   Plus,
@@ -21,6 +19,7 @@ import { VideoUploader, VideoChangeResult } from "@/components/admin/molecules";
 
 type SessionVideoData = { video_url?: string | null; video_storage_path?: string | null; duration_seconds?: number };
 import { createClient } from "@/utils/supabase/client";
+import Link from "next/link";
 
 function formatDuration(s: number) {
   const m = Math.floor(s / 60);
@@ -553,16 +552,6 @@ export default function AdminLectureDetailPage({
 
   return (
     <div className="p-8 max-w-3xl">
-      {/* Breadcrumb / back */}
-      <Link
-        href="/admin/academy/lectures"
-        className="inline-flex items-center gap-1 text-sm mb-6 hover:opacity-70 transition-opacity"
-        style={{ color: "#8e8b82" }}
-      >
-        <ChevronLeft className="w-4 h-4" />
-        강의 목록
-      </Link>
-
       {loading ? (
         <div className="flex items-center justify-center py-24">
           <div

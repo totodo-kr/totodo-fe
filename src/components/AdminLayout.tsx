@@ -97,6 +97,10 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     justifyContent: collapsed ? ("center" as const) : undefined,
   });
 
+  const labelClass = `whitespace-nowrap overflow-hidden transition-[max-width,opacity] duration-300 ${
+    collapsed ? "max-w-0 opacity-0" : "max-w-[160px] opacity-100"
+  }`;
+
   const hoverHandlers = (active: boolean) => ({
     onMouseEnter: (e: React.MouseEvent<HTMLElement>) => {
       if (!active) {
@@ -148,18 +152,16 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             justifyContent: collapsed ? "center" : undefined,
           }}
         >
-          <Link href="/admin" className="flex items-center gap-2">
+          <Link href="/admin" className="flex items-center" style={{ gap: collapsed ? undefined : "0.5rem" }}>
             <div
               className="w-7 h-7 rounded-md flex items-center justify-center text-white font-bold text-sm flex-shrink-0"
               style={{ background: "#cc785c" }}
             >
               T
             </div>
-            {!collapsed && (
-              <span className="font-semibold text-sm whitespace-nowrap" style={{ color: "#faf9f5" }}>
-                TOTODO Admin
-              </span>
-            )}
+            <span className={`font-semibold text-sm ${labelClass}`} style={{ color: "#faf9f5" }}>
+              TOTODO Admin
+            </span>
           </Link>
         </div>
 
@@ -181,7 +183,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                   {...hoverHandlers(active)}
                 >
                   <item.icon className="w-4 h-4 flex-shrink-0" />
-                  {!collapsed && item.label}
+                  <span className={labelClass}>{item.label}</span>
                 </Link>
               );
             }
@@ -198,7 +200,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                   title={collapsed ? item.label : undefined}
                   className="flex items-center w-full py-2.5 rounded-lg text-sm font-medium transition-all"
                   style={{
-                    ...(groupActive ? { background: "#2a1a10", color: "#cc785c" } : { color: "#8e8b82" }),
+                    ...(groupActive ? { color: "#cc785c" } : { color: "#8e8b82" }),
                     gap: collapsed ? undefined : "0.75rem",
                     padding: collapsed ? "0.625rem 0" : "0.625rem 0.75rem",
                     justifyContent: collapsed ? "center" : undefined,
@@ -206,18 +208,20 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                   {...hoverHandlers(false)}
                 >
                   <item.icon className="w-4 h-4 flex-shrink-0" />
-                  {!collapsed && (
-                    <>
-                      <span className="flex-1 text-left">{item.label}</span>
-                      <ChevronDown
-                        className={`w-3.5 h-3.5 transition-transform ${isOpen ? "rotate-180" : ""}`}
-                      />
-                    </>
-                  )}
+                  <span className={`flex-1 text-left ${labelClass}`}>{item.label}</span>
+                  <ChevronDown
+                    className={`w-3.5 h-3.5 shrink-0 transition-[transform,max-width,opacity] duration-300 ${isOpen ? "rotate-180" : ""} ${collapsed ? "max-w-0 opacity-0 overflow-hidden" : "max-w-[1rem] opacity-100"}`}
+                  />
                 </button>
 
                 {/* 하위 메뉴 */}
-                {!collapsed && isOpen && (
+                <div
+                  className="overflow-hidden transition-[max-height,opacity] duration-300"
+                  style={{
+                    maxHeight: !collapsed && isOpen ? `${item.children.length * 40}px` : "0px",
+                    opacity: !collapsed && isOpen ? 1 : 0,
+                  }}
+                >
                   <div className="mt-0.5 ml-4 pl-3 border-l" style={{ borderColor: "#2a2826" }}>
                     {item.children.map((child) => {
                       const childActive = pathname.startsWith(child.href);
@@ -239,7 +243,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                       );
                     })}
                   </div>
-                )}
+                </div>
               </div>
             );
           })}
@@ -273,7 +277,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             }}
           >
             <ExternalLink className="w-4 h-4 flex-shrink-0" />
-            {!collapsed && "TOTODO 바로가기"}
+            <span className={labelClass}>TOTODO 바로가기</span>
           </Link>
           <button
             onClick={handleSignOut}
@@ -295,7 +299,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             }}
           >
             <LogOut className="w-4 h-4 flex-shrink-0" />
-            {!collapsed && "로그아웃"}
+            <span className={labelClass}>로그아웃</span>
           </button>
         </div>
       </aside>
