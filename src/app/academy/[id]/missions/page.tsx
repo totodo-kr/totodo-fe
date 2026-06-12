@@ -61,28 +61,28 @@ function MissionCard({ mission, onSubmit }: MissionCardProps) {
   return (
     <div
       className="rounded-xl border overflow-hidden"
-      style={{ borderColor: "#e6dfd8", background: "#fff" }}
+      style={{ borderColor: "rgba(255,255,255,0.1)", background: "rgba(255,255,255,0.05)" }}
     >
       <button
-        className="w-full flex items-center justify-between px-5 py-4 text-left transition-colors hover:bg-[#faf9f5]"
+        className="w-full flex items-center justify-between px-5 py-4 text-left transition-colors hover:bg-white/10"
         onClick={() => setOpen((v) => !v)}
       >
         <div className="flex items-center gap-3 flex-1 min-w-0">
-          <BookOpen size={16} style={{ color: "#cc785c", flexShrink: 0 }} />
-          <span className="font-semibold text-sm truncate" style={{ color: "#141413" }}>
+          <BookOpen size={16} style={{ color: "#a200cb", flexShrink: 0 }} />
+          <span className="font-semibold text-sm truncate" style={{ color: "#f3f4f6" }}>
             {mission.title}
           </span>
         </div>
         <div className="flex items-center gap-3 ml-4 shrink-0">
           {due && (
-            <span className="text-xs" style={{ color: due.expired ? "#c64545" : "#8e8b82" }}>
+            <span className="text-xs" style={{ color: due.expired ? "#f87171" : "#9ca3af" }}>
               {due.label}
               {due.urgent && (
                 <span
                   className="ml-1.5 px-1.5 py-0.5 rounded-full text-xs font-bold"
                   style={{
-                    background: due.expired ? "#fde8e8" : "#fef9c3",
-                    color: due.expired ? "#c64545" : "#854d0e",
+                    background: due.expired ? "rgba(248,113,113,0.2)" : "rgba(250,204,21,0.2)",
+                    color: due.expired ? "#f87171" : "#fbbf24",
                   }}
                 >
                   {due.urgent}
@@ -94,8 +94,8 @@ function MissionCard({ mission, onSubmit }: MissionCardProps) {
             <span
               className="flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium"
               style={{
-                background: mission.submission!.status === "passed" ? "#d1fae5" : "#dbeafe",
-                color: mission.submission!.status === "passed" ? "#065f46" : "#2563eb",
+                background: mission.submission!.status === "passed" ? "rgba(74,222,128,0.2)" : "rgba(96,165,250,0.2)",
+                color: mission.submission!.status === "passed" ? "#4ade80" : "#60a5fa",
               }}
             >
               {STATUS_ICONS[mission.submission!.status]}
@@ -103,15 +103,15 @@ function MissionCard({ mission, onSubmit }: MissionCardProps) {
             </span>
           )}
           {open
-            ? <ChevronUp size={16} style={{ color: "#8e8b82" }} />
-            : <ChevronDown size={16} style={{ color: "#8e8b82" }} />}
+            ? <ChevronUp size={16} style={{ color: "#9ca3af" }} />
+            : <ChevronDown size={16} style={{ color: "#9ca3af" }} />}
         </div>
       </button>
 
       {open && (
-        <div className="px-5 pb-5 border-t" style={{ borderColor: "#e6dfd8" }}>
+        <div className="px-5 pb-6 border-t pt-5" style={{ borderColor: "rgba(255,255,255,0.1)" }}>
           {mission.description && (
-            <p className="text-sm mt-4 mb-4 whitespace-pre-wrap leading-relaxed" style={{ color: "#252523" }}>
+            <p className="text-sm mb-5 whitespace-pre-wrap leading-relaxed" style={{ color: "#d1d5db" }}>
               {mission.description}
             </p>
           )}
@@ -119,14 +119,14 @@ function MissionCard({ mission, onSubmit }: MissionCardProps) {
           {hasSubmission && (
             <div
               className="rounded-lg px-4 py-3 mb-4 text-sm"
-              style={{ background: "#efe9de" }}
+              style={{ background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.1)" }}
             >
-              <div className="flex items-center gap-2 mb-1 font-semibold" style={{ color: "#252523" }}>
+              <div className="flex items-center gap-2 mb-1 font-semibold" style={{ color: "#f3f4f6" }}>
                 {STATUS_ICONS[mission.submission!.status]}
                 {STATUS_LABELS[mission.submission!.status]}
               </div>
               {mission.submission!.content && (
-                <p className="text-xs mb-2 whitespace-pre-wrap" style={{ color: "#6c6a64" }}>
+                <p className="text-xs mb-2 whitespace-pre-wrap" style={{ color: "#9ca3af" }}>
                   {mission.submission!.content}
                 </p>
               )}
@@ -136,36 +136,36 @@ function MissionCard({ mission, onSubmit }: MissionCardProps) {
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-xs underline"
-                  style={{ color: "#cc785c" }}
+                  style={{ color: "#a200cb" }}
                 >
                   첨부파일 보기
                 </a>
               )}
               {mission.submission!.feedback && (
-                <div className="mt-2 pt-2 border-t" style={{ borderColor: "#e6dfd8" }}>
-                  <p className="text-xs font-semibold mb-0.5" style={{ color: "#6c6a64" }}>강사 피드백</p>
-                  <p className="text-xs" style={{ color: "#252523" }}>{mission.submission!.feedback}</p>
+                <div className="mt-2 pt-2 border-t" style={{ borderColor: "rgba(255,255,255,0.1)" }}>
+                  <p className="text-xs font-semibold mb-0.5" style={{ color: "#9ca3af" }}>강사 피드백</p>
+                  <p className="text-xs" style={{ color: "#d1d5db" }}>{mission.submission!.feedback}</p>
                 </div>
               )}
             </div>
           )}
 
           {!isExpired && mission.submission?.status !== "passed" && (
-            <form onSubmit={handleSubmit} className="flex flex-col gap-3">
+            <form onSubmit={handleSubmit} className="flex flex-col gap-3 mt-2">
               <textarea
                 value={content}
                 onChange={(e) => setContent(e.target.value)}
                 placeholder="과제 내용을 입력하세요"
                 rows={4}
                 className="w-full px-3 py-2 rounded-lg border text-sm resize-none"
-                style={{ borderColor: "#e6dfd8", background: "#faf9f5", color: "#141413" }}
+                style={{ borderColor: "rgba(255,255,255,0.15)", background: "rgba(255,255,255,0.05)", color: "#f3f4f6" }}
               />
               <div className="flex items-center gap-3">
                 <button
                   type="button"
                   onClick={() => fileRef.current?.click()}
-                  className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border transition-colors hover:bg-[#efe9de]"
-                  style={{ borderColor: "#e6dfd8", color: "#6c6a64" }}
+                  className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border transition-colors hover:bg-white/10"
+                  style={{ borderColor: "rgba(255,255,255,0.2)", color: "#9ca3af" }}
                 >
                   <Paperclip size={13} />
                   {file ? file.name : "파일 첨부"}
@@ -180,18 +180,18 @@ function MissionCard({ mission, onSubmit }: MissionCardProps) {
                   type="submit"
                   disabled={submitting}
                   className="ml-auto flex items-center gap-1.5 text-xs px-4 py-1.5 rounded-lg font-bold disabled:opacity-50"
-                  style={{ background: "#cc785c", color: "#fff" }}
+                  style={{ background: "#a200cb", color: "#fff" }}
                 >
                   <Send size={13} />
                   {submitting ? "제출 중…" : hasSubmission ? "재제출" : "제출하기"}
                 </button>
               </div>
-              {error && <p className="text-xs" style={{ color: "#c64545" }}>{error}</p>}
+              {error && <p className="text-xs" style={{ color: "#f87171" }}>{error}</p>}
             </form>
           )}
 
           {isExpired && !hasSubmission && (
-            <p className="text-xs text-center py-2" style={{ color: "#8e8b82" }}>
+            <p className="text-xs text-center py-2" style={{ color: "#6b7280" }}>
               마감된 과제입니다.
             </p>
           )}
@@ -225,7 +225,7 @@ export default function MissionsPage() {
   if (!isEnrolled) {
     return (
       <div className="flex flex-col items-center justify-center py-24 gap-2">
-        <p className="text-base font-semibold" style={{ color: "#252523" }}>수강 신청 후 이용할 수 있습니다.</p>
+        <p className="text-base font-semibold" style={{ color: "#d1d5db" }}>수강 신청 후 이용할 수 있습니다.</p>
       </div>
     );
   }
@@ -241,8 +241,8 @@ export default function MissionsPage() {
   if (missions.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-24 gap-2">
-        <p className="text-base font-semibold" style={{ color: "#252523" }}>등록된 과제가 없습니다.</p>
-        <p className="text-sm" style={{ color: "#8e8b82" }}>강사가 과제를 등록하면 여기에 표시됩니다.</p>
+        <p className="text-base font-semibold" style={{ color: "#d1d5db" }}>등록된 과제가 없습니다.</p>
+        <p className="text-sm" style={{ color: "#6b7280" }}>강사가 과제를 등록하면 여기에 표시됩니다.</p>
       </div>
     );
   }
@@ -263,7 +263,7 @@ export default function MissionsPage() {
     <div className="flex flex-col gap-8">
       {grouped.map((group) => (
         <section key={group.chapterId}>
-          <h2 className="text-sm font-bold mb-3 px-1" style={{ color: "#8e8b82" }}>
+          <h2 className="text-sm font-bold mb-3 px-1" style={{ color: "#6b7280" }}>
             {group.chapterTitle}
           </h2>
           <div className="flex flex-col gap-3">

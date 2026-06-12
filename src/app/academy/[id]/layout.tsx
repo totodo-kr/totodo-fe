@@ -209,11 +209,18 @@ export default function LectureLayout({ children }: { children: React.ReactNode 
               <Link
                 key={tab.path}
                 href={tab.path}
-                className={`px-4 py-3 text-left text-lg font-bold rounded-lg transition-all ${
+                className="px-4 py-3 text-left text-lg font-bold rounded-lg transition-all"
+                style={
                   isActive(tab.path)
-                    ? "bg-white text-black"
-                    : "text-gray-400 hover:text-white hover:bg-white/5"
-                }`}
+                    ? { color: "#a200cb" }
+                    : { color: "#9ca3af" }
+                }
+                onMouseEnter={(e) => {
+                  if (!isActive(tab.path)) (e.currentTarget as HTMLAnchorElement).style.color = "#ffffff";
+                }}
+                onMouseLeave={(e) => {
+                  if (!isActive(tab.path)) (e.currentTarget as HTMLAnchorElement).style.color = "#9ca3af";
+                }}
               >
                 {tab.label}
               </Link>
