@@ -202,7 +202,7 @@ export default function AdminMenusPage() {
                   value={editName}
                   onChange={(e) => setEditName(e.target.value)}
                   className="w-full px-2 py-1 rounded border text-sm"
-                  style={{ borderColor: "#cc785c", outline: "none" }}
+                  style={{ borderColor: "#cc785c", outline: "none", background: "#faf9f5", color: "#141413" }}
                   onKeyDown={(e) => {
                     if (e.key === "Enter") saveEdit(menu.id);
                     if (e.key === "Escape") cancelEdit();
@@ -228,7 +228,7 @@ export default function AdminMenusPage() {
                     value={editHref}
                     onChange={(e) => setEditHref(e.target.value)}
                     className="flex-1 px-2 py-1 rounded border text-sm font-mono"
-                    style={{ borderColor: "#cc785c", outline: "none" }}
+                    style={{ borderColor: "#cc785c", outline: "none", background: "#faf9f5", color: "#141413" }}
                     onKeyDown={(e) => {
                       if (e.key === "Enter") saveEdit(menu.id);
                       if (e.key === "Escape") cancelEdit();
