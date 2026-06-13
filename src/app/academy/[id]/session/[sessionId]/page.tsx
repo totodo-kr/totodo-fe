@@ -1,203 +1,318 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
+import { useLectureSession } from "@/hooks/useLectureSession";
+import { useWatchProgress } from "@/hooks/useWatchProgress";
+import { formatDuration } from "@/hooks/useLecture";
 
 type TabType = "curriculum" | "overview" | "comments";
+
+const SPEEDS = [0.5, 0.75, 1, 1.25, 1.5, 2];
 
 export default function WatchPage() {
   const params = useParams();
   const router = useRouter();
+  const courseId = params.id as string;
+  const sessionId = params.sessionId as string;
+
+  const { session, videoSrc, videoType, chapters, loading } = useLectureSession(courseId, sessionId);
+  const { initialSeconds, saveProgress } = useWatchProgress(
+    session?.id ?? null,
+    session?.duration_seconds ?? 0
+  );
+
   const [activeTab, setActiveTab] = useState<TabType>("curriculum");
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const playerRef = useRef<HTMLDivElement>(null);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [currentTime, setCurrentTime] = useState(0);
+  const [duration, setDuration] = useState(0);
+  const [isMuted, setIsMuted] = useState(false);
+  const [playbackRate, setPlaybackRate] = useState(1);
   const [showControls, setShowControls] = useState(false);
+  const [showSpeedMenu, setShowSpeedMenu] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
 
-  const courseId = params.id;
-  const sessionId = params.sessionId;
+  // 영상이 바뀔 때 재생 위치 복원
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video || !videoSrc) return;
+    const onCanPlay = () => {
+      if (initialSeconds > 0) video.currentTime = initialSeconds;
+    };
+    video.addEventListener("canplay", onCanPlay, { once: true });
+    return () => video.removeEventListener("canplay", onCanPlay);
+  }, [videoSrc, initialSeconds]);
 
-  // 임시 데이터
-  const courseData = {
-    id: courseId,
-    title: "오레노 니홍고",
-    instructor: "도도토",
-  };
+  const handleTimeUpdate = useCallback(() => {
+    const video = videoRef.current;
+    if (!video) return;
+    setCurrentTime(video.currentTime);
+    saveProgress(video.currentTime);
+  }, [saveProgress]);
 
-  const currentSession = {
-    id: sessionId,
-    title: "01. 「오리엔테이션」",
-    duration: "09:50",
-    videoUrl: "https://www.youtube.com/embed/dQw4w9WgXcQ", // 임시 URL
-  };
+  const handleLoadedMetadata = useCallback(() => {
+    const video = videoRef.current;
+    if (!video) return;
+    setDuration(video.duration);
+  }, []);
 
-  const curriculum = [
-    {
-      chapter: "第一章) 자신의 길은 자신이 정한다.",
-      sessions: [
-        { id: 1, title: "01. 「오리엔테이션」", duration: "09:50", preview: true },
-        { id: 2, title: "02. 「슬픈 좋아하니?」", duration: "26:08", locked: false },
-        {
-          id: 3,
-          title: "03. 「일본어 실력에 늘지 않는 느낌이 든다고?」",
-          duration: "05:41",
-          locked: false,
-        },
-        { id: 4, title: "04. 「MBTI는 E? 아니면 I?」", duration: "11:05", locked: false },
-        {
-          id: 5,
-          title: "05. 「그럼, 최고의 인조은 뭐야?」",
-          duration: "13:11",
-          locked: false,
-        },
-        {
-          id: 6,
-          title: "06. 「일본어의 문자가 많은 이유, 알고 있니?」",
-          duration: "09:47",
-          locked: false,
-          hasAttachment: true,
-        },
-        {
-          id: 7,
-          title: "07. 「도도토류 최고의 단어장。」",
-          duration: "08:46",
-          locked: false,
-        },
-        {
-          id: 8,
-          title: "08. 「일본어의 '감자' 답당 찾자。」",
-          duration: "23:35",
-          locked: false,
-          hasAttachment: true,
-        },
-        {
-          id: 9,
-          title: "09. 「스스로 해결하지 못하는 사람이라면, ...」",
-          duration: "05:20",
-          locked: false,
-        },
-        {
-          id: 10,
-          title: "10. 「모든을 모르면, 평생 못주고。」",
-          duration: "09:00",
-          locked: false,
-        },
-        {
-          id: 11,
-          title: "11. 「도도토가 선생님? 아니, 다크시。」",
-          duration: "08:00",
-          locked: false,
-        },
-      ],
-    },
-  ];
+  const handleEnded = useCallback(() => {
+    setIsPlaying(false);
+    // 완료 강제 저장
+    const video = videoRef.current;
+    if (video) saveProgress(video.duration);
+  }, [saveProgress]);
 
-  const tabs = [
-    { id: "curriculum" as TabType, label: "커리큘럼" },
-    { id: "overview" as TabType, label: "개요" },
-    { id: "comments" as TabType, label: "댓글" },
+  const togglePlay = useCallback(() => {
+    const video = videoRef.current;
+    if (!video || !videoSrc) return;
+    if (video.paused) video.play();
+    else video.pause();
+  }, [videoSrc]);
+
+  const handleSeek = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const video = videoRef.current;
+    if (!video) return;
+    const t = Number(e.target.value);
+    video.currentTime = t;
+    setCurrentTime(t);
+  }, []);
+
+  const toggleMute = useCallback(() => {
+    const video = videoRef.current;
+    if (!video) return;
+    video.muted = !video.muted;
+    setIsMuted(video.muted);
+  }, []);
+
+  const changeSpeed = useCallback((rate: number) => {
+    const video = videoRef.current;
+    if (!video) return;
+    video.playbackRate = rate;
+    setPlaybackRate(rate);
+    setShowSpeedMenu(false);
+  }, []);
+
+  const toggleFullscreen = useCallback(() => {
+    const el = playerRef.current;
+    if (!el) return;
+    if (!document.fullscreenElement) el.requestFullscreen();
+    else document.exitFullscreen();
+  }, []);
+
+  useEffect(() => {
+    const onFsChange = () => setIsFullscreen(!!document.fullscreenElement);
+    document.addEventListener("fullscreenchange", onFsChange);
+    return () => document.removeEventListener("fullscreenchange", onFsChange);
+  }, []);
+
+  const progressPct = duration > 0 ? (currentTime / duration) * 100 : 0;
+
+  const tabs: { id: TabType; label: string }[] = [
+    { id: "curriculum", label: "커리큘럼" },
+    { id: "overview", label: "개요" },
+    { id: "comments", label: "댓글" },
   ];
 
   return (
     <div className="h-screen bg-black flex flex-col overflow-hidden">
-      {/* Main Content */}
       <div className="flex flex-1 overflow-hidden">
-        {/* Video Player - Left Side */}
-        <div
-          className="flex-1 bg-black relative"
-          onMouseEnter={() => setShowControls(true)}
-          onMouseLeave={() => setShowControls(false)}
-        >
-          {/* Header */}
-          <div
-            className={`absolute top-0 left-0 right-0 z-10 bg-gradient-to-b from-black/80 to-transparent transition-opacity duration-300 ${
-              showControls ? "opacity-100" : "opacity-0"
-            }`}
-          >
-            <div className="pl-4 py-4">
+        {/* ─── 비디오 영역 ─── */}
+        {videoType === "youtube" ? (
+          /* YouTube: 헤더 바를 iframe 위에 고정 배치해서 겹침 없앰 */
+          <div className="flex-1 bg-black flex flex-col">
+            <div className="flex-shrink-0 bg-black px-4 py-3 flex items-center gap-2">
               <button
                 onClick={() => router.push(`/academy/${courseId}/chapters`)}
                 className="flex items-center gap-2 text-white hover:text-brand-500 transition-colors"
               >
                 <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M15 19l-7-7 7-7"
-                  />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
                 </svg>
-                <span className="font-bold text-lg">{currentSession.title}</span>
+                <span className="font-bold text-lg">{session?.title ?? ""}</span>
               </button>
             </div>
-          </div>
-
-          <div className="absolute inset-0 flex items-center justify-center bg-zinc-900">
-            {/* Video Player Placeholder */}
-            <div className="text-center">
-              <div className="mb-8 text-6xl text-white/20">오리엔테이션</div>
-              <div className="text-2xl text-white/40 mb-4">TOTODO HOLDINGS</div>
-              <button className="w-20 h-20 flex items-center justify-center mx-auto rounded-full bg-white/10 hover:bg-white/20 transition-colors">
-                <svg className="w-10 h-10 text-white ml-1" fill="currentColor" viewBox="0 0 24 24">
-                  <path d="M8 5v14l11-7z" />
-                </svg>
-              </button>
+            <div className="flex-1 relative">
+              {videoSrc ? (
+                <iframe
+                  src={videoSrc}
+                  className="absolute inset-0 w-full h-full"
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                  allowFullScreen
+                />
+              ) : (
+                <div className="absolute inset-0 flex items-center justify-center bg-zinc-900">
+                  {loading && <div className="w-10 h-10 border-2 border-white/20 border-t-white rounded-full animate-spin" />}
+                </div>
+              )}
             </div>
           </div>
-
-          {/* Video Controls - Overlay */}
+        ) : (
+          /* Native: 기존 오버레이 방식 */
           <div
-            className={`absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent px-6 py-4 transition-opacity duration-300 ${
-              showControls ? "opacity-100" : "opacity-0"
-            }`}
+            ref={playerRef}
+            className="flex-1 bg-black relative"
+            onMouseEnter={() => setShowControls(true)}
+            onMouseLeave={() => { setShowControls(false); setShowSpeedMenu(false); }}
+            onClick={togglePlay}
           >
+          {/* 상단 헤더 오버레이 */}
+          <div
+            className={`absolute top-0 left-0 right-0 z-10 bg-gradient-to-b from-black/80 to-transparent transition-opacity duration-300 ${showControls ? "opacity-100" : "opacity-0"}`}
+          >
+            <div className="pl-4 py-4" onClick={(e) => e.stopPropagation()}>
+              <button
+                onClick={() => router.push(`/academy/${courseId}/chapters`)}
+                className="flex items-center gap-2 text-white hover:text-brand-500 transition-colors"
+              >
+                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                </svg>
+                <span className="font-bold text-lg">{session?.title ?? ""}</span>
+              </button>
+            </div>
+          </div>
+
+          {/* 비디오 엘리먼트 */}
+          {videoSrc && videoType === "native" ? (
+            <video
+              ref={videoRef}
+              src={videoSrc}
+              className="absolute inset-0 w-full h-full object-contain"
+              onTimeUpdate={handleTimeUpdate}
+              onLoadedMetadata={handleLoadedMetadata}
+              onPlay={() => setIsPlaying(true)}
+              onPause={() => setIsPlaying(false)}
+              onEnded={handleEnded}
+            />
+          ) : (
+            <div className="absolute inset-0 flex items-center justify-center bg-zinc-900">
+              {loading ? (
+                <div className="w-10 h-10 border-2 border-white/20 border-t-white rounded-full animate-spin" />
+              ) : (
+                <div className="text-center">
+                  <div className="mb-8 text-5xl text-white/20">{session?.title ?? ""}</div>
+                  <div className="text-xl text-white/30">TOTODO HOLDINGS</div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* 하단 컨트롤 오버레이 — YouTube는 자체 컨트롤 사용 */}
+          <div
+            className={`absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent px-6 py-4 transition-opacity duration-300 ${showControls ? "opacity-100" : "opacity-0"}`}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* 프로그레스 바 */}
+            <div className="mb-3">
+              <input
+                type="range"
+                min={0}
+                max={duration || 0}
+                value={currentTime}
+                step={0.1}
+                onChange={handleSeek}
+                className="w-full h-1 appearance-none rounded-full cursor-pointer"
+                style={{
+                  background: `linear-gradient(to right, #cc785c ${progressPct}%, rgba(255,255,255,0.3) ${progressPct}%)`,
+                }}
+              />
+            </div>
+
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-4">
-                <button className="w-10 h-10 flex items-center justify-center rounded-full hover:bg-white/10 transition-colors">
-                  <svg className="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 24 24">
-                    <path d="M8 5v14l11-7z" />
-                  </svg>
+              <div className="flex items-center gap-3">
+                {/* 재생/일시정지 */}
+                <button
+                  onClick={togglePlay}
+                  className="w-10 h-10 flex items-center justify-center rounded-full hover:bg-white/10 transition-colors"
+                >
+                  {isPlaying ? (
+                    <svg className="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 24 24">
+                      <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z" />
+                    </svg>
+                  ) : (
+                    <svg className="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 24 24">
+                      <path d="M8 5v14l11-7z" />
+                    </svg>
+                  )}
                 </button>
-                <button className="w-10 h-10 flex items-center justify-center rounded-full hover:bg-white/10 transition-colors">
-                  <svg
-                    className="w-6 h-6 text-white"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z"
-                    />
-                  </svg>
+
+                {/* 음소거 토글 */}
+                <button
+                  onClick={toggleMute}
+                  className="w-10 h-10 flex items-center justify-center rounded-full hover:bg-white/10 transition-colors"
+                >
+                  {isMuted ? (
+                    <svg className="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2" />
+                    </svg>
+                  ) : (
+                    <svg className="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
+                    </svg>
+                  )}
                 </button>
-                <span className="text-white text-sm">00:00 / {currentSession.duration}</span>
+
+                {/* 재생 시간 */}
+                <span className="text-white text-sm tabular-nums">
+                  {formatDuration(Math.floor(currentTime))} /{" "}
+                  {formatDuration(session?.duration_seconds ?? 0)}
+                </span>
               </div>
+
               <div className="flex items-center gap-2">
-                <button className="px-3 py-1 text-white text-sm hover:bg-white/10 rounded transition-colors">
-                  1.0x
-                </button>
-                <button className="px-3 py-1 text-white text-sm hover:bg-white/10 rounded transition-colors">
-                  자동
-                </button>
-                <button className="px-3 py-1 text-white text-sm hover:bg-white/10 rounded transition-colors">
-                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"
-                    />
-                  </svg>
+                {/* 배속 메뉴 */}
+                <div className="relative">
+                  <button
+                    onClick={() => setShowSpeedMenu((v) => !v)}
+                    className="px-3 py-1 text-white text-sm hover:bg-white/10 rounded transition-colors"
+                  >
+                    {playbackRate}x
+                  </button>
+                  {showSpeedMenu && (
+                    <div className="absolute bottom-full right-0 mb-1 flex flex-col bg-zinc-900 border border-white/10 rounded overflow-hidden z-20">
+                      {SPEEDS.map((s) => (
+                        <button
+                          key={s}
+                          onClick={() => changeSpeed(s)}
+                          className={`px-4 py-1.5 text-sm text-left hover:bg-white/10 transition-colors ${
+                            playbackRate === s ? "text-brand-500" : "text-white"
+                          }`}
+                        >
+                          {s}x
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* 전체화면 */}
+                <button
+                  onClick={toggleFullscreen}
+                  className="w-9 h-9 flex items-center justify-center hover:bg-white/10 rounded transition-colors"
+                >
+                  {isFullscreen ? (
+                    <svg className="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 9V4.5M9 9H4.5M9 9L3.75 3.75M9 15v4.5M9 15H4.5M9 15l-5.25 5.25M15 9h4.5M15 9V4.5M15 9l5.25-5.25M15 15h4.5M15 15v4.5m0-4.5l5.25 5.25" />
+                    </svg>
+                  ) : (
+                    <svg className="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
+                    </svg>
+                  )}
                 </button>
               </div>
             </div>
           </div>
-        </div>
+          </div>
+        )}
 
-        {/* Right Sidebar - Playlist */}
+        {/* ─── 오른쪽 사이드바 ─── */}
         <div className="w-[400px] border-l border-white/10 bg-zinc-950 flex flex-col flex-shrink-0">
-          {/* Tabs */}
           <div className="border-b border-white/10">
             <div className="flex">
               {tabs.map((tab) => (
@@ -216,97 +331,89 @@ export default function WatchPage() {
             </div>
           </div>
 
-          {/* Content */}
           <div className="flex-1 overflow-y-auto">
             {activeTab === "curriculum" && (
               <div className="p-4 space-y-4">
-                {curriculum.map((chapter, chapterIndex) => (
-                  <div key={chapterIndex}>
-                    <h3 className="text-sm font-bold text-white mb-2 px-2">{chapter.chapter}</h3>
-                    <div className="space-y-1">
-                      {chapter.sessions.map((session) => (
-                        <Link
-                          key={session.id}
-                          href={`/academy/${courseId}/session/${session.id}`}
-                          className={`block p-3 rounded-lg transition-colors ${
-                            Number(sessionId) === session.id
-                              ? "bg-zinc-800 border border-brand-500"
-                              : "hover:bg-zinc-800/50"
-                          }`}
-                        >
-                          <div className="flex items-start gap-3">
-                            <div className="flex-shrink-0 mt-1">
-                              <svg
-                                className={`w-5 h-5 ${
-                                  Number(sessionId) === session.id
-                                    ? "text-brand-500"
-                                    : "text-gray-400"
-                                }`}
-                                fill="currentColor"
-                                viewBox="0 0 24 24"
-                              >
-                                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 14.5v-9l6 4.5-6 4.5z" />
-                              </svg>
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-2 mb-1">
-                                <p
-                                  className={`text-sm font-medium truncate ${
-                                    Number(sessionId) === session.id
-                                      ? "text-white"
-                                      : "text-gray-300"
-                                  }`}
-                                >
-                                  {session.title}
-                                </p>
-                                {session.preview && (
-                                  <span className="flex-shrink-0 px-2 py-0.5 bg-brand-500 text-white text-xs font-bold rounded">
-                                    미리보기
-                                  </span>
-                                )}
-                                {session.hasAttachment && (
-                                  <svg
-                                    className="w-4 h-4 text-gray-400 flex-shrink-0"
-                                    fill="none"
-                                    viewBox="0 0 24 24"
-                                    stroke="currentColor"
-                                  >
-                                    <path
-                                      strokeLinecap="round"
-                                      strokeLinejoin="round"
-                                      strokeWidth={2}
-                                      d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"
-                                    />
-                                  </svg>
-                                )}
-                              </div>
-                              <div className="flex items-center justify-between">
-                                <p className="text-xs text-gray-500">{session.duration}</p>
-                                {session.locked && (
-                                  <svg
-                                    className="w-4 h-4 text-gray-600"
-                                    fill="currentColor"
-                                    viewBox="0 0 24 24"
-                                  >
-                                    <path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zM9 6c0-1.66 1.34-3 3-3s3 1.34 3 3v2H9V6z" />
-                                  </svg>
-                                )}
-                              </div>
-                            </div>
-                          </div>
-                        </Link>
-                      ))}
-                    </div>
+                {loading ? (
+                  <div className="flex justify-center py-10">
+                    <div className="w-6 h-6 border-2 border-white/20 border-t-white rounded-full animate-spin" />
                   </div>
-                ))}
+                ) : (
+                  chapters.map((chapter) => (
+                    <div key={chapter.id}>
+                      <h3 className="text-sm font-bold text-white mb-2 px-2">{chapter.title}</h3>
+                      <div className="space-y-1">
+                        {chapter.sessions.map((s) => (
+                          <Link
+                            key={s.id}
+                            href={`/academy/${courseId}/session/${s.id}`}
+                            className={`block p-3 rounded-lg transition-colors ${
+                              Number(sessionId) === s.id
+                                ? "bg-zinc-800 border border-brand-500"
+                                : "hover:bg-zinc-800/50"
+                            }`}
+                          >
+                            <div className="flex items-start gap-3">
+                              <div className="flex-shrink-0 mt-1">
+                                <svg
+                                  className={`w-5 h-5 ${
+                                    Number(sessionId) === s.id ? "text-brand-500" : "text-gray-400"
+                                  }`}
+                                  fill="currentColor"
+                                  viewBox="0 0 24 24"
+                                >
+                                  <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 14.5v-9l6 4.5-6 4.5z" />
+                                </svg>
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2 mb-1">
+                                  <p
+                                    className={`text-sm font-medium truncate ${
+                                      Number(sessionId) === s.id ? "text-white" : "text-gray-300"
+                                    }`}
+                                  >
+                                    {s.title}
+                                  </p>
+                                  {s.is_preview && (
+                                    <span className="flex-shrink-0 px-2 py-0.5 bg-brand-500 text-white text-xs font-bold rounded">
+                                      미리보기
+                                    </span>
+                                  )}
+                                  {s.has_attachment && (
+                                    <svg
+                                      className="w-4 h-4 text-gray-400 flex-shrink-0"
+                                      fill="none"
+                                      viewBox="0 0 24 24"
+                                      stroke="currentColor"
+                                    >
+                                      <path
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                        strokeWidth={2}
+                                        d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"
+                                      />
+                                    </svg>
+                                  )}
+                                </div>
+                                <p className="text-xs text-gray-500">
+                                  {formatDuration(s.duration_seconds)}
+                                </p>
+                              </div>
+                            </div>
+                          </Link>
+                        ))}
+                      </div>
+                    </div>
+                  ))
+                )}
               </div>
             )}
 
             {activeTab === "overview" && (
               <div className="p-4">
-                <div className="text-gray-300 text-sm leading-relaxed">
-                  <p>강의 개요 내용이 여기에 표시됩니다.</p>
-                </div>
+                <p className="text-gray-300 text-sm leading-relaxed whitespace-pre-wrap">
+                  {session?.description ?? "강의 개요가 없습니다."}
+                </p>
               </div>
             )}
 
