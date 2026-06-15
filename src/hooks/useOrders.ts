@@ -1,0 +1,138 @@
+import { useState } from "react";
+import { createClient } from "@/utils/supabase/client";
+import { useAuthStore } from "@/store/useAuthStore";
+
+export interface OrderItem {
+  product_id: number;
+  product_name: string;
+  product_price: number;
+  quantity: number;
+  subtotal: number;
+}
+
+export interface CreateOrderInput {
+  items: OrderItem[];
+  total_product_price: number;
+  total_shipping_fee: number;
+  total_discount: number;
+  final_price: number;
+  recipient_name: string;
+  recipient_phone: string;
+  shipping_address: string;
+  shipping_zipcode?: string;
+  shipping_memo?: string;
+  toss_order_id: string;
+}
+
+export function useOrders() {
+  const [creating, setCreating] = useState(false);
+  const { user } = useAuthStore();
+
+  /**
+   * Generate a human-readable order number.
+   * Format: ORD-YYYYMMDD-XXXXXXXX (8 random alphanumeric chars)
+   */
+  function generateOrderNumber(): string {
+    const date = new Date().toISOString().slice(0, 10).replace(/-/g, "");
+    const random = Math.random().toString(36).slice(2, 10).toUpperCase();
+    return `ORD-${date}-${random}`;
+  }
+
+  /**
+   * Generate a URL-safe unique ID to pass to Toss Payments as orderId.
+   * Must be 6-64 chars, only alphanumeric/hyphen/underscore.
+   */
+  function generateTossOrderId(): string {
+    // crypto.randomUUID is available in modern browsers and Node 14.17+
+    if (typeof crypto !== "undefined" && crypto.randomUUID) {
+      return crypto.randomUUID();
+    }
+    // Fallback: timestamp + random
+    const ts = Date.now().toString(36).toUpperCase();
+    const r1 = Math.random().toString(36).slice(2, 8).toUpperCase();
+    const r2 = Math.random().toString(36).slice(2, 8).toUpperCase();
+    return `${ts}-${r1}-${r2}`;
+  }
+
+  /**
+   * Create a pending order in Supabase.
+   * 1. INSERT into orders
+   * 2. INSERT into order_items (bulk)
+   * Returns { order_id, order_number } on success, null on error.
+   */
+  async function createOrder(
+    data: CreateOrderInput
+  ): Promise<{ order_id: number; order_number: string } | null> {
+    if (!user) return null;
+
+    setCreating(true);
+    const supabase = createClient();
+
+    try {
+      const order_number = generateOrderNumber();
+
+      // 1. Insert order
+      const { data: orderRow, error: orderError } = await supabase
+        .from("orders")
+        .insert({
+          user_id: user.id,
+          order_number,
+          total_product_price: data.total_product_price,
+          total_shipping_fee: data.total_shipping_fee,
+          total_discount: data.total_discount,
+          final_price: data.final_price,
+          recipient_name: data.recipient_name,
+          recipient_phone: data.recipient_phone,
+          shipping_address: data.shipping_address,
+          shipping_zipcode: data.shipping_zipcode ?? null,
+          shipping_memo: data.shipping_memo ?? null,
+          status: "pending",
+          toss_order_id: data.toss_order_id,
+        })
+        .select("id, order_number")
+        .single();
+
+      if (orderError || !orderRow) {
+        console.error("Order insert error:", orderError);
+        return null;
+      }
+
+      const order_id: number = orderRow.id;
+
+      // 2. Bulk insert order_items
+      const itemRows = data.items.map((item) => ({
+        order_id,
+        product_id: item.product_id,
+        product_name: item.product_name,
+        product_price: item.product_price,
+        quantity: item.quantity,
+        subtotal: item.subtotal,
+      }));
+
+      const { error: itemsError } = await supabase
+        .from("order_items")
+        .insert(itemRows);
+
+      if (itemsError) {
+        console.error("Order items insert error:", itemsError);
+        // Roll back: delete the order we just created
+        await supabase.from("orders").delete().eq("id", order_id);
+        return null;
+      }
+
+      return { order_id, order_number };
+    } catch (err) {
+      console.error("createOrder unexpected error:", err);
+      return null;
+    } finally {
+      setCreating(false);
+    }
+  }
+
+  return {
+    creating,
+    createOrder,
+    generateOrderNumber,
+    generateTossOrderId,
+  };
+}
