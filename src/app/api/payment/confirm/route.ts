@@ -51,9 +51,29 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // 2. Update order in DB: status='paid', toss_payment_key, payment_method, paid_at
+    // 2. Verify order exists, amount matches, and is not already paid (idempotency)
     const supabase = await createClient();
 
+    const { data: orderRow } = await supabase
+      .from("orders")
+      .select("id, final_price, status")
+      .eq("toss_order_id", orderId)
+      .single();
+
+    if (!orderRow) {
+      return NextResponse.json({ error: "주문을 찾을 수 없습니다." }, { status: 404 });
+    }
+
+    if (orderRow.status === "paid") {
+      return NextResponse.json({ success: true, already_confirmed: true });
+    }
+
+    if (orderRow.final_price !== amount) {
+      console.error(`Amount mismatch: DB=${orderRow.final_price}, received=${amount}`);
+      return NextResponse.json({ error: "결제 금액이 주문 금액과 일치하지 않습니다." }, { status: 400 });
+    }
+
+    // 3. Update order in DB: status='paid', toss_payment_key, payment_method, paid_at
     const { error: updateError } = await supabase
       .from("orders")
       .update({
@@ -64,15 +84,14 @@ export async function POST(req: NextRequest) {
         paid_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       })
-      .eq("toss_order_id", orderId);
+      .eq("toss_order_id", orderId)
+      .eq("status", "pending");
 
     if (updateError) {
       console.error("Order update error:", updateError);
-      // Payment was confirmed but DB update failed — log and continue
-      // (manual reconciliation may be required)
     }
 
-    // 3. Clear the user's cart
+    // 4. Clear the user's cart
     const {
       data: { user },
     } = await supabase.auth.getUser();
