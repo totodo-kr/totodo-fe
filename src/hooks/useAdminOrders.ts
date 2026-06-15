@@ -45,6 +45,14 @@ export interface AdminOrder {
   paid_at: string | null;
   created_at: string;
   order_items?: OrderItem[];
+  // Cancel/refund fields
+  cancel_reason?: string | null;
+  cancel_requested_at?: string | null;
+  refund_reason?: string | null;
+  refund_amount?: number | null;
+  refund_status?: string | null;
+  refund_requested_at?: string | null;
+  refund_completed_at?: string | null;
 }
 
 const PAGE_SIZE = 15;
@@ -55,33 +63,41 @@ export function useAdminOrders() {
   const [loading, setLoading] = useState(false);
   const [updatingId, setUpdatingId] = useState<number | null>(null);
 
-  const fetchOrders = useCallback(async (page = 1, status?: OrderStatus | "") => {
-    const supabase = createClient();
-    setLoading(true);
+  const fetchOrders = useCallback(
+    async (page = 1, status?: OrderStatus | "" | "refund_requested") => {
+      const supabase = createClient();
+      setLoading(true);
 
-    const from = (page - 1) * PAGE_SIZE;
-    const to = from + PAGE_SIZE - 1;
+      const from = (page - 1) * PAGE_SIZE;
+      const to = from + PAGE_SIZE - 1;
 
-    let query = supabase
-      .from("orders")
-      .select(
-        `id, order_number, user_id, total_product_price, total_shipping_fee,
-         total_discount, final_price, recipient_name, recipient_phone,
-         shipping_address, shipping_memo, status, payment_method, paid_at, created_at`,
-        { count: "exact" }
-      )
-      .order("created_at", { ascending: false })
-      .range(from, to);
+      let query = supabase
+        .from("orders")
+        .select(
+          `id, order_number, user_id, total_product_price, total_shipping_fee,
+           total_discount, final_price, recipient_name, recipient_phone,
+           shipping_address, shipping_memo, status, payment_method, paid_at, created_at,
+           cancel_reason, cancel_requested_at,
+           refund_reason, refund_amount, refund_status, refund_requested_at, refund_completed_at`,
+          { count: "exact" }
+        )
+        .order("created_at", { ascending: false })
+        .range(from, to);
 
-    if (status) {
-      query = query.eq("status", status);
-    }
+      if (status === "refund_requested") {
+        // Virtual filter: orders with any refund_status set
+        query = query.not("refund_status", "is", null);
+      } else if (status) {
+        query = query.eq("status", status);
+      }
 
-    const { data, count } = await query;
-    setOrders((data as AdminOrder[]) ?? []);
-    setTotal(count ?? 0);
-    setLoading(false);
-  }, []);
+      const { data, count } = await query;
+      setOrders((data as AdminOrder[]) ?? []);
+      setTotal(count ?? 0);
+      setLoading(false);
+    },
+    []
+  );
 
   const fetchOrderItems = async (orderId: number): Promise<OrderItem[]> => {
     const supabase = createClient();
@@ -108,6 +124,42 @@ export function useAdminOrders() {
     return !error;
   };
 
+  const processRefund = async (
+    orderId: number,
+    status: "completed" | "rejected"
+  ): Promise<boolean> => {
+    const supabase = createClient();
+    setUpdatingId(orderId);
+
+    const updatePayload: Record<string, string> = { refund_status: status };
+    if (status === "completed") {
+      updatePayload.refund_completed_at = new Date().toISOString();
+    }
+
+    const { error } = await supabase
+      .from("orders")
+      .update(updatePayload)
+      .eq("id", orderId);
+
+    if (!error) {
+      setOrders((prev) =>
+        prev.map((o) =>
+          o.id === orderId
+            ? {
+                ...o,
+                refund_status: status,
+                refund_completed_at:
+                  status === "completed" ? new Date().toISOString() : o.refund_completed_at,
+              }
+            : o
+        )
+      );
+    }
+
+    setUpdatingId(null);
+    return !error;
+  };
+
   return {
     orders,
     total,
@@ -116,5 +168,6 @@ export function useAdminOrders() {
     fetchOrders,
     fetchOrderItems,
     updateStatus,
+    processRefund,
   };
 }
