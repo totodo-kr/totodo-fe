@@ -82,7 +82,8 @@ export function useWishlist() {
       const { error } = await supabase
         .from("wishlists")
         .delete()
-        .eq("product_id", productId);
+        .eq("product_id", productId)
+        .eq("user_id", user.id);
 
       if (error) throw error;
 
