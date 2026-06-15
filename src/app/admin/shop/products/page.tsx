@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
-import { Star, ExternalLink } from "lucide-react";
+import { Star, ExternalLink, Pencil } from "lucide-react";
 import { useAdminProducts } from "@/hooks/useAdminProducts";
 import { AdminPageHeader, AdminTable } from "@/components/admin/organisms";
 import {
@@ -11,6 +11,7 @@ import {
   Pagination,
   FilterTabs,
   ToggleButton,
+  IconActionButton,
 } from "@/components/admin/molecules";
 
 const PAGE_SIZE = 15;
@@ -41,9 +42,10 @@ const COLUMNS = [
   { label: "공개", className: "text-center" },
   { label: "BEST", className: "text-center" },
   { label: "링크", className: "text-center" },
+  { label: "수정", className: "text-center" },
 ];
 
-const GRID = "1fr 70px 90px 70px 55px 55px 70px 70px 44px";
+const GRID = "1fr 70px 90px 70px 55px 55px 70px 70px 44px 36px";
 
 export default function AdminProductsPage() {
   const {
@@ -100,6 +102,7 @@ export default function AdminProductsPage() {
       <AdminPageHeader
         title="상품 관리"
         description="상품 목록을 조회하고 공개 여부 및 베스트 설정을 관리합니다."
+        action={{ label: "새 상품 등록", href: "/admin/shop/products/write" }}
       />
 
       <div className="mb-4">
@@ -222,6 +225,16 @@ export default function AdminProductsPage() {
                 }}
               >
                 <ExternalLink className="w-3.5 h-3.5" />
+              </Link>
+            </div>
+
+            <div className="flex justify-center">
+              <Link href={`/admin/shop/products/${product.id}/edit`}>
+                <IconActionButton
+                  icon={<Pencil className="w-3.5 h-3.5" />}
+                  variant="default"
+                  title="상품 수정"
+                />
               </Link>
             </div>
           </div>
