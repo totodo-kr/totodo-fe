@@ -1,13 +1,38 @@
 "use client";
 
-import { useEffect } from "react";
-import Image from "next/image";
+import { useEffect, useState } from "react";
+import Link from "next/link";
 import { useSliderStore } from "@/store/useSliderStore";
+import { useProducts, ShopProduct, ProductCategory } from "@/hooks/useProducts";
+import ProductCard from "@/components/shop/ProductCard";
+
+function BestProductSkeleton() {
+  return (
+    <div className="flex flex-col gap-4">
+      <div className="w-full aspect-square rounded-2xl bg-zinc-800 animate-pulse" />
+      <div className="space-y-2">
+        <div className="h-4 bg-zinc-800 rounded animate-pulse w-3/4" />
+        <div className="h-4 bg-zinc-800 rounded animate-pulse w-1/2" />
+      </div>
+    </div>
+  );
+}
+
+function CategorySkeleton() {
+  return (
+    <div className="h-16 bg-zinc-800 rounded-xl animate-pulse" />
+  );
+}
 
 export default function ShopPage() {
   const { setSlides } = useSliderStore();
+  const { fetchBestProducts, fetchCategories } = useProducts();
 
-  // Set slider data on mount
+  const [bestProducts, setBestProducts] = useState<ShopProduct[]>([]);
+  const [categories, setCategories] = useState<ProductCategory[]>([]);
+  const [loadingBest, setLoadingBest] = useState(true);
+  const [loadingCategories, setLoadingCategories] = useState(true);
+
   useEffect(() => {
     setSlides([
       {
@@ -44,74 +69,88 @@ export default function ShopPage() {
       },
     ]);
 
-    // Cleanup: hide slider when component unmounts
     return () => {
       setSlides([]);
     };
   }, [setSlides]);
 
-  const bestProducts = [
-    {
-      id: 1,
-      title: "Ritual Note",
-      image:
-        "https://images.unsplash.com/photo-1517842645767-c639042777db?q=80&w=800&auto=format&fit=crop",
-    },
-    {
-      id: 2,
-      title: "Ritual Note",
-      image:
-        "https://images.unsplash.com/photo-1531346378271-e6b3f77860c0?q=80&w=800&auto=format&fit=crop",
-    },
-    {
-      id: 3,
-      title: "Weekly Planner",
-      image:
-        "https://images.unsplash.com/photo-1517842645767-c639042777db?q=80&w=800&auto=format&fit=crop",
-    },
-    {
-      id: 4,
-      title: "Essential Kit",
-      image:
-        "https://images.unsplash.com/photo-1590736969955-71cc94901144?q=80&w=800&auto=format&fit=crop",
-    },
-  ];
+  useEffect(() => {
+    fetchBestProducts(8).then((data) => {
+      setBestProducts(data);
+      setLoadingBest(false);
+    });
+  }, [fetchBestProducts]);
+
+  useEffect(() => {
+    fetchCategories().then((data) => {
+      setCategories(data);
+      setLoadingCategories(false);
+    });
+  }, [fetchCategories]);
 
   return (
     <main className="min-h-screen">
       {/* Best Products Section */}
       <div className="py-16 px-8">
         <div className="max-w-[1600px] mx-auto">
-          {/* Section Header */}
           <div className="text-center mb-12">
             <h2 className="text-4xl font-bold text-white mb-3">베스트 상품</h2>
             <p className="text-gray-400">ORGN MAKT의 베스트 아이템을 소개합니다.</p>
           </div>
 
-          {/* Products Grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
-            {bestProducts.map((product) => (
-              <div key={product.id} className="flex flex-col gap-4 group cursor-pointer">
-                {/* Image Container */}
-                <div className="relative overflow-hidden rounded-2xl w-full aspect-square bg-zinc-800 border border-white/5">
-                  <Image
-                    src={product.image}
-                    alt={product.title}
-                    fill
-                    className="object-cover transition-transform duration-500 group-hover:scale-105"
+            {loadingBest
+              ? Array.from({ length: 4 }).map((_, i) => <BestProductSkeleton key={i} />)
+              : bestProducts.length > 0
+              ? bestProducts.map((product) => (
+                  <ProductCard
+                    key={product.id}
+                    id={product.id}
+                    title={product.title}
+                    subtitle={product.subtitle}
+                    price={product.price}
+                    original_price={product.original_price}
+                    discount_rate={product.discount_rate}
+                    event_label={product.event_label}
+                    thumbnail_url={product.thumbnail_url}
+                    review_count={product.review_count}
+                    average_rating={product.average_rating}
+                    delivery_type={product.delivery_type}
+                    stock={product.stock}
+                    categorySlug={product.product_categories?.slug}
                   />
-                  {/* Hover Overlay */}
-                  <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors" />
+                ))
+              : (
+                <div className="col-span-4 text-center py-16 text-gray-500">
+                  베스트 상품이 없습니다.
                 </div>
+              )}
+          </div>
+        </div>
+      </div>
 
-                {/* Text Content */}
-                <div className="flex flex-col gap-1">
-                  <h3 className="text-xl font-bold text-white group-hover:text-brand-500 transition-colors">
-                    {product.title}
-                  </h3>
-                </div>
-              </div>
-            ))}
+      {/* Category Section */}
+      <div className="py-16 px-8 border-t border-white/5">
+        <div className="max-w-[1600px] mx-auto">
+          <div className="text-center mb-12">
+            <h2 className="text-4xl font-bold text-white mb-3">카테고리</h2>
+            <p className="text-gray-400">원하는 카테고리를 둘러보세요.</p>
+          </div>
+
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+            {loadingCategories
+              ? Array.from({ length: 10 }).map((_, i) => <CategorySkeleton key={i} />)
+              : categories.map((cat) => (
+                  <Link
+                    key={cat.id}
+                    href={cat.slug === "books" ? "/shop/books" : `/shop/${cat.slug}`}
+                    className="group flex items-center justify-center h-16 rounded-xl border border-white/10 hover:border-brand-500/50 hover:bg-brand-500/5 transition-all duration-200"
+                  >
+                    <span className="text-gray-300 group-hover:text-white font-medium transition-colors">
+                      {cat.name}
+                    </span>
+                  </Link>
+                ))}
           </div>
         </div>
       </div>
