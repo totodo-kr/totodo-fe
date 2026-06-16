@@ -2,56 +2,95 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { ShoppingCart, Minus, Plus, X } from "lucide-react";
-import { useState } from "react";
-
-interface CartItem {
-  id: number;
-  title: string;
-  price: number;
-  quantity: number;
-  image: string;
-}
+import { ShoppingCart, Minus, Plus, X, LogIn } from "lucide-react";
+import { useEffect, useState } from "react";
+import { useAuthStore } from "@/store/useAuthStore";
+import { useCartStore } from "@/store/useCartStore";
+import { useCart } from "@/hooks/useCart";
+import LoginModal from "@/components/LoginModal";
 
 export default function CartPage() {
-  // 임시 장바구니 데이터
-  const [cartItems, setCartItems] = useState<CartItem[]>([
-    {
-      id: 1,
-      title: "Ritual Note",
-      price: 12000,
-      quantity: 2,
-      image:
-        "https://images.unsplash.com/photo-1517842645767-c639042777db?q=80&w=800&auto=format&fit=crop",
-    },
-    {
-      id: 2,
-      title: "Weekly Planner",
-      price: 15000,
-      quantity: 1,
-      image:
-        "https://images.unsplash.com/photo-1531346378271-e6b3f77860c0?q=80&w=800&auto=format&fit=crop",
-    },
-  ]);
+  const { user, isLoading: authLoading } = useAuthStore();
+  const { items, isLoading } = useCartStore();
+  const { fetchCart, removeFromCart, updateQuantity } = useCart();
+  const [loginOpen, setLoginOpen] = useState(false);
+  const [pendingIds, setPendingIds] = useState<Set<number>>(new Set());
 
-  const updateQuantity = (id: number, change: number) => {
-    setCartItems((items) =>
-      items.map((item) =>
-        item.id === id
-          ? { ...item, quantity: Math.max(1, item.quantity + change) }
-          : item
-      )
-    );
-  };
+  useEffect(() => {
+    if (user) {
+      fetchCart();
+    }
+  }, [user, fetchCart]);
 
-  const removeItem = (id: number) => {
-    setCartItems((items) => items.filter((item) => item.id !== id));
-  };
-
-  const totalPrice = cartItems.reduce(
+  // Calculate shipping: 3000 for physical items, free for digital
+  const physicalCount = items.filter(
+    (item) => item.delivery_type !== "digital"
+  ).length;
+  const shippingFee = physicalCount > 0 ? 3000 : 0;
+  const subtotal = items.reduce(
     (sum, item) => sum + item.price * item.quantity,
     0
   );
+  const total = subtotal + shippingFee;
+
+  const handleQuantityChange = async (itemId: number, newQty: number) => {
+    if (newQty < 1) return;
+    setPendingIds((prev) => new Set([...prev, itemId]));
+    await updateQuantity(itemId, newQty);
+    setPendingIds((prev) => {
+      const next = new Set(prev);
+      next.delete(itemId);
+      return next;
+    });
+  };
+
+  const handleRemove = async (itemId: number) => {
+    setPendingIds((prev) => new Set([...prev, itemId]));
+    await removeFromCart(itemId);
+    setPendingIds((prev) => {
+      const next = new Set(prev);
+      next.delete(itemId);
+      return next;
+    });
+  };
+
+  // Show loading while auth is resolving
+  if (authLoading) {
+    return (
+      <main className="min-h-screen py-16 px-6 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-brand-500" />
+      </main>
+    );
+  }
+
+  // Not logged in
+  if (!user) {
+    return (
+      <>
+        <main className="min-h-screen py-16 px-6 flex flex-col items-center justify-center gap-6">
+          <ShoppingCart size={64} className="text-gray-600" />
+          <h2 className="text-2xl font-bold text-white">로그인이 필요합니다</h2>
+          <p className="text-gray-400 text-center">
+            장바구니를 이용하려면 로그인 후 이용해주세요.
+          </p>
+          <button
+            onClick={() => setLoginOpen(true)}
+            className="flex items-center gap-2 px-8 py-3 bg-brand-500 text-white rounded-lg font-bold hover:bg-brand-600 transition-colors"
+          >
+            <LogIn size={20} />
+            로그인하기
+          </button>
+          <Link
+            href="/shop"
+            className="text-gray-400 hover:text-white transition-colors text-sm"
+          >
+            상점으로 돌아가기
+          </Link>
+        </main>
+        <LoginModal isOpen={loginOpen} onClose={() => setLoginOpen(false)} />
+      </>
+    );
+  }
 
   return (
     <main className="min-h-screen py-16 px-6">
@@ -62,41 +101,68 @@ export default function CartPage() {
           <p className="text-gray-400">선택한 상품을 확인하고 결제하세요</p>
         </div>
 
-        {cartItems.length > 0 ? (
+        {isLoading ? (
+          <div className="flex items-center justify-center py-20">
+            <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-brand-500" />
+          </div>
+        ) : items.length > 0 ? (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             {/* Cart Items */}
             <div className="lg:col-span-2 space-y-4">
-              {cartItems.map((item) => (
+              {items.map((item) => (
                 <div
                   key={item.id}
                   className="bg-zinc-900 rounded-xl border border-white/10 p-5 flex gap-5"
+                  style={{ opacity: pendingIds.has(item.id) ? 0.6 : 1 }}
                 >
                   {/* Image */}
-                  <div className="relative w-24 h-24 rounded-lg overflow-hidden flex-shrink-0">
-                    <Image
-                      src={item.image}
-                      alt={item.title}
-                      fill
-                      className="object-cover"
-                    />
+                  <div className="relative w-24 h-24 rounded-lg overflow-hidden flex-shrink-0 bg-zinc-800">
+                    {item.thumbnail_url ? (
+                      <Image
+                        src={item.thumbnail_url}
+                        alt={item.title}
+                        fill
+                        className="object-cover"
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center">
+                        <ShoppingCart size={28} className="text-gray-600" />
+                      </div>
+                    )}
                   </div>
 
                   {/* Info */}
-                  <div className="flex-1 flex flex-col justify-between">
+                  <div className="flex-1 flex flex-col justify-between min-w-0">
                     <div>
-                      <h3 className="text-lg font-bold text-white mb-2">
+                      <h3 className="text-lg font-bold text-white mb-1 truncate">
                         {item.title}
                       </h3>
-                      <p className="text-brand-500 font-medium">
-                        {item.price.toLocaleString()}원
+                      <div className="flex items-center gap-2">
+                        <p className="text-brand-500 font-medium">
+                          {item.price.toLocaleString()}원
+                        </p>
+                        {item.original_price &&
+                          item.original_price > item.price && (
+                            <p className="text-gray-500 text-sm line-through">
+                              {item.original_price.toLocaleString()}원
+                            </p>
+                          )}
+                      </div>
+                      <p className="text-gray-500 text-xs mt-1">
+                        {item.delivery_type === "digital"
+                          ? "디지털 상품 (배송 없음)"
+                          : "실물 상품"}
                       </p>
                     </div>
 
                     {/* Quantity Controls */}
                     <div className="flex items-center gap-3">
                       <button
-                        onClick={() => updateQuantity(item.id, -1)}
-                        className="w-8 h-8 rounded-lg bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors"
+                        onClick={() =>
+                          handleQuantityChange(item.id, item.quantity - 1)
+                        }
+                        disabled={item.quantity <= 1 || pendingIds.has(item.id)}
+                        className="w-8 h-8 rounded-lg bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                       >
                         <Minus size={16} className="text-white" />
                       </button>
@@ -104,22 +170,36 @@ export default function CartPage() {
                         {item.quantity}
                       </span>
                       <button
-                        onClick={() => updateQuantity(item.id, 1)}
-                        className="w-8 h-8 rounded-lg bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors"
+                        onClick={() =>
+                          handleQuantityChange(item.id, item.quantity + 1)
+                        }
+                        disabled={
+                          pendingIds.has(item.id) ||
+                          (item.stock !== null &&
+                            item.stock !== -1 &&
+                            item.quantity >= (item.stock ?? Infinity))
+                        }
+                        className="w-8 h-8 rounded-lg bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                       >
                         <Plus size={16} className="text-white" />
                       </button>
                     </div>
                   </div>
 
-                  {/* Remove Button */}
-                  <button
-                    onClick={() => removeItem(item.id)}
-                    className="w-10 h-10 rounded-lg hover:bg-white/10 flex items-center justify-center transition-colors flex-shrink-0"
-                    aria-label="장바구니에서 제거"
-                  >
-                    <X size={20} className="text-gray-400" />
-                  </button>
+                  {/* Item Total + Remove */}
+                  <div className="flex flex-col items-end justify-between flex-shrink-0">
+                    <button
+                      onClick={() => handleRemove(item.id)}
+                      disabled={pendingIds.has(item.id)}
+                      className="w-10 h-10 rounded-lg hover:bg-white/10 flex items-center justify-center transition-colors disabled:opacity-40"
+                      aria-label="장바구니에서 제거"
+                    >
+                      <X size={20} className="text-gray-400" />
+                    </button>
+                    <p className="text-white font-bold text-sm">
+                      {(item.price * item.quantity).toLocaleString()}원
+                    </p>
+                  </div>
                 </div>
               ))}
             </div>
@@ -132,25 +212,32 @@ export default function CartPage() {
                 <div className="space-y-3 mb-6">
                   <div className="flex justify-between text-gray-400">
                     <span>상품 금액</span>
-                    <span>{totalPrice.toLocaleString()}원</span>
+                    <span>{subtotal.toLocaleString()}원</span>
                   </div>
                   <div className="flex justify-between text-gray-400">
                     <span>배송비</span>
-                    <span>무료</span>
+                    <span>
+                      {shippingFee > 0
+                        ? `${shippingFee.toLocaleString()}원`
+                        : "무료"}
+                    </span>
                   </div>
                   <div className="border-t border-white/10 pt-3 mt-3">
                     <div className="flex justify-between text-white text-xl font-bold">
                       <span>총 결제금액</span>
                       <span className="text-brand-500">
-                        {totalPrice.toLocaleString()}원
+                        {total.toLocaleString()}원
                       </span>
                     </div>
                   </div>
                 </div>
 
-                <button className="w-full px-6 py-4 bg-brand-500 text-white rounded-lg font-bold hover:bg-brand-600 transition-colors">
+                <Link
+                  href="/shop/checkout"
+                  className="block w-full px-6 py-4 bg-brand-500 text-white rounded-lg font-bold hover:bg-brand-600 transition-colors text-center"
+                >
                   결제하기
-                </button>
+                </Link>
 
                 <Link
                   href="/shop"
@@ -167,9 +254,7 @@ export default function CartPage() {
             <h2 className="text-2xl font-bold text-white mb-3">
               장바구니가 비어있습니다
             </h2>
-            <p className="text-gray-400 mb-8">
-              상품을 장바구니에 추가해보세요
-            </p>
+            <p className="text-gray-400 mb-8">상품을 장바구니에 추가해보세요</p>
             <Link
               href="/shop"
               className="inline-block px-8 py-3 bg-brand-500 text-white rounded-lg font-bold hover:bg-brand-600 transition-colors"

@@ -108,6 +108,18 @@ export function useAdminProducts() {
     return !error;
   };
 
+  const deleteProduct = async (id: number) => {
+    const supabase = createClient();
+    setPendingId(id);
+    const { error } = await supabase.from("products").delete().eq("id", id);
+    if (!error) {
+      setProducts((prev) => prev.filter((p) => p.id !== id));
+      setTotal((prev) => prev - 1);
+    }
+    setPendingId(null);
+    return !error;
+  };
+
   return {
     products,
     categories,
@@ -118,5 +130,6 @@ export function useAdminProducts() {
     fetchCategories,
     toggleActive,
     toggleBest,
+    deleteProduct,
   };
 }
