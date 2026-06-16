@@ -110,7 +110,6 @@ export default function ShopPage() {
                     subtitle={product.subtitle}
                     price={product.price}
                     original_price={product.original_price}
-                    discount_rate={product.discount_rate}
                     event_label={product.event_label}
                     thumbnail_url={product.thumbnail_url}
                     review_count={product.review_count}
