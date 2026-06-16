@@ -407,3 +407,43 @@ CREATE POLICY "product_details_update_admin"
 CREATE POLICY "product_categories_read_all"
   ON product_categories FOR SELECT
   USING (true);
+
+
+
+-- =============================================
+-- 2026-06-15: 할인·이벤트·재고 필드 추가
+-- =============================================
+ALTER TABLE products
+  ADD COLUMN IF NOT EXISTS original_price INTEGER,
+  ADD COLUMN IF NOT EXISTS discount_rate  INTEGER DEFAULT 0 CHECK (discount_rate >= 0 AND discount_rate <= 100),
+  ADD COLUMN IF NOT EXISTS event_label    VARCHAR(50),
+  ADD COLUMN IF NOT EXISTS event_end_date DATE,
+  ADD COLUMN IF NOT EXISTS stock          INTEGER DEFAULT -1;
+
+COMMENT ON COLUMN products.original_price IS '할인 전 원가. NULL이면 할인 없음';
+COMMENT ON COLUMN products.discount_rate  IS '할인율 (0–100%). price = 할인 적용 후 판매가';
+COMMENT ON COLUMN products.event_label    IS '이벤트 라벨: HOT | SALE | NEW | LIMITED';
+COMMENT ON COLUMN products.event_end_date IS '이벤트 종료일 (NULL = 상시)';
+COMMENT ON COLUMN products.stock          IS '재고 (-1 = 무제한, 0 = 품절, N = 재고수량)';
+
+CREATE INDEX IF NOT EXISTS idx_products_is_best_active ON products(is_best, is_active) WHERE is_best = TRUE AND is_active = TRUE;
+CREATE INDEX IF NOT EXISTS idx_products_event_label    ON products(event_label)         WHERE event_label IS NOT NULL;
+
+
+
+-- =============================================
+-- 2026-06-15: 상품 카테고리 시드 (10개)
+-- 사전 조건: product_categories 테이블 존재
+-- =============================================
+INSERT INTO product_categories (name, slug, description) VALUES
+  ('안경',           'glasses',             '안경, 선글라스 등 아이웨어'),
+  ('신발',           'shoes',               '운동화, 구두, 부츠 등 신발류'),
+  ('패션잡화',       'fashion-accessories', '가방, 지갑, 벨트 등 패션 잡화'),
+  ('옷',             'clothing',            '상의, 하의, 아우터 등 의류'),
+  ('가구',           'furniture',           '책상, 의자, 수납 등 가구류'),
+  ('필기도구',       'stationery',          '펜, 노트, 다이어리 등 필기도구'),
+  ('책',             'books',               '단행본, 잡지, 만화책 등'),
+  ('전자책',         'ebook',               '전자책 콘텐츠'),
+  ('기프티콘',       'gifticon',            '모바일 상품권, 기프티콘'),
+  ('totodo 상품권',  'gift-card',           'TOTODO 자체 상품권')
+ON CONFLICT (slug) DO NOTHING;

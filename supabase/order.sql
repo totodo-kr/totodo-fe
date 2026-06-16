@@ -166,3 +166,80 @@ CREATE POLICY "orders_update_admin"
 CREATE POLICY "order_items_select_admin"
   ON order_items FOR SELECT
   USING (public.is_admin());
+
+
+
+-- =============================================
+-- 2026-06-15: Toss Payments · 취소 · 환불 필드 추가
+-- =============================================
+ALTER TABLE orders
+  ADD COLUMN IF NOT EXISTS toss_payment_key    VARCHAR(200),
+  ADD COLUMN IF NOT EXISTS toss_order_id       VARCHAR(200),
+  ADD COLUMN IF NOT EXISTS cancel_reason       TEXT,
+  ADD COLUMN IF NOT EXISTS cancel_requested_at TIMESTAMP WITH TIME ZONE,
+  ADD COLUMN IF NOT EXISTS refund_reason       TEXT,
+  ADD COLUMN IF NOT EXISTS refund_amount       INTEGER CHECK (refund_amount >= 0),
+  ADD COLUMN IF NOT EXISTS refund_status       VARCHAR(50),
+  ADD COLUMN IF NOT EXISTS refund_requested_at TIMESTAMP WITH TIME ZONE,
+  ADD COLUMN IF NOT EXISTS refund_completed_at TIMESTAMP WITH TIME ZONE;
+
+COMMENT ON COLUMN orders.toss_payment_key    IS 'Toss Payments paymentKey (결제 승인 후 발급)';
+COMMENT ON COLUMN orders.toss_order_id       IS 'Toss Payments orderId (결제 요청 시 생성)';
+COMMENT ON COLUMN orders.cancel_reason       IS '취소 사유';
+COMMENT ON COLUMN orders.cancel_requested_at IS '취소 요청 시각';
+COMMENT ON COLUMN orders.refund_reason       IS '환불 사유';
+COMMENT ON COLUMN orders.refund_amount       IS '환불 요청 금액 (NULL = 전액)';
+COMMENT ON COLUMN orders.refund_status       IS 'requested | processing | completed | rejected';
+COMMENT ON COLUMN orders.refund_requested_at IS '환불 요청 시각';
+COMMENT ON COLUMN orders.refund_completed_at IS '환불 완료 시각';
+
+CREATE INDEX IF NOT EXISTS idx_orders_refund_status ON orders(refund_status) WHERE refund_status IS NOT NULL;
+
+
+
+-- =============================================
+-- 2026-06-15: 배송 추적 테이블
+-- =============================================
+CREATE TABLE IF NOT EXISTS shipping_tracking (
+  id               SERIAL PRIMARY KEY,
+  order_id         INTEGER NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
+  courier_name     VARCHAR(100),
+  tracking_number  VARCHAR(100),
+  status           VARCHAR(50) DEFAULT 'preparing',
+  tracking_details JSONB DEFAULT '[]'::jsonb,
+  shipped_at       TIMESTAMP WITH TIME ZONE,
+  delivered_at     TIMESTAMP WITH TIME ZONE,
+  created_at       TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+  updated_at       TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+COMMENT ON TABLE shipping_tracking IS '배송 추적 정보';
+COMMENT ON COLUMN shipping_tracking.status IS 'preparing | shipped | in_transit | delivered';
+COMMENT ON COLUMN shipping_tracking.tracking_details IS '[{"time":"...", "location":"...", "description":"..."}]';
+
+CREATE INDEX IF NOT EXISTS idx_shipping_tracking_order_id ON shipping_tracking(order_id);
+
+CREATE TRIGGER update_shipping_tracking_updated_at
+  BEFORE UPDATE ON shipping_tracking
+  FOR EACH ROW
+  EXECUTE FUNCTION public.set_updated_at();
+
+ALTER TABLE shipping_tracking ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "shipping_tracking_select_user"
+  ON shipping_tracking FOR SELECT
+  USING (
+    EXISTS (
+      SELECT 1 FROM orders
+      WHERE orders.id = shipping_tracking.order_id
+        AND orders.user_id = auth.uid()
+    )
+  );
+
+CREATE POLICY "shipping_tracking_select_admin"
+  ON shipping_tracking FOR SELECT
+  USING (public.is_admin());
+
+CREATE POLICY "shipping_tracking_all_admin"
+  ON shipping_tracking FOR ALL
+  USING (public.is_admin());
