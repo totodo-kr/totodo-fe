@@ -238,31 +238,40 @@ CREATE TRIGGER update_review_stats_on_delete
 
 
 
--- 카테고리 RLS
+-- =============================================
+-- RLS
+-- =============================================
 ALTER TABLE product_categories ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "카테고리는 모두 조회 가능" ON product_categories FOR SELECT TO public USING (true);
+ALTER TABLE products           ENABLE ROW LEVEL SECURITY;
+ALTER TABLE product_details    ENABLE ROW LEVEL SECURITY;
+ALTER TABLE product_reviews    ENABLE ROW LEVEL SECURITY;
+ALTER TABLE product_qna        ENABLE ROW LEVEL SECURITY;
 
--- 상품 RLS
-ALTER TABLE products ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "활성 상품은 모두 조회 가능" ON products FOR SELECT TO public USING (is_active = true);
-CREATE POLICY "관리자는 모든 상품 관리 가능" ON products FOR ALL USING (auth.jwt() ->> 'role' = 'admin');
+-- 카테고리: 전체 공개
+CREATE POLICY "product_categories_select_public" ON product_categories FOR SELECT USING (true);
 
--- 상품 상세 RLS
-ALTER TABLE product_details ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "활성 상품 상세는 모두 조회 가능" ON product_details FOR SELECT TO public
+-- 상품: 활성 상품 공개 + 어드민 전체 CRUD
+CREATE POLICY "products_select_public"  ON products FOR SELECT USING (is_active = true);
+CREATE POLICY "products_select_admin"   ON products FOR SELECT USING (public.is_admin());
+CREATE POLICY "products_insert_admin"   ON products FOR INSERT WITH CHECK (public.is_admin());
+CREATE POLICY "products_update_admin"   ON products FOR UPDATE USING (public.is_admin());
+CREATE POLICY "products_delete_admin"   ON products FOR DELETE USING (public.is_admin());
+
+-- 상품 상세: 활성 상품 연계 공개 + 어드민 전체 CRUD
+CREATE POLICY "product_details_select_public" ON product_details FOR SELECT
   USING (EXISTS (SELECT 1 FROM products WHERE products.id = product_details.product_id AND products.is_active = true));
-CREATE POLICY "관리자는 모든 상품 상세 관리 가능" ON product_details FOR ALL USING (auth.jwt() ->> 'role' = 'admin');
+CREATE POLICY "product_details_select_admin"  ON product_details FOR SELECT USING (public.is_admin());
+CREATE POLICY "product_details_insert_admin"  ON product_details FOR INSERT WITH CHECK (public.is_admin());
+CREATE POLICY "product_details_update_admin"  ON product_details FOR UPDATE USING (public.is_admin());
 
--- 리뷰 RLS
-ALTER TABLE product_reviews ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "공개 리뷰는 모두 조회 가능" ON product_reviews FOR SELECT TO public USING (is_visible = true);
-CREATE POLICY "본인 리뷰는 작성/수정/삭제 가능" ON product_reviews FOR ALL USING (auth.uid() = user_id);
+-- 리뷰: 공개 조회 + 본인 작성/수정/삭제
+CREATE POLICY "product_reviews_select_public" ON product_reviews FOR SELECT USING (is_visible = true);
+CREATE POLICY "product_reviews_own"           ON product_reviews FOR ALL USING (auth.uid() = user_id);
 
--- Q&A RLS
-ALTER TABLE product_qna ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "공개 Q&A는 모두 조회 가능" ON product_qna FOR SELECT TO public USING (is_private = false);
-CREATE POLICY "본인 Q&A는 조회 가능" ON product_qna FOR SELECT USING (auth.uid() = user_id);
-CREATE POLICY "본인 Q&A는 작성/수정/삭제 가능" ON product_qna FOR ALL USING (auth.uid() = user_id);
+-- Q&A: 공개 조회 + 본인 전체
+CREATE POLICY "product_qna_select_public" ON product_qna FOR SELECT USING (is_private = false);
+CREATE POLICY "product_qna_select_own"    ON product_qna FOR SELECT USING (auth.uid() = user_id);
+CREATE POLICY "product_qna_own"           ON product_qna FOR ALL USING (auth.uid() = user_id);
 
 
 
@@ -369,81 +378,3 @@ ALTER TABLE product_details
   DROP COLUMN IF EXISTS specifications;
 
 
--- =============================================
--- 마이그레이션: 어드민 RLS 정책 추가 (is_admin() 기반)
--- 기존 auth.jwt() 기반 정책과 병행 사용
--- =============================================
-
--- 어드민은 비활성 상품 포함 전체 조회 가능
-CREATE POLICY "products_read_admin"
-  ON products FOR SELECT
-  USING (public.is_admin());
-
-CREATE POLICY "products_insert_admin"
-  ON products FOR INSERT
-  WITH CHECK (public.is_admin());
-
-CREATE POLICY "products_update_admin"
-  ON products FOR UPDATE
-  USING (public.is_admin());
-
-CREATE POLICY "products_delete_admin"
-  ON products FOR DELETE
-  USING (public.is_admin());
-
--- 상품 상세도 동일하게 적용
-CREATE POLICY "product_details_read_admin"
-  ON product_details FOR SELECT
-  USING (public.is_admin());
-
-CREATE POLICY "product_details_insert_admin"
-  ON product_details FOR INSERT
-  WITH CHECK (public.is_admin());
-
-CREATE POLICY "product_details_update_admin"
-  ON product_details FOR UPDATE
-  USING (public.is_admin());
-
-CREATE POLICY "product_categories_read_all"
-  ON product_categories FOR SELECT
-  USING (true);
-
-
-
--- =============================================
--- 2026-06-15: 할인·이벤트·재고 필드 추가
--- =============================================
-ALTER TABLE products
-  ADD COLUMN IF NOT EXISTS original_price INTEGER,
-  ADD COLUMN IF NOT EXISTS discount_rate  INTEGER DEFAULT 0 CHECK (discount_rate >= 0 AND discount_rate <= 100),
-  ADD COLUMN IF NOT EXISTS event_label    VARCHAR(50),
-  ADD COLUMN IF NOT EXISTS event_end_date DATE,
-  ADD COLUMN IF NOT EXISTS stock          INTEGER DEFAULT -1;
-
-COMMENT ON COLUMN products.original_price IS '할인 전 원가. NULL이면 할인 없음';
-COMMENT ON COLUMN products.discount_rate  IS '할인율 (0–100%). price = 할인 적용 후 판매가';
-COMMENT ON COLUMN products.event_label    IS '이벤트 라벨: HOT | SALE | NEW | LIMITED';
-COMMENT ON COLUMN products.event_end_date IS '이벤트 종료일 (NULL = 상시)';
-COMMENT ON COLUMN products.stock          IS '재고 (-1 = 무제한, 0 = 품절, N = 재고수량)';
-
-CREATE INDEX IF NOT EXISTS idx_products_is_best_active ON products(is_best, is_active) WHERE is_best = TRUE AND is_active = TRUE;
-CREATE INDEX IF NOT EXISTS idx_products_event_label    ON products(event_label)         WHERE event_label IS NOT NULL;
-
-
-
--- =============================================
--- 2026-06-15: 상품 카테고리 시드 (10개)
--- 사전 조건: product_categories 테이블 존재
--- =============================================
-INSERT INTO product_categories (name, slug, description) VALUES
-  ('안경',           'glasses',             '안경, 선글라스 등 아이웨어'),
-  ('신발',           'shoes',               '운동화, 구두, 부츠 등 신발류'),
-  ('패션잡화',       'fashion-accessories', '가방, 지갑, 벨트 등 패션 잡화'),
-  ('옷',             'clothing',            '상의, 하의, 아우터 등 의류'),
-  ('가구',           'furniture',           '책상, 의자, 수납 등 가구류'),
-  ('필기도구',       'stationery',          '펜, 노트, 다이어리 등 필기도구'),
-  ('책',             'books',               '단행본, 잡지, 만화책 등'),
-  ('전자책',         'ebook',               '전자책 콘텐츠'),
-  ('기프티콘',       'gifticon',            '모바일 상품권, 기프티콘'),
-  ('totodo 상품권',  'gift-card',           'TOTODO 자체 상품권')
-ON CONFLICT (slug) DO NOTHING;

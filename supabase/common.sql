@@ -1,4 +1,8 @@
--- 업데이트 시점 갱신
+-- =============================================
+-- 공통 함수 모음
+-- =============================================
+
+-- updated_at 자동 갱신 트리거 함수 (전 테이블 공용)
 CREATE OR REPLACE FUNCTION public.set_updated_at()
 RETURNS TRIGGER LANGUAGE plpgsql AS $$
 BEGIN
@@ -6,27 +10,21 @@ BEGIN
   RETURN NEW;
 END $$;
 
-
-
--- =============================================
--- 2026-06-15: 어드민 판별 함수
--- auth.users 테이블의 raw_user_meta_data 또는 JWT custom claim 기반
--- Supabase 대시보드에서 user를 admin으로 설정하는 두 가지 방법:
---   1. JWT 커스텀 클레임: auth.jwt() ->> 'role' = 'admin'
---   2. user_metadata: auth.jwt() -> 'user_metadata' ->> 'role' = 'admin'
--- =============================================
+-- 어드민 판별 헬퍼
+-- profiles.role = 'admin' 인 유저만 true 반환
+-- security definer: profiles RLS와 무관하게 항상 읽기 가능
+-- 주의: 이 함수는 common.sql 에만 정의. 다른 파일에 중복 정의 금지.
 CREATE OR REPLACE FUNCTION public.is_admin()
-RETURNS BOOLEAN
-LANGUAGE plpgsql SECURITY DEFINER STABLE
+RETURNS boolean
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = public
 AS $$
-BEGIN
-  RETURN COALESCE(
-    auth.jwt() ->> 'role' = 'admin',
-    (auth.jwt() -> 'user_metadata' ->> 'role') = 'admin',
-    FALSE
+  SELECT EXISTS (
+    SELECT 1
+    FROM public.profiles
+    WHERE id = auth.uid()
+      AND role = 'admin'
   );
-END $$;
-
-COMMENT ON FUNCTION public.is_admin IS
-  'JWT의 role 클레임 또는 user_metadata.role = ''admin'' 이면 true.
-   Supabase 대시보드 > Authentication > Users > Edit user > Custom Claims 에서 설정.';
+$$;
