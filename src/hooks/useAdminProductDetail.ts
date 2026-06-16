@@ -11,7 +11,6 @@ export interface ProductFormData {
   delivery_type: string;
   price: number | "";
   original_price: number | "";
-  discount_rate: number | "";
   event_label: string;
   event_end_date: string;
   stock: number | "";
@@ -33,7 +32,6 @@ export const EMPTY_FORM: ProductFormData = {
   delivery_type: "physical",
   price: "",
   original_price: "",
-  discount_rate: "",
   event_label: "",
   event_end_date: "",
   stock: "",
@@ -61,7 +59,7 @@ export function useAdminProductDetail() {
       .from("products")
       .select(
         `id, category_id, title, subtitle, description, price, original_price,
-         discount_rate, event_label, event_end_date, stock, is_active, is_best,
+         event_label, event_end_date, stock, is_active, is_best,
          display_order, thumbnail_url, delivery_type`
       )
       .eq("id", id)
@@ -89,7 +87,6 @@ export function useAdminProductDetail() {
       delivery_type: product.delivery_type ?? "physical",
       price: product.price ?? "",
       original_price: product.original_price ?? "",
-      discount_rate: product.discount_rate ?? "",
       event_label: product.event_label ?? "",
       event_end_date: product.event_end_date ?? "",
       stock: product.stock ?? "",
@@ -123,7 +120,6 @@ export function useAdminProductDetail() {
         delivery_type: data.delivery_type,
         price: data.price === "" ? 0 : data.price,
         original_price: data.original_price === "" ? null : data.original_price,
-        discount_rate: data.discount_rate === "" ? null : data.discount_rate,
         event_label: data.event_label || null,
         event_end_date: data.event_end_date || null,
         stock: data.stock === "" ? -1 : data.stock,
@@ -175,7 +171,6 @@ export function useAdminProductDetail() {
         delivery_type: data.delivery_type,
         price: data.price === "" ? 0 : data.price,
         original_price: data.original_price === "" ? null : data.original_price,
-        discount_rate: data.discount_rate === "" ? null : data.discount_rate,
         event_label: data.event_label || null,
         event_end_date: data.event_end_date || null,
         stock: data.stock === "" ? -1 : data.stock,

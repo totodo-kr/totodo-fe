@@ -62,7 +62,7 @@ export function useWishlist() {
     try {
       const { error } = await supabase
         .from("wishlists")
-        .insert({ product_id: productId });
+        .insert({ product_id: productId, user_id: user.id });
 
       if (error) throw error;
 
@@ -82,7 +82,8 @@ export function useWishlist() {
       const { error } = await supabase
         .from("wishlists")
         .delete()
-        .eq("product_id", productId);
+        .eq("product_id", productId)
+        .eq("user_id", user.id);
 
       if (error) throw error;
 

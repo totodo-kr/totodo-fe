@@ -22,6 +22,10 @@ CREATE TABLE products (
   subtitle VARCHAR(255),
   description TEXT, -- 간단한 설명
   price INTEGER NOT NULL CHECK (price >= 0),
+  original_price INTEGER CHECK (original_price >= 0),               -- 할인 전 정가
+  event_label    VARCHAR(50),                                        -- HOT/SALE/NEW/LIMITED 등
+  event_end_date TIMESTAMP WITH TIME ZONE,                          -- 이벤트 종료일
+  stock          INTEGER CHECK (stock >= 0),                        -- 재고 (NULL=무한, 0=품절)
   thumbnail_url TEXT, -- 대표 이미지 URL
 
   -- 표시 옵션
@@ -296,8 +300,6 @@ COMMENT ON COLUMN products.thumbnail_url IS '목록에 표시할 대표 이미�
 COMMENT ON COLUMN products.review_count IS '리뷰 개수 (캐시)';
 COMMENT ON COLUMN products.average_rating IS '평균 평점 (캐시)';
 
-
-
 -- =============================================
 -- 마이그레이션: product_details 도서 추가 필드
 -- 이미 생성된 DB에 적용할 때 아래 ALTER TABLE 실행
@@ -312,8 +314,6 @@ ALTER TABLE product_details
 ALTER TABLE product_details
   ADD COLUMN IF NOT EXISTS author_introduction TEXT,
   ADD COLUMN IF NOT EXISTS table_of_contents TEXT;
-
-
 
 -- =============================================
 -- 2026-05-30: delivery_type + type_meta 구조 전환
@@ -377,4 +377,22 @@ ALTER TABLE product_details
   DROP COLUMN IF EXISTS distributor,
   DROP COLUMN IF EXISTS specifications;
 
+-- =============================================
+-- 마이그레이션: 할인·이벤트·재고 컬럼 추가
+-- 이미 운영 중인 DB에 적용
+-- 2026-06-16
+-- =============================================
+ALTER TABLE products
+  ADD COLUMN IF NOT EXISTS original_price INTEGER CHECK (original_price >= 0),
+  ADD COLUMN IF NOT EXISTS event_label   VARCHAR(50),
+  ADD COLUMN IF NOT EXISTS event_end_date TIMESTAMP WITH TIME ZONE,
+  ADD COLUMN IF NOT EXISTS stock         INTEGER CHECK (stock >= 0);
+
+COMMENT ON COLUMN products.original_price  IS '할인 전 정가 (할인 없으면 NULL)';
+
+-- discount_rate 제거 마이그레이션 (original_price - price로 자동 계산)
+ALTER TABLE products DROP COLUMN IF EXISTS discount_rate;
+COMMENT ON COLUMN products.event_label     IS '이벤트 배지 텍스트 (HOT/SALE/NEW/LIMITED 등)';
+COMMENT ON COLUMN products.event_end_date  IS '이벤트 종료일 (NULL이면 상시)';
+COMMENT ON COLUMN products.stock           IS '재고 수량 (NULL이면 무한, 0이면 품절)';
 

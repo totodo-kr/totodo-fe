@@ -9,9 +9,9 @@ import {
   SearchBar,
   ResultCount,
   Pagination,
-  FilterTabs,
   IconActionButton,
 } from "@/components/admin/molecules";
+import SearchSelect from "@/components/admin/molecules/SearchSelect";
 import { Spinner } from "@/components/admin/atoms";
 
 const PAGE_SIZE = 15;
@@ -93,9 +93,9 @@ export default function AdminProductsPage() {
     load(p, keyword, categoryId);
   };
 
-  const categoryTabs = [
-    { label: "전체", value: undefined as number | undefined },
-    ...categories.map((cat) => ({ label: cat.name, value: cat.id as number | undefined })),
+  const categoryOptions = [
+    { value: "", label: "전체" },
+    ...categories.map((cat) => ({ value: String(cat.id), label: cat.name })),
   ];
 
   return (
@@ -106,17 +106,22 @@ export default function AdminProductsPage() {
         action={{ label: "새 상품 등록", href: "/admin/shop/products/write" }}
       />
 
-      <div className="mb-4">
-        <FilterTabs tabs={categoryTabs} active={categoryId} onChange={handleCategoryChange} />
-      </div>
-
       <div className="flex items-center justify-between mb-4 gap-4 flex-wrap">
-        <SearchBar
-          value={keyword}
-          onChange={setKeyword}
-          onSubmit={handleSearch}
-          placeholder="상품명 검색"
-        />
+        <div className="flex items-center gap-3 flex-1">
+          <SearchSelect
+            options={categoryOptions}
+            value={categoryId === undefined ? "" : String(categoryId)}
+            onChange={(v) => handleCategoryChange(v === "" ? undefined : Number(v))}
+            placeholder="전체"
+          />
+          <SearchBar
+            value={keyword}
+            onChange={setKeyword}
+            onSubmit={handleSearch}
+            placeholder="상품명 검색"
+            className="max-w-80"
+          />
+        </div>
         <ResultCount total={total} />
       </div>
 

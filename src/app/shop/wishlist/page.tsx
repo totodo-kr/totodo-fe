@@ -185,7 +185,7 @@ export default function WishlistPage() {
                         ) : isInCart(item.product_id) ? (
                           <>
                             <ShoppingCart size={18} />
-                            장바구니에 있음
+                            장바구니
                           </>
                         ) : (
                           <>

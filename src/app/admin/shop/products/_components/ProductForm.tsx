@@ -7,6 +7,7 @@ import { Plus, Trash2 } from "lucide-react";
 import { clsx } from "clsx";
 import { AdminPageHeader } from "@/components/admin/organisms";
 import { IconActionButton } from "@/components/admin/molecules";
+import SearchSelect from "@/components/admin/molecules/SearchSelect";
 import { Spinner } from "@/components/admin/atoms";
 import AdminRichTextEditor from "@/components/admin/AdminRichTextEditor";
 import { getMetaSchema, MetaField } from "@/config/productMetaSchemas";
@@ -205,21 +206,13 @@ export default function ProductForm({ mode, productId, initialData, categories }
 
           <div className="grid grid-cols-2 gap-4">
             <FieldRow label="카테고리" required hasError={!!fieldErrors.category_id}>
-              <select
-                value={form.category_id}
-                onChange={(e) =>
-                  set("category_id", e.target.value === "" ? "" : Number(e.target.value))
-                }
-                className={clsx(inputClass, fieldErrors.category_id && "border-red-400")}
-                style={inputStyle}
-              >
-                <option value="">카테고리 선택</option>
-                {categories.map((cat) => (
-                  <option key={cat.id} value={cat.id}>
-                    {cat.name}
-                  </option>
-                ))}
-              </select>
+              <SearchSelect
+                options={categories.map((cat) => ({ value: String(cat.id), label: cat.name }))}
+                value={form.category_id === "" ? "" : String(form.category_id)}
+                onChange={(v) => set("category_id", v === "" ? "" : Number(v))}
+                placeholder="카테고리 선택"
+                className={clsx("w-full", fieldErrors.category_id && "ring-1 ring-red-400 rounded-lg")}
+              />
             </FieldRow>
 
             <FieldRow label="배송 타입" required hasError={!!fieldErrors.delivery_type}>

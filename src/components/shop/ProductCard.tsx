@@ -10,7 +10,6 @@ interface ProductCardProps {
   subtitle?: string | null;
   price: number;
   original_price?: number | null;
-  discount_rate?: number | null;
   event_label?: string | null;
   thumbnail_url?: string | null;
   review_count?: number;
@@ -41,7 +40,6 @@ export default function ProductCard({
   subtitle,
   price,
   original_price,
-  discount_rate,
   event_label,
   thumbnail_url,
   review_count = 0,
@@ -53,7 +51,11 @@ export default function ProductCard({
 }: ProductCardProps) {
   const linkHref = href ?? (categorySlug ? `/shop/${categorySlug}/${id}` : `/shop/products/${id}`);
   const isSoldOut = stock === 0;
-  const hasDiscount = discount_rate != null && discount_rate > 0;
+  const effectiveDiscountRate =
+    original_price && original_price > price
+      ? Math.round(((original_price - price) / original_price) * 100)
+      : null;
+  const hasDiscount = effectiveDiscountRate != null && effectiveDiscountRate > 0;
   const eventBadgeStyle = event_label ? (EVENT_BADGE_STYLES[event_label.toUpperCase()] ?? "bg-brand-500 text-white") : null;
   const deliveryLabel = delivery_type ? DELIVERY_TYPE_LABELS[delivery_type] ?? delivery_type : null;
 
@@ -120,9 +122,9 @@ export default function ProductCard({
           <span className={`font-bold ${isSoldOut ? "text-gray-500" : "text-white"} text-lg`}>
             {price.toLocaleString()}원
           </span>
-          {hasDiscount && discount_rate != null && (
+          {hasDiscount && effectiveDiscountRate != null && (
             <span className="text-brand-500 font-bold text-sm">
-              {discount_rate}%
+              {effectiveDiscountRate}%
             </span>
           )}
         </div>

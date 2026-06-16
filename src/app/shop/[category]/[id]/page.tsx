@@ -3,8 +3,12 @@
 import { use, useEffect, useState, useRef } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { Heart, Share2, ChevronRight, Lock } from "lucide-react";
+import { Heart, Share2, ChevronRight, Lock, Loader2 } from "lucide-react";
 import { useProducts, ShopProductDetail, ProductReview, ProductQna } from "@/hooks/useProducts";
+import { useCart } from "@/hooks/useCart";
+import { useWishlist } from "@/hooks/useWishlist";
+import { useAuthStore } from "@/store/useAuthStore";
+import LoginModal from "@/components/LoginModal";
 import PageLoading from "@/components/PageLoading";
 
 const DELIVERY_TYPE_LABELS: Record<string, string> = {
@@ -37,7 +41,10 @@ export default function ProductDetailPage({
   params: Promise<{ category: string; id: string }>;
 }) {
   const { category, id } = use(params);
+  const { user } = useAuthStore();
   const { fetchProduct, fetchProductReviews, fetchProductQna } = useProducts();
+  const { addToCart } = useCart();
+  const { isInWishlist, toggleWishlist, fetchWishlist } = useWishlist();
 
   const [product, setProduct] = useState<ShopProductDetail | null>(null);
   const [reviews, setReviews] = useState<ProductReview[]>([]);
@@ -53,11 +60,20 @@ export default function ProductDetailPage({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  const [cartLoading, setCartLoading] = useState(false);
+  const [cartAdded, setCartAdded] = useState(false);
+  const [wishlistPending, setWishlistPending] = useState(false);
+  const [loginOpen, setLoginOpen] = useState(false);
+
   const detailRef = useRef<HTMLDivElement>(null);
   const reviewRef = useRef<HTMLDivElement>(null);
   const returnRef = useRef<HTMLDivElement>(null);
   const inquiryRef = useRef<HTMLDivElement>(null);
   const tabsRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (user) fetchWishlist();
+  }, [user, fetchWishlist]);
 
   useEffect(() => {
     async function load() {
@@ -150,6 +166,27 @@ export default function ProductDetailPage({
     setActiveTab(sectionId);
   };
 
+  const productId = parseInt(id, 10);
+
+  const handleAddToCart = async () => {
+    if (!user) { setLoginOpen(true); return; }
+    if (cartLoading || cartAdded) return;
+    setCartLoading(true);
+    const success = await addToCart(productId, quantity);
+    setCartLoading(false);
+    if (success) {
+      setCartAdded(true);
+      setTimeout(() => setCartAdded(false), 2000);
+    }
+  };
+
+  const handleToggleWishlist = async () => {
+    if (!user) { setLoginOpen(true); return; }
+    setWishlistPending(true);
+    await toggleWishlist(productId);
+    setWishlistPending(false);
+  };
+
   if (loading) return <PageLoading />;
 
   if (error || !product) {
@@ -174,7 +211,11 @@ export default function ProductDetailPage({
       : [];
 
   const isSoldOut = product.stock === 0;
-  const hasDiscount = product.discount_rate != null && product.discount_rate > 0;
+  const effectiveDiscountRate =
+    product.original_price && product.original_price > product.price
+      ? Math.round(((product.original_price - product.price) / product.original_price) * 100)
+      : null;
+  const hasDiscount = effectiveDiscountRate != null && effectiveDiscountRate > 0;
   const totalPrice = product.price * quantity;
   const categoryDisplayName = product.product_categories?.name ?? category;
   const typeMeta = (details?.type_meta ?? {}) as Record<string, string | number>;
@@ -184,25 +225,10 @@ export default function ProductDetailPage({
     : null;
 
   return (
+    <>
+    <LoginModal isOpen={loginOpen} onClose={() => setLoginOpen(false)} />
     <main className="min-h-screen bg-black text-white">
-      {/* Breadcrumb */}
-      <div className="border-b border-white/10">
-        <div className="max-w-7xl mx-auto px-4 py-3">
-          <div className="flex items-center gap-2 text-sm text-gray-400">
-            <Link href="/" className="hover:text-white transition-colors">Home</Link>
-            <span>/</span>
-            <Link href="/shop" className="hover:text-white transition-colors">쇼핑</Link>
-            <span>/</span>
-            <Link href={`/shop/${category}`} className="hover:text-white transition-colors">
-              {categoryDisplayName}
-            </Link>
-            <span>/</span>
-            <span className="text-white truncate max-w-[200px]">{product.title}</span>
-          </div>
-        </div>
-      </div>
-
-      <div className="max-w-7xl mx-auto px-4 py-8">
+<div className="max-w-7xl mx-auto px-4 py-8">
         {/* 상단: 이미지 + 구매 정보 */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 mb-16">
           {/* 이미지 */}
@@ -274,8 +300,21 @@ export default function ProductDetailPage({
                 {product.description && <p className="text-sm text-gray-500 mt-2">{product.description}</p>}
               </div>
               <div className="flex gap-2 shrink-0">
-                <button className="p-2 rounded-lg border border-white/10 hover:border-white/30 transition-colors">
-                  <Heart className="w-5 h-5" />
+                <button
+                  onClick={handleToggleWishlist}
+                  disabled={wishlistPending}
+                  className="p-2 rounded-lg border border-white/10 hover:border-white/30 transition-colors disabled:opacity-50"
+                  aria-label="위시리스트"
+                >
+                  {wishlistPending ? (
+                    <Loader2 className="w-5 h-5 animate-spin" />
+                  ) : (
+                    <Heart
+                      className={`w-5 h-5 transition-colors ${
+                        isInWishlist(productId) ? "fill-red-500 text-red-500" : ""
+                      }`}
+                    />
+                  )}
                 </button>
                 <button className="p-2 rounded-lg border border-white/10 hover:border-white/30 transition-colors">
                   <Share2 className="w-5 h-5" />
@@ -300,7 +339,7 @@ export default function ProductDetailPage({
                     {product.original_price.toLocaleString()}원
                   </span>
                   <span className="text-brand-500 font-bold text-lg">
-                    {product.discount_rate}% 할인
+                    {effectiveDiscountRate}% 할인
                   </span>
                 </div>
               )}
@@ -365,8 +404,18 @@ export default function ProductDetailPage({
               </div>
             ) : (
               <div className="grid grid-cols-2 gap-3">
-                <button className="py-4 px-6 rounded-lg border border-white/20 hover:border-white/40 transition-colors font-medium">
-                  장바구니
+                <button
+                  onClick={handleAddToCart}
+                  disabled={cartLoading}
+                  className="py-4 px-6 rounded-lg border border-white/20 hover:border-white/40 transition-colors font-medium disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                >
+                  {cartLoading ? (
+                    <Loader2 size={18} className="animate-spin" />
+                  ) : cartAdded ? (
+                    "담기 완료 ✓"
+                  ) : (
+                    "장바구니"
+                  )}
                 </button>
                 <button className="py-4 px-6 rounded-lg bg-brand-500 hover:bg-brand-600 transition-colors font-bold">
                   구매하기
@@ -427,20 +476,6 @@ export default function ProductDetailPage({
 
         {/* 상세정보 탭 */}
         <div ref={detailRef} data-section="detail" className="space-y-12 mb-16">
-          {(details?.detailed_description || product.description) && (
-            <section>
-              <h2 className="text-2xl font-bold mb-6">상품 소개</h2>
-              <div className="bg-zinc-900 rounded-lg p-6">
-                <div
-                  className="text-gray-300 leading-relaxed prose prose-invert max-w-none [&_li>p]:my-0"
-                  dangerouslySetInnerHTML={{
-                    __html: details?.detailed_description || product.description || "",
-                  }}
-                />
-              </div>
-            </section>
-          )}
-
           {/* type_meta 상세 필드 */}
           {Object.keys(typeMeta).length > 0 && (
             <section>
@@ -471,6 +506,47 @@ export default function ProductDetailPage({
                     </div>
                   ))}
                 </div>
+              </div>
+            </section>
+          )}
+
+          {/* 저자 소개 */}
+          {typeMeta.author_introduction && (
+            <section>
+              <h2 className="text-2xl font-bold mb-6">저자 소개</h2>
+              <div className="bg-zinc-900 rounded-lg p-6">
+                <div
+                  className="text-gray-300 leading-relaxed prose prose-invert max-w-none [&_li>p]:my-0"
+                  dangerouslySetInnerHTML={{ __html: String(typeMeta.author_introduction) }}
+                />
+              </div>
+            </section>
+          )}
+
+          {/* 상품 소개 */}
+          {(details?.detailed_description || product.description) && (
+            <section>
+              <h2 className="text-2xl font-bold mb-6">상품 소개</h2>
+              <div className="bg-zinc-900 rounded-lg p-6">
+                <div
+                  className="text-gray-300 leading-relaxed prose prose-invert max-w-none [&_li>p]:my-0"
+                  dangerouslySetInnerHTML={{
+                    __html: details?.detailed_description || product.description || "",
+                  }}
+                />
+              </div>
+            </section>
+          )}
+
+          {/* 도서 목차 */}
+          {typeMeta.table_of_contents && (
+            <section>
+              <h2 className="text-2xl font-bold mb-6">도서 목차</h2>
+              <div className="bg-zinc-900 rounded-lg p-6">
+                <div
+                  className="text-gray-300 leading-relaxed prose prose-invert max-w-none [&_li>p]:my-0"
+                  dangerouslySetInnerHTML={{ __html: String(typeMeta.table_of_contents) }}
+                />
               </div>
             </section>
           )}
@@ -631,8 +707,18 @@ export default function ProductDetailPage({
             </div>
             {!isSoldOut && (
               <div className="flex gap-3">
-                <button className="px-6 py-3 rounded-lg border border-white/20 hover:border-white/40 transition-colors font-medium">
-                  장바구니
+                <button
+                  onClick={handleAddToCart}
+                  disabled={cartLoading}
+                  className="px-6 py-3 rounded-lg border border-white/20 hover:border-white/40 transition-colors font-medium disabled:opacity-70 disabled:cursor-not-allowed flex items-center gap-2"
+                >
+                  {cartLoading ? (
+                    <Loader2 size={16} className="animate-spin" />
+                  ) : cartAdded ? (
+                    "담기 완료 ✓"
+                  ) : (
+                    "장바구니"
+                  )}
                 </button>
                 <button className="px-8 py-3 rounded-lg bg-brand-500 hover:bg-brand-600 transition-colors font-bold">
                   구매하기
@@ -643,5 +729,6 @@ export default function ProductDetailPage({
         </div>
       </div>
     </main>
+    </>
   );
 }

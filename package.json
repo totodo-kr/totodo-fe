@@ -9,6 +9,7 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@tosspayments/tosspayments-sdk": "^2.0.0",
     "@supabase/ssr": "^0.8.0",
     "@supabase/supabase-js": "^2.88.0",
     "@tiptap/extension-image": "^3.14.0",
