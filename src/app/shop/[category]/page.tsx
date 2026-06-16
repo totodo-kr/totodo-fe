@@ -58,19 +58,6 @@ export default function CategoryPage({ params }: { params: Promise<{ category: s
 
   return (
     <main className="min-h-screen bg-black text-white">
-      {/* Breadcrumb */}
-      <div className="border-b border-white/10">
-        <div className="max-w-[1600px] mx-auto px-8 py-3">
-          <div className="flex items-center gap-2 text-sm text-gray-400">
-            <Link href="/" className="hover:text-white transition-colors">Home</Link>
-            <span>/</span>
-            <Link href="/shop" className="hover:text-white transition-colors">쇼핑</Link>
-            <span>/</span>
-            <span className="text-white">{categoryName}</span>
-          </div>
-        </div>
-      </div>
-
       <div className="max-w-[1600px] mx-auto px-8 py-10">
         {/* Header */}
         <div className="mb-8">
@@ -96,7 +83,6 @@ export default function CategoryPage({ params }: { params: Promise<{ category: s
                 subtitle={product.subtitle}
                 price={product.price}
                 original_price={product.original_price}
-                discount_rate={product.discount_rate}
                 event_label={product.event_label}
                 thumbnail_url={product.thumbnail_url}
                 review_count={product.review_count}

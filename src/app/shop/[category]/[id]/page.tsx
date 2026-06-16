@@ -174,7 +174,11 @@ export default function ProductDetailPage({
       : [];
 
   const isSoldOut = product.stock === 0;
-  const hasDiscount = product.discount_rate != null && product.discount_rate > 0;
+  const effectiveDiscountRate =
+    product.original_price && product.original_price > product.price
+      ? Math.round(((product.original_price - product.price) / product.original_price) * 100)
+      : null;
+  const hasDiscount = effectiveDiscountRate != null && effectiveDiscountRate > 0;
   const totalPrice = product.price * quantity;
   const categoryDisplayName = product.product_categories?.name ?? category;
   const typeMeta = (details?.type_meta ?? {}) as Record<string, string | number>;
@@ -185,24 +189,7 @@ export default function ProductDetailPage({
 
   return (
     <main className="min-h-screen bg-black text-white">
-      {/* Breadcrumb */}
-      <div className="border-b border-white/10">
-        <div className="max-w-7xl mx-auto px-4 py-3">
-          <div className="flex items-center gap-2 text-sm text-gray-400">
-            <Link href="/" className="hover:text-white transition-colors">Home</Link>
-            <span>/</span>
-            <Link href="/shop" className="hover:text-white transition-colors">쇼핑</Link>
-            <span>/</span>
-            <Link href={`/shop/${category}`} className="hover:text-white transition-colors">
-              {categoryDisplayName}
-            </Link>
-            <span>/</span>
-            <span className="text-white truncate max-w-[200px]">{product.title}</span>
-          </div>
-        </div>
-      </div>
-
-      <div className="max-w-7xl mx-auto px-4 py-8">
+<div className="max-w-7xl mx-auto px-4 py-8">
         {/* 상단: 이미지 + 구매 정보 */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 mb-16">
           {/* 이미지 */}
@@ -300,7 +287,7 @@ export default function ProductDetailPage({
                     {product.original_price.toLocaleString()}원
                   </span>
                   <span className="text-brand-500 font-bold text-lg">
-                    {product.discount_rate}% 할인
+                    {effectiveDiscountRate}% 할인
                   </span>
                 </div>
               )}
@@ -427,20 +414,6 @@ export default function ProductDetailPage({
 
         {/* 상세정보 탭 */}
         <div ref={detailRef} data-section="detail" className="space-y-12 mb-16">
-          {(details?.detailed_description || product.description) && (
-            <section>
-              <h2 className="text-2xl font-bold mb-6">상품 소개</h2>
-              <div className="bg-zinc-900 rounded-lg p-6">
-                <div
-                  className="text-gray-300 leading-relaxed prose prose-invert max-w-none [&_li>p]:my-0"
-                  dangerouslySetInnerHTML={{
-                    __html: details?.detailed_description || product.description || "",
-                  }}
-                />
-              </div>
-            </section>
-          )}
-
           {/* type_meta 상세 필드 */}
           {Object.keys(typeMeta).length > 0 && (
             <section>
@@ -471,6 +444,47 @@ export default function ProductDetailPage({
                     </div>
                   ))}
                 </div>
+              </div>
+            </section>
+          )}
+
+          {/* 저자 소개 */}
+          {typeMeta.author_introduction && (
+            <section>
+              <h2 className="text-2xl font-bold mb-6">저자 소개</h2>
+              <div className="bg-zinc-900 rounded-lg p-6">
+                <div
+                  className="text-gray-300 leading-relaxed prose prose-invert max-w-none [&_li>p]:my-0"
+                  dangerouslySetInnerHTML={{ __html: String(typeMeta.author_introduction) }}
+                />
+              </div>
+            </section>
+          )}
+
+          {/* 상품 소개 */}
+          {(details?.detailed_description || product.description) && (
+            <section>
+              <h2 className="text-2xl font-bold mb-6">상품 소개</h2>
+              <div className="bg-zinc-900 rounded-lg p-6">
+                <div
+                  className="text-gray-300 leading-relaxed prose prose-invert max-w-none [&_li>p]:my-0"
+                  dangerouslySetInnerHTML={{
+                    __html: details?.detailed_description || product.description || "",
+                  }}
+                />
+              </div>
+            </section>
+          )}
+
+          {/* 도서 목차 */}
+          {typeMeta.table_of_contents && (
+            <section>
+              <h2 className="text-2xl font-bold mb-6">도서 목차</h2>
+              <div className="bg-zinc-900 rounded-lg p-6">
+                <div
+                  className="text-gray-300 leading-relaxed prose prose-invert max-w-none [&_li>p]:my-0"
+                  dangerouslySetInnerHTML={{ __html: String(typeMeta.table_of_contents) }}
+                />
               </div>
             </section>
           )}

@@ -10,7 +10,6 @@ export interface ShopProduct {
   description: string | null;
   price: number;
   original_price: number | null;
-  discount_rate: number | null;
   thumbnail_url: string | null;
   is_best: boolean;
   delivery_type: string;
@@ -93,7 +92,7 @@ export function useProducts() {
         const { data, count, error } = await supabase
           .from("products")
           .select(
-            `id, title, subtitle, description, price, original_price, discount_rate,
+            `id, title, subtitle, description, price, original_price,
              thumbnail_url, is_best, delivery_type, review_count, average_rating,
              event_label, stock,
              product_categories!category_id (name, slug)`,
@@ -130,7 +129,7 @@ export function useProducts() {
       const { data, error } = await supabase
         .from("products")
         .select(
-          `id, title, subtitle, description, price, original_price, discount_rate,
+          `id, title, subtitle, description, price, original_price,
            thumbnail_url, is_best, delivery_type, review_count, average_rating,
            event_label, stock,
            product_categories!category_id (name, slug)`
@@ -159,7 +158,7 @@ export function useProducts() {
       const { data, error } = await supabase
         .from("products")
         .select(
-          `id, title, subtitle, description, price, original_price, discount_rate,
+          `id, title, subtitle, description, price, original_price,
            thumbnail_url, is_best, delivery_type, review_count, average_rating,
            event_label, event_end_date, stock, display_order,
            product_categories!category_id (name, slug),
