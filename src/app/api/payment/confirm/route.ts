@@ -57,7 +57,7 @@ export async function POST(req: NextRequest) {
     const { data: orderRow } = await supabase
       .from("orders")
       .select("id, final_price, status")
-      .eq("toss_order_id", orderId)
+      .eq("order_number", orderId)
       .single();
 
     if (!orderRow) {
@@ -78,13 +78,12 @@ export async function POST(req: NextRequest) {
       .from("orders")
       .update({
         status: "paid",
-        toss_payment_key: paymentKey,
         payment_method: tossData.method ?? null,
         payment_info: tossData,
         paid_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       })
-      .eq("toss_order_id", orderId)
+      .eq("order_number", orderId)
       .eq("status", "pending");
 
     if (updateError) {

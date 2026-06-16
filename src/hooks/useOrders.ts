@@ -21,7 +21,6 @@ export interface CreateOrderInput {
   shipping_address: string;
   shipping_zipcode?: string;
   shipping_memo?: string;
-  toss_order_id: string;
 }
 
 export function useOrders() {
@@ -36,22 +35,6 @@ export function useOrders() {
     const date = new Date().toISOString().slice(0, 10).replace(/-/g, "");
     const random = Math.random().toString(36).slice(2, 10).toUpperCase();
     return `ORD-${date}-${random}`;
-  }
-
-  /**
-   * Generate a URL-safe unique ID to pass to Toss Payments as orderId.
-   * Must be 6-64 chars, only alphanumeric/hyphen/underscore.
-   */
-  function generateTossOrderId(): string {
-    // crypto.randomUUID is available in modern browsers and Node 14.17+
-    if (typeof crypto !== "undefined" && crypto.randomUUID) {
-      return crypto.randomUUID();
-    }
-    // Fallback: timestamp + random
-    const ts = Date.now().toString(36).toUpperCase();
-    const r1 = Math.random().toString(36).slice(2, 8).toUpperCase();
-    const r2 = Math.random().toString(36).slice(2, 8).toUpperCase();
-    return `${ts}-${r1}-${r2}`;
   }
 
   /**
@@ -87,7 +70,6 @@ export function useOrders() {
           shipping_zipcode: data.shipping_zipcode ?? null,
           shipping_memo: data.shipping_memo ?? null,
           status: "pending",
-          toss_order_id: data.toss_order_id,
         })
         .select("id, order_number")
         .single();
@@ -133,6 +115,5 @@ export function useOrders() {
     creating,
     createOrder,
     generateOrderNumber,
-    generateTossOrderId,
   };
 }
