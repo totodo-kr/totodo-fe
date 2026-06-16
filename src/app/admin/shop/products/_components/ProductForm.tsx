@@ -1,12 +1,15 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 import { Plus, Trash2 } from "lucide-react";
 import { clsx } from "clsx";
 import { AdminPageHeader } from "@/components/admin/organisms";
 import { IconActionButton } from "@/components/admin/molecules";
 import { Spinner } from "@/components/admin/atoms";
+import AdminRichTextEditor from "@/components/admin/AdminRichTextEditor";
+import { getMetaSchema, MetaField } from "@/config/productMetaSchemas";
 import {
   ProductFormData,
   EMPTY_FORM,
@@ -51,22 +54,19 @@ function SectionTitle({ children }: { children: React.ReactNode }) {
   );
 }
 
-function FieldRow({ label, required, children, error }: {
+function FieldRow({ label, required, children, hasError }: {
   label: string;
   required?: boolean;
   children: React.ReactNode;
-  error?: string;
+  hasError?: boolean;
 }) {
   return (
     <div className="mb-4">
-      <label className="block text-sm font-medium mb-1.5" style={{ color: "#252523" }}>
+      <label className="block text-sm font-medium mb-1.5" style={{ color: hasError ? "#c64545" : "#252523" }}>
         {label}
         {required && <span className="ml-0.5" style={{ color: "#c64545" }}>*</span>}
       </label>
       {children}
-      {error && (
-        <p className="text-xs mt-1" style={{ color: "#c64545" }}>{error}</p>
-      )}
     </div>
   );
 }
@@ -84,14 +84,19 @@ export default function ProductForm({ mode, productId, initialData, categories }
 
   const [form, setForm] = useState<ProductFormData>(initialData ?? EMPTY_FORM);
   const [fieldErrors, setFieldErrors] = useState<FieldError>({});
-  const [typeMetaText, setTypeMetaText] = useState(() =>
-    initialData && Object.keys(initialData.type_meta).length > 0
-      ? JSON.stringify(initialData.type_meta, null, 2)
-      : ""
-  );
+
+  useEffect(() => {
+    if (hookError) toast.error(hookError);
+  }, [hookError]);
 
   const set = <K extends keyof ProductFormData>(key: K, value: ProductFormData[K]) =>
     setForm((prev) => ({ ...prev, [key]: value }));
+
+  const setMetaField = (key: string, value: unknown) =>
+    setForm((prev) => ({ ...prev, type_meta: { ...prev.type_meta, [key]: value } }));
+
+  const selectedCategory = categories.find((c) => c.id === form.category_id);
+  const metaSchema = getMetaSchema(selectedCategory?.slug ?? "", form.delivery_type);
 
   const validate = (): boolean => {
     const errors: FieldError = {};
@@ -100,23 +105,18 @@ export default function ProductForm({ mode, productId, initialData, categories }
     if (!form.delivery_type) errors.delivery_type = "배송 타입을 선택하세요.";
     if (form.price === "" || Number(form.price) < 0) errors.price = "판매가를 입력하세요.";
     setFieldErrors(errors);
-    return Object.keys(errors).length === 0;
-  };
-
-  const parseTypeMeta = (): Record<string, unknown> => {
-    if (!typeMetaText.trim()) return {};
-    try {
-      return JSON.parse(typeMetaText) as Record<string, unknown>;
-    } catch {
-      return {};
+    const messages = Object.values(errors);
+    if (messages.length > 0) {
+      toast.error(messages.join("\n"), { style: { whiteSpace: "pre-line" } });
     }
+    return messages.length === 0;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!validate()) return;
 
-    const payload: ProductFormData = { ...form, type_meta: parseTypeMeta() };
+    const payload: ProductFormData = { ...form };
 
     if (mode === "create") {
       const result = await createProduct(payload);
@@ -152,7 +152,7 @@ export default function ProductForm({ mode, productId, initialData, categories }
     );
 
   return (
-    <div className="p-8 max-w-4xl">
+    <div className="p-8 max-w-4xl pb-28">
       <AdminPageHeader
         title={mode === "create" ? "상품 등록" : "상품 수정"}
         description={
@@ -162,16 +162,7 @@ export default function ProductForm({ mode, productId, initialData, categories }
         }
       />
 
-      {hookError && (
-        <div
-          className="mb-6 px-4 py-3 rounded-lg text-sm"
-          style={{ background: "#fdecea", color: "#c64545", border: "1px solid #f5c2c2" }}
-        >
-          {hookError}
-        </div>
-      )}
-
-      <form onSubmit={handleSubmit} noValidate>
+      <form id="product-form" onSubmit={handleSubmit} noValidate>
         {/* 기본 정보 */}
         <section
           className="mb-8 p-6 rounded-xl"
@@ -179,7 +170,7 @@ export default function ProductForm({ mode, productId, initialData, categories }
         >
           <SectionTitle>기본 정보</SectionTitle>
 
-          <FieldRow label="상품명" required error={fieldErrors.title}>
+          <FieldRow label="상품명" required hasError={!!fieldErrors.title}>
             <input
               type="text"
               value={form.title}
@@ -213,7 +204,7 @@ export default function ProductForm({ mode, productId, initialData, categories }
           </FieldRow>
 
           <div className="grid grid-cols-2 gap-4">
-            <FieldRow label="카테고리" required error={fieldErrors.category_id}>
+            <FieldRow label="카테고리" required hasError={!!fieldErrors.category_id}>
               <select
                 value={form.category_id}
                 onChange={(e) =>
@@ -231,7 +222,7 @@ export default function ProductForm({ mode, productId, initialData, categories }
               </select>
             </FieldRow>
 
-            <FieldRow label="배송 타입" required error={fieldErrors.delivery_type}>
+            <FieldRow label="배송 타입" required hasError={!!fieldErrors.delivery_type}>
               <select
                 value={form.delivery_type}
                 onChange={(e) => set("delivery_type", e.target.value)}
@@ -256,7 +247,7 @@ export default function ProductForm({ mode, productId, initialData, categories }
           <SectionTitle>가격 / 재고</SectionTitle>
 
           <div className="grid grid-cols-2 gap-4">
-            <FieldRow label="판매가 (원)" required error={fieldErrors.price}>
+            <FieldRow label="판매가 (원)" required hasError={!!fieldErrors.price}>
               <input
                 type="number"
                 value={form.price}
@@ -344,8 +335,8 @@ export default function ProductForm({ mode, productId, initialData, categories }
                   style={{ background: form.is_active ? "#5db872" : "#d1cfc8" }}
                 >
                   <span
-                    className="absolute top-0.5 w-5 h-5 rounded-full bg-white transition-transform"
-                    style={{ transform: form.is_active ? "translateX(22px)" : "translateX(2px)" }}
+                    className="absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white transition-transform"
+                    style={{ transform: form.is_active ? "translateX(20px)" : "translateX(0px)" }}
                   />
                 </button>
                 <span className="text-sm" style={{ color: form.is_active ? "#5db872" : "#8e8b82" }}>
@@ -363,8 +354,8 @@ export default function ProductForm({ mode, productId, initialData, categories }
                   style={{ background: form.is_best ? "#e8a55a" : "#d1cfc8" }}
                 >
                   <span
-                    className="absolute top-0.5 w-5 h-5 rounded-full bg-white transition-transform"
-                    style={{ transform: form.is_best ? "translateX(22px)" : "translateX(2px)" }}
+                    className="absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white transition-transform"
+                    style={{ transform: form.is_best ? "translateX(20px)" : "translateX(0px)" }}
                   />
                 </button>
                 <span className="text-sm" style={{ color: form.is_best ? "#e8a55a" : "#8e8b82" }}>
@@ -475,30 +466,27 @@ export default function ProductForm({ mode, productId, initialData, categories }
         >
           <SectionTitle>상세 정보</SectionTitle>
 
-          <FieldRow label="상세 설명 (HTML 지원)">
-            <textarea
+          <FieldRow label="상세 설명">
+            <AdminRichTextEditor
               value={form.detailed_description}
-              onChange={(e) => set("detailed_description", e.target.value)}
-              placeholder="상세 설명을 입력하세요. HTML 태그 사용 가능."
-              rows={8}
-              className={inputClass}
-              style={{ ...inputStyle, fontFamily: "monospace", fontSize: "13px" }}
+              onChange={(html) => set("detailed_description", html)}
+              placeholder="상품 상세 설명을 입력하세요."
+              minHeight={240}
             />
           </FieldRow>
 
-          <FieldRow label="타입별 속성 (JSON)">
-            <textarea
-              value={typeMetaText}
-              onChange={(e) => setTypeMetaText(e.target.value)}
-              placeholder={'{\n  "key": "value"\n}'}
-              rows={5}
-              className={inputClass}
-              style={{ ...inputStyle, fontFamily: "monospace", fontSize: "13px" }}
-            />
-            <p className="text-xs mt-1" style={{ color: "#8e8b82" }}>
-              유효한 JSON 형식으로 입력하세요.
-            </p>
-          </FieldRow>
+          {metaSchema.length > 0 && (
+            <div className="mb-4">
+              <p className="text-sm font-medium mb-3" style={{ color: "#252523" }}>
+                {selectedCategory?.name ?? "타입"} 속성
+              </p>
+              <MetaFields
+                schema={metaSchema}
+                values={form.type_meta}
+                onChange={setMetaField}
+              />
+            </div>
+          )}
 
           <FieldRow label="비고 / 주의사항">
             <textarea
@@ -512,61 +500,157 @@ export default function ProductForm({ mode, productId, initialData, categories }
           </FieldRow>
         </section>
 
-        {/* Actions */}
-        <div className="flex items-center justify-between">
-          <button
-            type="button"
-            onClick={() => router.push("/admin/shop/products")}
-            className="px-5 py-2.5 text-sm rounded-lg transition-colors"
-            style={{ background: "#efe9de", color: "#6c6a64" }}
-            onMouseEnter={(e) =>
-              ((e.currentTarget as HTMLButtonElement).style.background = "#e2d9cc")
-            }
-            onMouseLeave={(e) =>
-              ((e.currentTarget as HTMLButtonElement).style.background = "#efe9de")
-            }
-          >
-            취소 (목록으로)
-          </button>
+      </form>
 
-          <div className="flex items-center gap-3">
-            {mode === "edit" && (
-              <button
-                type="button"
-                onClick={handleDelete}
-                disabled={saving}
-                className="px-5 py-2.5 text-sm rounded-lg transition-colors"
-                style={{ background: "#c64545", color: "#fff" }}
-                onMouseEnter={(e) =>
-                  ((e.currentTarget as HTMLButtonElement).style.background = "#a83636")
-                }
-                onMouseLeave={(e) =>
-                  ((e.currentTarget as HTMLButtonElement).style.background = "#c64545")
-                }
-              >
-                삭제
-              </button>
-            )}
+      {/* 고정 푸터 */}
+      <div
+        className="fixed bottom-0 right-0 z-50 flex items-center justify-between px-8 py-4 transition-[left] duration-300"
+        style={{
+          left: "var(--admin-sidebar-w, 15rem)",
+          background: "rgba(250,249,245,0.92)",
+          backdropFilter: "blur(8px)",
+          borderTop: "1px solid #e6dfd8",
+        }}
+      >
+        <button
+          type="button"
+          onClick={() => router.push("/admin/shop/products")}
+          className="px-5 py-2.5 text-sm rounded-lg transition-colors"
+          style={{ background: "#efe9de", color: "#6c6a64" }}
+          onMouseEnter={(e) =>
+            ((e.currentTarget as HTMLButtonElement).style.background = "#e2d9cc")
+          }
+          onMouseLeave={(e) =>
+            ((e.currentTarget as HTMLButtonElement).style.background = "#efe9de")
+          }
+        >
+          취소 (목록으로)
+        </button>
 
+        <div className="flex items-center gap-3">
+          {mode === "edit" && (
             <button
-              type="submit"
+              type="button"
+              onClick={handleDelete}
               disabled={saving}
-              className="flex items-center gap-2 px-6 py-2.5 text-sm font-medium rounded-lg transition-colors"
-              style={{ background: "#cc785c", color: "#fff" }}
-              onMouseEnter={(e) => {
-                if (!saving)
-                  (e.currentTarget as HTMLButtonElement).style.background = "#a9583e";
-              }}
+              className="px-5 py-2.5 text-sm rounded-lg transition-colors"
+              style={{ background: "#c64545", color: "#fff" }}
+              onMouseEnter={(e) =>
+                ((e.currentTarget as HTMLButtonElement).style.background = "#a83636")
+              }
               onMouseLeave={(e) =>
-                ((e.currentTarget as HTMLButtonElement).style.background = "#cc785c")
+                ((e.currentTarget as HTMLButtonElement).style.background = "#c64545")
               }
             >
-              {saving && <Spinner size="xs" color="#fff" />}
-              저장
+              삭제
             </button>
-          </div>
+          )}
+
+          <button
+            type="submit"
+            form="product-form"
+            disabled={saving}
+            className="flex items-center gap-2 px-6 py-2.5 text-sm font-medium rounded-lg transition-colors"
+            style={{ background: "#cc785c", color: "#fff" }}
+            onMouseEnter={(e) => {
+              if (!saving)
+                (e.currentTarget as HTMLButtonElement).style.background = "#a9583e";
+            }}
+            onMouseLeave={(e) =>
+              ((e.currentTarget as HTMLButtonElement).style.background = "#cc785c")
+            }
+          >
+            {saving && <Spinner size="xs" color="#fff" />}
+            저장
+          </button>
         </div>
-      </form>
+      </div>
+    </div>
+  );
+}
+
+function MetaFields({
+  schema,
+  values,
+  onChange,
+}: {
+  schema: MetaField[];
+  values: Record<string, unknown>;
+  onChange: (key: string, value: unknown) => void;
+}) {
+  return (
+    <div className="grid grid-cols-2 gap-3">
+      {schema.map((field) => {
+        const raw = values[field.key];
+        const strVal = raw == null ? "" : String(raw);
+
+        return (
+          <div key={field.key} className={field.span === "full" ? "col-span-2" : ""}>
+            <label className="block text-sm font-medium mb-1" style={{ color: "#252523" }}>
+              {field.label}
+            </label>
+
+            {field.type === "select" && (
+              <select
+                value={strVal}
+                onChange={(e) => onChange(field.key, e.target.value)}
+                className={inputClass}
+                style={inputStyle}
+              >
+                <option value="">선택</option>
+                {field.options?.map((opt) => (
+                  <option key={opt} value={opt}>{opt}</option>
+                ))}
+              </select>
+            )}
+
+            {field.type === "richtext" && (
+              <AdminRichTextEditor
+                value={strVal}
+                onChange={(html) => onChange(field.key, html)}
+                placeholder={field.placeholder}
+                minHeight={160}
+              />
+            )}
+
+            {field.type === "textarea" && (
+              <textarea
+                value={strVal}
+                onChange={(e) => onChange(field.key, e.target.value)}
+                placeholder={field.placeholder}
+                rows={4}
+                className={inputClass}
+                style={inputStyle}
+              />
+            )}
+
+            {(field.type === "text" || field.type === "date") && (
+              <input
+                type={field.type}
+                value={strVal}
+                onChange={(e) => onChange(field.key, e.target.value)}
+                placeholder={field.placeholder}
+                className={inputClass}
+                style={inputStyle}
+              />
+            )}
+
+            {field.type === "number" && (
+              <input
+                type="number"
+                value={strVal}
+                onChange={(e) =>
+                  onChange(field.key, e.target.value === "" ? "" : Number(e.target.value))
+                }
+                placeholder={field.placeholder}
+                min={0}
+                className={inputClass}
+                style={inputStyle}
+              />
+            )}
+          </div>
+        );
+      })}
     </div>
   );
 }

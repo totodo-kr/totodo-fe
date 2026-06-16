@@ -109,6 +109,10 @@ export function useAdminProductDetail() {
     setError(null);
     const supabase = createClient();
 
+    const { data: userData } = await supabase.auth.getUser();
+    console.log("[createProduct] auth.uid:", userData?.user?.id);
+    console.log("[createProduct] user email:", userData?.user?.email);
+
     const { data: inserted, error: pErr } = await supabase
       .from("products")
       .insert({
@@ -132,6 +136,7 @@ export function useAdminProductDetail() {
       .single();
 
     if (pErr || !inserted) {
+      console.error("[createProduct] products insert error:", pErr);
       setError(pErr?.message ?? "상품 등록에 실패했습니다.");
       setSaving(false);
       return null;
