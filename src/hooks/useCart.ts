@@ -76,7 +76,7 @@ export function useCart() {
         // Insert new item
         const { error: insertError } = await supabase
           .from("cart_items")
-          .insert({ product_id: productId, quantity });
+          .insert({ product_id: productId, quantity, user_id: user.id });
 
         if (insertError) throw insertError;
         // Refresh cart to get full product info
