@@ -238,31 +238,40 @@ CREATE TRIGGER update_review_stats_on_delete
 
 
 
--- 카테고리 RLS
+-- =============================================
+-- RLS
+-- =============================================
 ALTER TABLE product_categories ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "카테고리는 모두 조회 가능" ON product_categories FOR SELECT TO public USING (true);
+ALTER TABLE products           ENABLE ROW LEVEL SECURITY;
+ALTER TABLE product_details    ENABLE ROW LEVEL SECURITY;
+ALTER TABLE product_reviews    ENABLE ROW LEVEL SECURITY;
+ALTER TABLE product_qna        ENABLE ROW LEVEL SECURITY;
 
--- 상품 RLS
-ALTER TABLE products ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "활성 상품은 모두 조회 가능" ON products FOR SELECT TO public USING (is_active = true);
-CREATE POLICY "관리자는 모든 상품 관리 가능" ON products FOR ALL USING (auth.jwt() ->> 'role' = 'admin');
+-- 카테고리: 전체 공개
+CREATE POLICY "product_categories_select_public" ON product_categories FOR SELECT USING (true);
 
--- 상품 상세 RLS
-ALTER TABLE product_details ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "활성 상품 상세는 모두 조회 가능" ON product_details FOR SELECT TO public
+-- 상품: 활성 상품 공개 + 어드민 전체 CRUD
+CREATE POLICY "products_select_public"  ON products FOR SELECT USING (is_active = true);
+CREATE POLICY "products_select_admin"   ON products FOR SELECT USING (public.is_admin());
+CREATE POLICY "products_insert_admin"   ON products FOR INSERT WITH CHECK (public.is_admin());
+CREATE POLICY "products_update_admin"   ON products FOR UPDATE USING (public.is_admin());
+CREATE POLICY "products_delete_admin"   ON products FOR DELETE USING (public.is_admin());
+
+-- 상품 상세: 활성 상품 연계 공개 + 어드민 전체 CRUD
+CREATE POLICY "product_details_select_public" ON product_details FOR SELECT
   USING (EXISTS (SELECT 1 FROM products WHERE products.id = product_details.product_id AND products.is_active = true));
-CREATE POLICY "관리자는 모든 상품 상세 관리 가능" ON product_details FOR ALL USING (auth.jwt() ->> 'role' = 'admin');
+CREATE POLICY "product_details_select_admin"  ON product_details FOR SELECT USING (public.is_admin());
+CREATE POLICY "product_details_insert_admin"  ON product_details FOR INSERT WITH CHECK (public.is_admin());
+CREATE POLICY "product_details_update_admin"  ON product_details FOR UPDATE USING (public.is_admin());
 
--- 리뷰 RLS
-ALTER TABLE product_reviews ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "공개 리뷰는 모두 조회 가능" ON product_reviews FOR SELECT TO public USING (is_visible = true);
-CREATE POLICY "본인 리뷰는 작성/수정/삭제 가능" ON product_reviews FOR ALL USING (auth.uid() = user_id);
+-- 리뷰: 공개 조회 + 본인 작성/수정/삭제
+CREATE POLICY "product_reviews_select_public" ON product_reviews FOR SELECT USING (is_visible = true);
+CREATE POLICY "product_reviews_own"           ON product_reviews FOR ALL USING (auth.uid() = user_id);
 
--- Q&A RLS
-ALTER TABLE product_qna ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "공개 Q&A는 모두 조회 가능" ON product_qna FOR SELECT TO public USING (is_private = false);
-CREATE POLICY "본인 Q&A는 조회 가능" ON product_qna FOR SELECT USING (auth.uid() = user_id);
-CREATE POLICY "본인 Q&A는 작성/수정/삭제 가능" ON product_qna FOR ALL USING (auth.uid() = user_id);
+-- Q&A: 공개 조회 + 본인 전체
+CREATE POLICY "product_qna_select_public" ON product_qna FOR SELECT USING (is_private = false);
+CREATE POLICY "product_qna_select_own"    ON product_qna FOR SELECT USING (auth.uid() = user_id);
+CREATE POLICY "product_qna_own"           ON product_qna FOR ALL USING (auth.uid() = user_id);
 
 
 
@@ -369,41 +378,3 @@ ALTER TABLE product_details
   DROP COLUMN IF EXISTS specifications;
 
 
--- =============================================
--- 마이그레이션: 어드민 RLS 정책 추가 (is_admin() 기반)
--- 기존 auth.jwt() 기반 정책과 병행 사용
--- =============================================
-
--- 어드민은 비활성 상품 포함 전체 조회 가능
-CREATE POLICY "products_read_admin"
-  ON products FOR SELECT
-  USING (public.is_admin());
-
-CREATE POLICY "products_insert_admin"
-  ON products FOR INSERT
-  WITH CHECK (public.is_admin());
-
-CREATE POLICY "products_update_admin"
-  ON products FOR UPDATE
-  USING (public.is_admin());
-
-CREATE POLICY "products_delete_admin"
-  ON products FOR DELETE
-  USING (public.is_admin());
-
--- 상품 상세도 동일하게 적용
-CREATE POLICY "product_details_read_admin"
-  ON product_details FOR SELECT
-  USING (public.is_admin());
-
-CREATE POLICY "product_details_insert_admin"
-  ON product_details FOR INSERT
-  WITH CHECK (public.is_admin());
-
-CREATE POLICY "product_details_update_admin"
-  ON product_details FOR UPDATE
-  USING (public.is_admin());
-
-CREATE POLICY "product_categories_read_all"
-  ON product_categories FOR SELECT
-  USING (true);
