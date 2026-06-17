@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -59,6 +59,13 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const pathname = usePathname();
   const router = useRouter();
   const [collapsed, setCollapsed] = useState(false);
+
+  useEffect(() => {
+    document.documentElement.style.setProperty(
+      "--admin-sidebar-w",
+      collapsed ? "4rem" : "15rem"
+    );
+  }, [collapsed]);
   const [openGroups, setOpenGroups] = useState<Set<string>>(() => {
     // 현재 경로가 속한 그룹을 초기 오픈 상태로
     const initial = new Set<string>();

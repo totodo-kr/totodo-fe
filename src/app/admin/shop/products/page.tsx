@@ -2,16 +2,17 @@
 
 import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
-import { Star, ExternalLink } from "lucide-react";
+import { Star, ExternalLink, Eye, EyeOff, Trash2 } from "lucide-react";
 import { useAdminProducts } from "@/hooks/useAdminProducts";
 import { AdminPageHeader, AdminTable } from "@/components/admin/organisms";
 import {
   SearchBar,
   ResultCount,
   Pagination,
-  FilterTabs,
-  ToggleButton,
+  IconActionButton,
 } from "@/components/admin/molecules";
+import SearchSelect from "@/components/admin/molecules/SearchSelect";
+import { Spinner } from "@/components/admin/atoms";
 
 const PAGE_SIZE = 15;
 
@@ -41,9 +42,10 @@ const COLUMNS = [
   { label: "공개", className: "text-center" },
   { label: "BEST", className: "text-center" },
   { label: "링크", className: "text-center" },
+  { label: "삭제", className: "text-center" },
 ];
 
-const GRID = "1fr 70px 90px 70px 55px 55px 70px 70px 44px";
+const GRID = "1fr 70px 90px 70px 55px 55px 44px 44px 44px 44px";
 
 export default function AdminProductsPage() {
   const {
@@ -56,6 +58,7 @@ export default function AdminProductsPage() {
     fetchCategories,
     toggleActive,
     toggleBest,
+    deleteProduct,
   } = useAdminProducts();
 
   const [page, setPage] = useState(1);
@@ -90,9 +93,9 @@ export default function AdminProductsPage() {
     load(p, keyword, categoryId);
   };
 
-  const categoryTabs = [
-    { label: "전체", value: undefined as number | undefined },
-    ...categories.map((cat) => ({ label: cat.name, value: cat.id as number | undefined })),
+  const categoryOptions = [
+    { value: "", label: "전체" },
+    ...categories.map((cat) => ({ value: String(cat.id), label: cat.name })),
   ];
 
   return (
@@ -100,19 +103,25 @@ export default function AdminProductsPage() {
       <AdminPageHeader
         title="상품 관리"
         description="상품 목록을 조회하고 공개 여부 및 베스트 설정을 관리합니다."
+        action={{ label: "새 상품 등록", href: "/admin/shop/products/write" }}
       />
 
-      <div className="mb-4">
-        <FilterTabs tabs={categoryTabs} active={categoryId} onChange={handleCategoryChange} />
-      </div>
-
       <div className="flex items-center justify-between mb-4 gap-4 flex-wrap">
-        <SearchBar
-          value={keyword}
-          onChange={setKeyword}
-          onSubmit={handleSearch}
-          placeholder="상품명 검색"
-        />
+        <div className="flex items-center gap-3 flex-1">
+          <SearchSelect
+            options={categoryOptions}
+            value={categoryId === undefined ? "" : String(categoryId)}
+            onChange={(v) => handleCategoryChange(v === "" ? undefined : Number(v))}
+            placeholder="전체"
+          />
+          <SearchBar
+            value={keyword}
+            onChange={setKeyword}
+            onSubmit={handleSearch}
+            placeholder="상품명 검색"
+            className="max-w-80"
+          />
+        </div>
         <ResultCount total={total} />
       </div>
 
@@ -130,8 +139,11 @@ export default function AdminProductsPage() {
             className="grid items-center px-4 py-3 border-b last:border-b-0 hover:bg-[#efe9de]/20 transition-colors"
             style={{ gridTemplateColumns: GRID, borderColor: "#e6dfd8" }}
           >
-            <div className="min-w-0 pr-3">
-              <p className="text-sm font-medium truncate" style={{ color: "#252523" }}>
+            <Link
+              href={`/admin/shop/products/${product.id}/edit`}
+              className="min-w-0 pr-3 group"
+            >
+              <p className="text-sm font-medium truncate transition-colors group-hover:underline" style={{ color: "#252523" }}>
                 {product.title}
               </p>
               {product.subtitle && (
@@ -139,7 +151,7 @@ export default function AdminProductsPage() {
                   {product.subtitle}
                 </p>
               )}
-            </div>
+            </Link>
 
             <div className="text-center">
               <span className="text-xs" style={{ color: "#6c6a64" }}>
@@ -182,28 +194,40 @@ export default function AdminProductsPage() {
               )}
             </div>
 
-            <div>
-              <ToggleButton
-                active={product.is_active}
-                pending={pendingId === product.id}
-                activeLabel="공개"
-                inactiveLabel="비공개"
-                activeColor="#5db872"
+            <div className="flex justify-center">
+              <button
                 onClick={() => toggleActive(product.id, product.is_active)}
-                className="justify-center w-full"
-              />
+                disabled={pendingId === product.id}
+                title={product.is_active ? "비공개로 전환" : "공개로 전환"}
+                className="p-1.5 rounded-lg transition-colors hover:bg-[#efe9de] disabled:opacity-40"
+              >
+                {pendingId === product.id ? (
+                  <Spinner size="xs" color={product.is_active ? "#5db872" : "#8e8b82"} />
+                ) : product.is_active ? (
+                  <Eye className="w-4 h-4" style={{ color: "#5db872" }} />
+                ) : (
+                  <EyeOff className="w-4 h-4" style={{ color: "#8e8b82" }} />
+                )}
+              </button>
             </div>
 
-            <div>
-              <ToggleButton
-                active={product.is_best}
-                pending={pendingId === product.id}
-                activeLabel="★ BEST"
-                inactiveLabel="일반"
-                activeColor="#e8a55a"
+            <div className="flex justify-center">
+              <button
                 onClick={() => toggleBest(product.id, product.is_best)}
-                className="justify-center w-full"
-              />
+                disabled={pendingId === product.id}
+                title={product.is_best ? "BEST 해제" : "BEST 설정"}
+                className="p-1.5 rounded-lg transition-colors hover:bg-[#efe9de] disabled:opacity-40"
+              >
+                {pendingId === product.id ? (
+                  <Spinner size="xs" color={product.is_best ? "#e8a55a" : "#8e8b82"} />
+                ) : (
+                  <Star
+                    className="w-4 h-4"
+                    fill={product.is_best ? "currentColor" : "none"}
+                    style={{ color: product.is_best ? "#e8a55a" : "#8e8b82" }}
+                  />
+                )}
+              </button>
             </div>
 
             <div className="flex justify-center">
@@ -224,6 +248,20 @@ export default function AdminProductsPage() {
                 <ExternalLink className="w-3.5 h-3.5" />
               </Link>
             </div>
+
+            <div className="flex justify-center">
+              <IconActionButton
+                icon={<Trash2 className="w-3.5 h-3.5" />}
+                variant="danger"
+                loading={pendingId === product.id}
+                title="상품 삭제"
+                onClick={async () => {
+                  if (!window.confirm(`"${product.title}" 상품을 삭제하시겠습니까?`)) return;
+                  await deleteProduct(product.id);
+                }}
+              />
+            </div>
+
           </div>
         ))}
       </AdminTable>

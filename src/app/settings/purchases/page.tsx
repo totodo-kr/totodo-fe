@@ -1,17 +1,54 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useAuthStore } from "@/store/useAuthStore";
+import { Receipt } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Receipt } from "lucide-react";
-import { useAuthStore } from "@/store/useAuthStore";
+import { useCallback, useEffect, useState } from "react";
 import SettingsLayout from "@/components/SettingsLayout";
 import PageLoading from "@/components/PageLoading";
-import { useMyOrders, MyOrderStatus } from "@/hooks/useMyOrders";
+import { useMyOrders, type MyOrder, type MyOrderStatus } from "@/hooks/useMyOrders";
 
-type TabDef = { id: MyOrderStatus; label: string };
+/* ─── helpers ─────────────────────────────────────────────── */
 
-const TABS: TabDef[] = [
+function formatPrice(n: number) {
+  return n.toLocaleString("ko-KR") + "원";
+}
+
+function formatDate(iso: string) {
+  return new Date(iso).toLocaleDateString("ko-KR", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  });
+}
+
+const STATUS_LABEL: Record<string, string> = {
+  pending: "결제대기",
+  paid: "결제완료",
+  shipped: "배송중",
+  delivered: "배송완료",
+  cancelled: "취소",
+};
+
+const STATUS_CLASS: Record<string, string> = {
+  pending: "bg-gray-600 text-gray-200",
+  paid: "bg-blue-600 text-blue-100",
+  shipped: "bg-purple-600 text-purple-100",
+  delivered: "bg-green-600 text-green-100",
+  cancelled: "bg-red-600 text-red-100",
+};
+
+const REFUND_STATUS_LABEL: Record<string, string> = {
+  requested: "환불 신청됨",
+  processing: "환불 처리중",
+  completed: "환불 완료",
+  rejected: "환불 거절",
+};
+
+/* ─── tab config ───────────────────────────────────────────── */
+
+const TABS: { id: MyOrderStatus; label: string }[] = [
   { id: "all", label: "전체" },
   { id: "pending", label: "결제대기" },
   { id: "paid", label: "결제완료" },
@@ -20,37 +57,132 @@ const TABS: TabDef[] = [
   { id: "cancelled", label: "취소" },
 ];
 
-const STATUS_LABELS: Record<string, string> = {
-  pending: "결제대기",
-  paid: "결제완료",
-  shipped: "배송중",
-  delivered: "배송완료",
-  cancelled: "취소",
-};
+const PAGE_SIZE = 10;
 
-const STATUS_COLORS: Record<string, { bg: string; text: string }> = {
-  pending: { bg: "#3d3d3a", text: "#c8c5bc" },
-  paid: { bg: "#1a3a5c", text: "#7eb8f7" },
-  shipped: { bg: "#2d1a5c", text: "#c084fc" },
-  delivered: { bg: "#1a3d1a", text: "#6ee7b7" },
-  cancelled: { bg: "#3d1a1a", text: "#f87171" },
-};
+/* ─── order card ───────────────────────────────────────────── */
 
-function formatDate(s: string) {
-  const d = new Date(s);
-  return `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, "0")}.${String(d.getDate()).padStart(2, "0")}`;
+function OrderCard({ order }: { order: MyOrder }) {
+  const itemLabel =
+    (order.item_count ?? 0) > 1
+      ? `${order.first_item_name} 외 ${(order.item_count ?? 1) - 1}건`
+      : order.first_item_name ?? "상품 없음";
+
+  const badgeClass = STATUS_CLASS[order.status] ?? "bg-gray-600 text-gray-200";
+  const statusLabel = STATUS_LABEL[order.status] ?? order.status;
+
+  const canCancel = order.status === "pending" || order.status === "paid";
+  const canRefund = order.status === "delivered" && !order.refund_status;
+
+  return (
+    <div className="bg-[#1a1a1a] rounded-xl border border-white/5 p-5 hover:border-white/10 transition-colors">
+      <div className="flex items-start justify-between gap-4 mb-3">
+        <div>
+          <p className="font-mono text-sm text-gray-400 mb-1">{order.order_number}</p>
+          <p className="text-white font-medium leading-snug">{itemLabel}</p>
+          <p className="text-gray-500 text-sm mt-1">{formatDate(order.created_at)}</p>
+        </div>
+        <span className={`shrink-0 text-xs font-semibold px-2.5 py-1 rounded-full ${badgeClass}`}>
+          {statusLabel}
+        </span>
+      </div>
+
+      <div className="flex items-center justify-between border-t border-white/5 pt-3 mt-3">
+        <div className="flex items-center gap-2">
+          <span className="text-white font-bold">{formatPrice(order.final_price)}</span>
+          {order.refund_status && (
+            <span className="text-xs px-2 py-0.5 rounded-full bg-yellow-900/50 text-yellow-400">
+              {REFUND_STATUS_LABEL[order.refund_status] ?? order.refund_status}
+            </span>
+          )}
+        </div>
+        <div className="flex items-center gap-2">
+          {canCancel && (
+            <Link
+              href={`/settings/purchases/${order.id}/cancel`}
+              className="text-xs px-3 py-1.5 rounded-lg bg-[#2a2a2a] text-gray-400 hover:bg-[#333] hover:text-white transition-colors"
+            >
+              취소 신청
+            </Link>
+          )}
+          {canRefund && (
+            <Link
+              href={`/settings/purchases/${order.id}/refund`}
+              className="text-xs px-3 py-1.5 rounded-lg bg-[#2a2a2a] text-gray-400 hover:bg-[#333] hover:text-white transition-colors"
+            >
+              환불 신청
+            </Link>
+          )}
+          <Link
+            href={`/settings/purchases/${order.id}`}
+            className="text-xs px-3 py-1.5 rounded-lg bg-brand-500 text-white hover:bg-brand-600 transition-colors"
+          >
+            상세 보기
+          </Link>
+        </div>
+      </div>
+    </div>
+  );
 }
 
-const PAGE_SIZE = 10;
+/* ─── pagination ───────────────────────────────────────────── */
+
+function Pagination({
+  page,
+  totalPages,
+  onChange,
+}: {
+  page: number;
+  totalPages: number;
+  onChange: (p: number) => void;
+}) {
+  if (totalPages <= 1) return null;
+  return (
+    <div className="flex justify-center items-center gap-1 mt-6">
+      <button
+        disabled={page <= 1}
+        onClick={() => onChange(page - 1)}
+        className="px-3 py-1.5 rounded-lg bg-[#1a1a1a] text-gray-400 disabled:opacity-40 hover:bg-[#2a2a2a] transition-colors text-sm"
+      >
+        이전
+      </button>
+      {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
+        <button
+          key={p}
+          onClick={() => onChange(p)}
+          className={`w-8 h-8 rounded-lg text-sm transition-colors ${
+            p === page
+              ? "bg-brand-500 text-white"
+              : "bg-[#1a1a1a] text-gray-400 hover:bg-[#2a2a2a]"
+          }`}
+        >
+          {p}
+        </button>
+      ))}
+      <button
+        disabled={page >= totalPages}
+        onClick={() => onChange(page + 1)}
+        className="px-3 py-1.5 rounded-lg bg-[#1a1a1a] text-gray-400 disabled:opacity-40 hover:bg-[#2a2a2a] transition-colors text-sm"
+      >
+        다음
+      </button>
+    </div>
+  );
+}
+
+/* ─── page ─────────────────────────────────────────────────── */
 
 export default function PurchasesPage() {
   const { user, isLoading } = useAuthStore();
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState<MyOrderStatus>("all");
-  const [page, setPage] = useState(1);
+  const { fetchOrders } = useMyOrders();
 
-  const { orders, total, loading, fetchOrders } = useMyOrders();
-  const totalPages = Math.ceil(total / PAGE_SIZE);
+  const [activeTab, setActiveTab] = useState<MyOrderStatus>("all");
+  const [orders, setOrders] = useState<MyOrder[]>([]);
+  const [total, setTotal] = useState(0);
+  const [page, setPage] = useState(1);
+  const [fetching, setFetching] = useState(false);
+
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
   useEffect(() => {
     if (!isLoading && !user) {
@@ -59,25 +191,33 @@ export default function PurchasesPage() {
   }, [user, isLoading, router]);
 
   const load = useCallback(
-    (p: number, s: MyOrderStatus) => fetchOrders(p, s),
+    async (p: number, status: MyOrderStatus) => {
+      setFetching(true);
+      try {
+        const result = await fetchOrders(p, status);
+        setOrders(result.orders);
+        setTotal(result.total);
+      } finally {
+        setFetching(false);
+      }
+    },
     [fetchOrders]
   );
 
   useEffect(() => {
     if (user) {
-      load(1, "all");
+      load(page, activeTab);
     }
-  }, [user, load]);
+  }, [user, page, activeTab, load]);
 
   const handleTabChange = (tab: MyOrderStatus) => {
     setActiveTab(tab);
     setPage(1);
-    load(1, tab);
   };
 
-  const handlePage = (p: number) => {
+  const handlePageChange = (p: number) => {
     setPage(p);
-    load(p, activeTab);
+    window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   if (isLoading) return <PageLoading variant="top" />;
@@ -86,7 +226,7 @@ export default function PurchasesPage() {
   return (
     <SettingsLayout title="주문 내역">
       {/* 탭 */}
-      <div className="flex gap-2 mb-6 flex-wrap">
+      <div className="flex flex-wrap gap-2 mb-6">
         {TABS.map((tab) => (
           <button
             key={tab.id}
@@ -102,121 +242,27 @@ export default function PurchasesPage() {
         ))}
       </div>
 
-      {/* 로딩 */}
-      {loading && (
-        <div className="text-center py-20 text-gray-500">불러오는 중...</div>
-      )}
-
-      {/* 빈 상태 */}
-      {!loading && orders.length === 0 && (
+      {/* 주문 목록 */}
+      {fetching ? (
+        <div className="flex justify-center py-20">
+          <div className="h-8 w-8 animate-spin rounded-full border-4 border-solid border-brand-500 border-r-transparent" />
+        </div>
+      ) : orders.length === 0 ? (
         <div className="bg-[#1a1a1a] rounded-2xl border border-white/5 min-h-[400px] flex items-center justify-center">
           <div className="text-center">
             <Receipt size={48} className="text-gray-600 mx-auto mb-4" />
             <p className="text-gray-400">주문 내역이 없습니다.</p>
           </div>
         </div>
-      )}
-
-      {/* 주문 목록 */}
-      {!loading && orders.length > 0 && (
-        <div className="space-y-3">
-          {orders.map((order) => {
-            const statusColor = STATUS_COLORS[order.status] ?? STATUS_COLORS.pending;
-            const canCancel = order.status === "pending" || order.status === "paid";
-            const canRefund = order.status === "delivered" && !order.refund_status;
-
-            return (
-              <div
-                key={order.id}
-                className="bg-[#1a1a1a] rounded-xl border border-white/5 p-5"
-              >
-                <div className="flex items-start justify-between gap-3 mb-3">
-                  <div>
-                    <span className="font-mono text-xs text-gray-500">
-                      {order.order_number}
-                    </span>
-                    <p className="text-sm text-gray-400 mt-0.5">
-                      {formatDate(order.created_at)}
-                    </p>
-                  </div>
-                  <span
-                    className="text-xs px-2.5 py-1 rounded-full font-medium shrink-0"
-                    style={{ background: statusColor.bg, color: statusColor.text }}
-                  >
-                    {STATUS_LABELS[order.status] ?? order.status}
-                  </span>
-                </div>
-
-                <p className="text-white font-medium mb-1">
-                  {order.first_item_name}
-                  {order.item_count > 1 && (
-                    <span className="text-gray-400 text-sm ml-1">
-                      외 {order.item_count - 1}건
-                    </span>
-                  )}
-                </p>
-                <p className="text-brand-500 font-bold text-lg mb-4">
-                  {order.final_price.toLocaleString()}원
-                </p>
-
-                <div className="flex gap-2 flex-wrap">
-                  <Link
-                    href={`/settings/purchases/${order.id}`}
-                    className="px-4 py-2 rounded-lg bg-white/10 text-white text-sm hover:bg-white/20 transition-colors"
-                  >
-                    상세 보기
-                  </Link>
-                  {canCancel && (
-                    <Link
-                      href={`/settings/purchases/${order.id}/cancel`}
-                      className="px-4 py-2 rounded-lg text-sm transition-colors"
-                      style={{ background: "#3d1a1a", color: "#f87171" }}
-                    >
-                      취소 신청
-                    </Link>
-                  )}
-                  {canRefund && (
-                    <Link
-                      href={`/settings/purchases/${order.id}/refund`}
-                      className="px-4 py-2 rounded-lg text-sm transition-colors"
-                      style={{ background: "#1a3a5c", color: "#7eb8f7" }}
-                    >
-                      환불 신청
-                    </Link>
-                  )}
-                  {order.refund_status && (
-                    <span
-                      className="px-4 py-2 rounded-lg text-sm"
-                      style={{ background: "#2d2a20", color: "#e8a55a" }}
-                    >
-                      환불 {order.refund_status === "requested" ? "신청됨" : order.refund_status === "processing" ? "처리중" : order.refund_status === "completed" ? "완료" : "거절됨"}
-                    </span>
-                  )}
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      )}
-
-      {/* 페이지네이션 */}
-      {totalPages > 1 && (
-        <div className="flex justify-center gap-2 mt-8">
-          {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
-            <button
-              key={p}
-              onClick={() => handlePage(p)}
-              className={`w-9 h-9 rounded-lg text-sm font-medium transition-colors ${
-                page === p
-                  ? "bg-brand-500 text-white"
-                  : "bg-[#1a1a1a] text-gray-400 hover:bg-[#2a2a2a]"
-              }`}
-            >
-              {p}
-            </button>
+      ) : (
+        <div className="flex flex-col gap-3">
+          {orders.map((order) => (
+            <OrderCard key={order.id} order={order} />
           ))}
         </div>
       )}
+
+      <Pagination page={page} totalPages={totalPages} onChange={handlePageChange} />
     </SettingsLayout>
   );
 }

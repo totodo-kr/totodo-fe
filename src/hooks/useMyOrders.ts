@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useCallback } from "react";
 import { createClient } from "@/utils/supabase/client";
+import { useCallback } from "react";
 
 export type MyOrderStatus =
   | "all"
@@ -24,27 +24,21 @@ export interface MyOrder {
   payment_method: string | null;
   recipient_name: string;
   shipping_address: string;
-  cancel_reason: string | null;
-  refund_status: string | null;
-  refund_amount: number | null;
-  first_item_name: string;
-  item_count: number;
+  cancel_reason?: string | null;
+  refund_status?: string | null;
+  refund_amount?: number | null;
+  first_item_name?: string;
+  item_count?: number;
 }
 
-export interface TrackingDetail {
-  time: string;
-  location: string;
-  description: string;
-}
-
-export interface MyOrderDetail extends Omit<MyOrder, "first_item_name" | "item_count"> {
+export interface MyOrderDetail extends MyOrder {
   recipient_phone: string;
-  shipping_zipcode: string | null;
-  shipping_memo: string | null;
-  refund_reason: string | null;
-  refund_requested_at: string | null;
-  refund_completed_at: string | null;
-  cancel_requested_at: string | null;
+  shipping_zipcode?: string | null;
+  shipping_memo?: string | null;
+  refund_reason?: string | null;
+  refund_requested_at?: string | null;
+  refund_completed_at?: string | null;
+  cancel_requested_at?: string | null;
   order_items: Array<{
     id: number;
     product_id: number;
@@ -53,29 +47,30 @@ export interface MyOrderDetail extends Omit<MyOrder, "first_item_name" | "item_c
     quantity: number;
     subtotal: number;
   }>;
-  shipping_tracking: {
-    courier_name: string | null;
-    tracking_number: string | null;
+  shipping_tracking?: {
+    courier_name?: string;
+    tracking_number?: string;
     status: string;
-    tracking_details: TrackingDetail[];
-    shipped_at: string | null;
-    delivered_at: string | null;
+    tracking_details: Array<{
+      time: string;
+      location: string;
+      description: string;
+    }>;
+    shipped_at?: string;
+    delivered_at?: string;
   } | null;
 }
 
 const PAGE_SIZE = 10;
 
 export function useMyOrders() {
-  const [orders, setOrders] = useState<MyOrder[]>([]);
-  const [total, setTotal] = useState(0);
-  const [loading, setLoading] = useState(false);
-  const [detailLoading, setDetailLoading] = useState(false);
+  const supabase = createClient();
 
   const fetchOrders = useCallback(
-    async (page = 1, status: MyOrderStatus = "all") => {
-      const supabase = createClient();
-      setLoading(true);
-
+    async (
+      page: number,
+      status?: string
+    ): Promise<{ orders: MyOrder[]; total: number }> => {
       const from = (page - 1) * PAGE_SIZE;
       const to = from + PAGE_SIZE - 1;
 
@@ -92,116 +87,125 @@ export function useMyOrders() {
         .order("created_at", { ascending: false })
         .range(from, to);
 
-      if (status !== "all") {
+      if (status && status !== "all") {
         query = query.eq("status", status);
       }
 
-      const { data, count, error } = await query;
-      if (!error && data) {
-        const mapped: MyOrder[] = data.map((o) => {
-          const items = Array.isArray(o.order_items) ? o.order_items : [];
-          return {
-            id: o.id,
-            order_number: o.order_number,
-            final_price: o.final_price,
-            status: o.status,
-            created_at: o.created_at,
-            paid_at: o.paid_at,
-            total_product_price: o.total_product_price,
-            total_shipping_fee: o.total_shipping_fee,
-            total_discount: o.total_discount,
-            payment_method: o.payment_method,
-            recipient_name: o.recipient_name,
-            shipping_address: o.shipping_address,
-            cancel_reason: o.cancel_reason,
-            refund_status: o.refund_status,
-            refund_amount: o.refund_amount,
-            first_item_name: items[0]?.product_name ?? "상품 없음",
-            item_count: items.length,
-          };
-        });
-        setOrders(mapped);
-        setTotal(count ?? 0);
+      const { data, error, count } = await query;
+
+      if (error) {
+        console.error("fetchOrders error:", error);
+        return { orders: [], total: 0 };
       }
-      setLoading(false);
+
+      const orders: MyOrder[] = (data ?? []).map((row: Record<string, unknown>) => {
+        const items = (row.order_items as Array<{ product_name: string }>) ?? [];
+        return {
+          id: row.id as number,
+          order_number: row.order_number as string,
+          final_price: row.final_price as number,
+          status: row.status as string,
+          created_at: row.created_at as string,
+          paid_at: row.paid_at as string | null,
+          total_product_price: row.total_product_price as number,
+          total_shipping_fee: row.total_shipping_fee as number,
+          total_discount: row.total_discount as number,
+          payment_method: row.payment_method as string | null,
+          recipient_name: row.recipient_name as string,
+          shipping_address: row.shipping_address as string,
+          cancel_reason: row.cancel_reason as string | null,
+          refund_status: row.refund_status as string | null,
+          refund_amount: row.refund_amount as number | null,
+          first_item_name: items[0]?.product_name ?? "상품 없음",
+          item_count: items.length,
+        };
+      });
+
+      return { orders, total: count ?? 0 };
     },
-    []
+    [supabase]
   );
 
   const fetchOrderDetail = useCallback(
     async (orderId: number): Promise<MyOrderDetail | null> => {
-      const supabase = createClient();
-      setDetailLoading(true);
-
       const { data, error } = await supabase
         .from("orders")
         .select(
-          `id, order_number, final_price, status, created_at, paid_at,
-           total_product_price, total_shipping_fee, total_discount,
-           payment_method, recipient_name, recipient_phone,
-           shipping_address, shipping_zipcode, shipping_memo,
-           cancel_reason, cancel_requested_at,
-           refund_status, refund_amount, refund_reason,
-           refund_requested_at, refund_completed_at,
+          `*,
            order_items(id, product_id, product_name, product_price, quantity, subtotal),
            shipping_tracking(courier_name, tracking_number, status, tracking_details, shipped_at, delivered_at)`
         )
         .eq("id", orderId)
         .single();
 
-      setDetailLoading(false);
+      if (error || !data) {
+        console.error("fetchOrderDetail error:", error);
+        return null;
+      }
 
-      if (error || !data) return null;
+      const raw = data as Record<string, unknown>;
 
-      const trackingRaw = Array.isArray(data.shipping_tracking)
-        ? data.shipping_tracking[0]
-        : data.shipping_tracking;
+      const trackingRows = raw.shipping_tracking as Array<Record<string, unknown>> | null;
+      const trackingRow =
+        Array.isArray(trackingRows) && trackingRows.length > 0
+          ? trackingRows[0]
+          : trackingRows && !Array.isArray(trackingRows)
+          ? (trackingRows as unknown as Record<string, unknown>)
+          : null;
+
+      const shipping_tracking = trackingRow
+        ? {
+            courier_name: trackingRow.courier_name as string | undefined,
+            tracking_number: trackingRow.tracking_number as string | undefined,
+            status: trackingRow.status as string,
+            tracking_details:
+              (trackingRow.tracking_details as Array<{
+                time: string;
+                location: string;
+                description: string;
+              }>) ?? [],
+            shipped_at: trackingRow.shipped_at as string | undefined,
+            delivered_at: trackingRow.delivered_at as string | undefined,
+          }
+        : null;
 
       return {
-        id: data.id,
-        order_number: data.order_number,
-        final_price: data.final_price,
-        status: data.status,
-        created_at: data.created_at,
-        paid_at: data.paid_at,
-        total_product_price: data.total_product_price,
-        total_shipping_fee: data.total_shipping_fee,
-        total_discount: data.total_discount,
-        payment_method: data.payment_method,
-        recipient_name: data.recipient_name,
-        recipient_phone: data.recipient_phone,
-        shipping_address: data.shipping_address,
-        shipping_zipcode: data.shipping_zipcode,
-        shipping_memo: data.shipping_memo,
-        cancel_reason: data.cancel_reason,
-        cancel_requested_at: data.cancel_requested_at,
-        refund_status: data.refund_status,
-        refund_amount: data.refund_amount,
-        refund_reason: data.refund_reason,
-        refund_requested_at: data.refund_requested_at,
-        refund_completed_at: data.refund_completed_at,
-        order_items: Array.isArray(data.order_items) ? data.order_items : [],
-        shipping_tracking: trackingRaw
-          ? {
-              courier_name: trackingRaw.courier_name ?? null,
-              tracking_number: trackingRaw.tracking_number ?? null,
-              status: trackingRaw.status ?? "preparing",
-              tracking_details: (trackingRaw.tracking_details as TrackingDetail[]) ?? [],
-              shipped_at: trackingRaw.shipped_at ?? null,
-              delivered_at: trackingRaw.delivered_at ?? null,
-            }
-          : null,
+        id: raw.id as number,
+        order_number: raw.order_number as string,
+        final_price: raw.final_price as number,
+        status: raw.status as string,
+        created_at: raw.created_at as string,
+        paid_at: raw.paid_at as string | null,
+        total_product_price: raw.total_product_price as number,
+        total_shipping_fee: raw.total_shipping_fee as number,
+        total_discount: raw.total_discount as number,
+        payment_method: raw.payment_method as string | null,
+        recipient_name: raw.recipient_name as string,
+        shipping_address: raw.shipping_address as string,
+        recipient_phone: raw.recipient_phone as string,
+        shipping_zipcode: raw.shipping_zipcode as string | null,
+        shipping_memo: raw.shipping_memo as string | null,
+        cancel_reason: raw.cancel_reason as string | null,
+        cancel_requested_at: raw.cancel_requested_at as string | null,
+        refund_status: raw.refund_status as string | null,
+        refund_amount: raw.refund_amount as number | null,
+        refund_reason: raw.refund_reason as string | null,
+        refund_requested_at: raw.refund_requested_at as string | null,
+        refund_completed_at: raw.refund_completed_at as string | null,
+        order_items:
+          (raw.order_items as Array<{
+            id: number;
+            product_id: number;
+            product_name: string;
+            product_price: number;
+            quantity: number;
+            subtotal: number;
+          }>) ?? [],
+        shipping_tracking,
       };
     },
-    []
+    [supabase]
   );
 
-  return {
-    orders,
-    total,
-    loading,
-    detailLoading,
-    fetchOrders,
-    fetchOrderDetail,
-  };
+  return { fetchOrders, fetchOrderDetail };
 }
