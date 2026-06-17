@@ -7,8 +7,7 @@ export type MyOrderStatus =
   | "all"
   | "paid"
   | "shipped"
-  | "delivered"
-  | "cancelled";
+  | "delivered";
 
 export interface MyOrder {
   id: number;
@@ -26,7 +25,6 @@ export interface MyOrder {
   cancel_reason?: string | null;
   refund_status?: string | null;
   refund_amount?: number | null;
-  // first item name for list display
   first_item_name?: string;
   item_count?: number;
 }
@@ -35,6 +33,10 @@ export interface MyOrderDetail extends MyOrder {
   recipient_phone: string;
   shipping_zipcode?: string | null;
   shipping_memo?: string | null;
+  refund_reason?: string | null;
+  refund_requested_at?: string | null;
+  refund_completed_at?: string | null;
+  cancel_requested_at?: string | null;
   order_items: Array<{
     id: number;
     product_id: number;
@@ -196,22 +198,24 @@ export function useMyOrders() {
       const raw = data as Record<string, unknown>;
 
       const trackingRows = raw.shipping_tracking as Array<Record<string, unknown>> | null;
-      const trackingRow = Array.isArray(trackingRows) && trackingRows.length > 0
-        ? trackingRows[0]
-        : trackingRows && !Array.isArray(trackingRows)
-        ? (trackingRows as unknown as Record<string, unknown>)
-        : null;
+      const trackingRow =
+        Array.isArray(trackingRows) && trackingRows.length > 0
+          ? trackingRows[0]
+          : trackingRows && !Array.isArray(trackingRows)
+          ? (trackingRows as unknown as Record<string, unknown>)
+          : null;
 
       const shipping_tracking = trackingRow
         ? {
             courier_name: trackingRow.courier_name as string | undefined,
             tracking_number: trackingRow.tracking_number as string | undefined,
             status: trackingRow.status as string,
-            tracking_details: (trackingRow.tracking_details as Array<{
-              time: string;
-              location: string;
-              description: string;
-            }>) ?? [],
+            tracking_details:
+              (trackingRow.tracking_details as Array<{
+                time: string;
+                location: string;
+                description: string;
+              }>) ?? [],
             shipped_at: trackingRow.shipped_at as string | undefined,
             delivered_at: trackingRow.delivered_at as string | undefined,
           }
@@ -234,16 +238,21 @@ export function useMyOrders() {
         shipping_zipcode: raw.shipping_zipcode as string | null,
         shipping_memo: raw.shipping_memo as string | null,
         cancel_reason: raw.cancel_reason as string | null,
+        cancel_requested_at: raw.cancel_requested_at as string | null,
         refund_status: raw.refund_status as string | null,
         refund_amount: raw.refund_amount as number | null,
-        order_items: (raw.order_items as Array<{
-          id: number;
-          product_id: number;
-          product_name: string;
-          product_price: number;
-          quantity: number;
-          subtotal: number;
-        }>) ?? [],
+        refund_reason: raw.refund_reason as string | null,
+        refund_requested_at: raw.refund_requested_at as string | null,
+        refund_completed_at: raw.refund_completed_at as string | null,
+        order_items:
+          (raw.order_items as Array<{
+            id: number;
+            product_id: number;
+            product_name: string;
+            product_price: number;
+            quantity: number;
+            subtotal: number;
+          }>) ?? [],
         shipping_tracking,
       };
     },

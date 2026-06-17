@@ -55,6 +55,13 @@ const TRACKING_STATUS_CLASS: Record<string, string> = {
   delivered: "bg-green-600 text-green-100",
 };
 
+const REFUND_STATUS_LABEL: Record<string, string> = {
+  requested: "환불 신청됨",
+  processing: "환불 처리중",
+  completed: "환불 완료",
+  rejected: "환불 거절",
+};
+
 const PAYMENT_METHOD_LABEL: Record<string, string> = {
   card: "신용카드",
   virtual_account: "가상계좌",
@@ -108,11 +115,9 @@ function TrackingTimeline({
     <div className="relative pl-5">
       {details.map((d, i) => (
         <div key={i} className="relative pb-5 last:pb-0">
-          {/* vertical line */}
           {i < details.length - 1 && (
             <span className="absolute left-[-13px] top-4 bottom-0 w-px bg-white/10" />
           )}
-          {/* dot */}
           <span
             className={`absolute left-[-16px] top-1 w-2 h-2 rounded-full ${
               i === 0 ? "bg-brand-500" : "bg-white/20"
@@ -211,9 +216,7 @@ export default function OrderDetailPage({
             <p className="font-mono text-sm text-gray-500">{order.order_number}</p>
             <p className="text-gray-400 text-sm">{formatDate(order.created_at)}</p>
           </div>
-          <span
-            className={`text-sm font-semibold px-3 py-1.5 rounded-full ${badgeClass}`}
-          >
+          <span className={`text-sm font-semibold px-3 py-1.5 rounded-full ${badgeClass}`}>
             {statusLabel}
           </span>
         </div>
@@ -268,9 +271,7 @@ export default function OrderDetailPage({
         {order.total_discount > 0 && (
           <InfoRow
             label="할인 금액"
-            value={
-              <span className="text-green-400">-{formatPrice(order.total_discount)}</span>
-            }
+            value={<span className="text-green-400">-{formatPrice(order.total_discount)}</span>}
           />
         )}
         <div className="border-t border-white/5 pt-2 mt-2">
@@ -338,34 +339,44 @@ export default function OrderDetailPage({
       {(order.cancel_reason || order.refund_status) && (
         <Section icon={<AlertCircle size={18} />} title="취소 / 환불 정보">
           {order.cancel_reason && (
-            <InfoRow label="취소 사유" value={order.cancel_reason} />
+            <>
+              <InfoRow label="취소 사유" value={order.cancel_reason} />
+              {order.cancel_requested_at && (
+                <InfoRow label="취소 일시" value={formatDate(order.cancel_requested_at, true)} />
+              )}
+            </>
           )}
           {order.refund_status && (
-            <InfoRow
-              label="환불 상태"
-              value={
-                <span
-                  className={
-                    order.refund_status === "completed"
-                      ? "text-green-400"
-                      : order.refund_status === "rejected"
-                      ? "text-red-400"
-                      : "text-yellow-400"
-                  }
-                >
-                  {order.refund_status === "completed"
-                    ? "환불 완료"
-                    : order.refund_status === "requested"
-                    ? "환불 신청됨"
-                    : order.refund_status === "rejected"
-                    ? "환불 거절"
-                    : order.refund_status}
-                </span>
-              }
-            />
-          )}
-          {order.refund_amount != null && (
-            <InfoRow label="환불 금액" value={formatPrice(order.refund_amount)} />
+            <>
+              <InfoRow
+                label="환불 상태"
+                value={
+                  <span
+                    className={
+                      order.refund_status === "completed"
+                        ? "text-green-400"
+                        : order.refund_status === "rejected"
+                        ? "text-red-400"
+                        : "text-yellow-400"
+                    }
+                  >
+                    {REFUND_STATUS_LABEL[order.refund_status] ?? order.refund_status}
+                  </span>
+                }
+              />
+              {order.refund_reason && (
+                <InfoRow label="환불 사유" value={order.refund_reason} />
+              )}
+              {order.refund_amount != null && (
+                <InfoRow label="환불 금액" value={formatPrice(order.refund_amount)} />
+              )}
+              {order.refund_requested_at && (
+                <InfoRow label="신청 일시" value={formatDate(order.refund_requested_at, true)} />
+              )}
+              {order.refund_completed_at && (
+                <InfoRow label="완료 일시" value={formatDate(order.refund_completed_at, true)} />
+              )}
+            </>
           )}
         </Section>
       )}

@@ -2,42 +2,35 @@
 
 import React from "react";
 import Link from "next/link";
-import { Users, GraduationCap, HelpCircle, ShoppingBag, RotateCcw, ArrowRight } from "lucide-react";
-import { useAdminStats, type AdminStats } from "@/hooks/useAdminStats";
+import { Users, GraduationCap, HelpCircle, ShoppingBag, ArrowRight } from "lucide-react";
+import { useAdminStats } from "@/hooks/useAdminStats";
 
 type StatKey = "userCount" | "lectureCount" | "faqCount" | "orderCount" | "refundRequestCount";
 
 const kpiCards: { label: string; key: StatKey; icon: React.ElementType; href: string; highlight?: boolean }[] = [
   {
     label: "총 회원수",
-    key: "userCount" as const,
+    key: "userCount",
     icon: Users,
     href: "/admin/users",
   },
   {
     label: "강의 수",
-    key: "lectureCount" as const,
+    key: "lectureCount",
     icon: GraduationCap,
     href: "/admin/academy/lectures",
   },
   {
     label: "FAQ",
-    key: "faqCount" as const,
+    key: "faqCount",
     icon: HelpCircle,
     href: "/admin/faq",
   },
   {
     label: "총 주문",
-    key: "orderCount" as const,
+    key: "orderCount",
     icon: ShoppingBag,
     href: "/admin/orders",
-  },
-  {
-    label: "환불 요청",
-    key: "refundRequestCount" as const,
-    icon: RotateCcw,
-    href: "/admin/orders?status=refund_requested",
-    highlight: true,
   },
 ];
 
@@ -82,7 +75,7 @@ export default function AdminDashboard() {
               </div>
               <ArrowRight
                 className="w-4 h-4 opacity-0 group-hover:opacity-100 transition-opacity"
-                style={{ color: "#cc785c" }}
+                style={{ color: highlight ? "#c64545" : "#cc785c" }}
               />
             </div>
             <div

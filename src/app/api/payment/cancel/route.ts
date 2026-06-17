@@ -15,14 +15,12 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "서버 설정 오류가 발생했습니다." }, { status: 500 });
     }
 
-    // 1. Auth
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) {
       return NextResponse.json({ error: "로그인이 필요합니다." }, { status: 401 });
     }
 
-    // 2. Fetch order
     const adminDb = createAdminClient();
     const { data: order } = await adminDb
       .from("orders")
@@ -34,7 +32,6 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "주문을 찾을 수 없습니다." }, { status: 404 });
     }
 
-    // 3. Authorization
     if (mode === "cancel") {
       if (order.user_id !== user.id) {
         return NextResponse.json({ error: "권한이 없습니다." }, { status: 403 });
@@ -43,7 +40,6 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: "취소할 수 없는 주문 상태입니다." }, { status: 400 });
       }
     } else {
-      // refund — admin only
       const { data: profile } = await adminDb
         .from("profiles")
         .select("role")
@@ -57,7 +53,6 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // 4. Call Toss cancel API if payment was actually processed
     const paymentInfo = order.payment_info as Record<string, unknown> | null;
     const paymentKey = paymentInfo?.paymentKey as string | undefined;
 
@@ -90,7 +85,6 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // 5. Update DB
     const now = new Date().toISOString();
     if (mode === "cancel") {
       await adminDb

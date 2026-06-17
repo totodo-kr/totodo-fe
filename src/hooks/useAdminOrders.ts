@@ -131,7 +131,6 @@ export function useAdminOrders() {
     setUpdatingId(orderId);
 
     if (status === "rejected") {
-      // Rejection: no payment reversal needed, just update DB
       const supabase = createClient();
       const { error } = await supabase
         .from("orders")
@@ -146,7 +145,6 @@ export function useAdminOrders() {
       return !error;
     }
 
-    // Approved: call Toss cancel API via server route
     const order = orders.find((o) => o.id === orderId);
     const res = await fetch("/api/payment/cancel", {
       method: "POST",

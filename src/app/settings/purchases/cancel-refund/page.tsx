@@ -23,7 +23,7 @@ function formatDate(iso: string) {
 function getBadge(order: MyOrder): { label: string; cls: string } {
   if (order.refund_status === "requested") return { label: "환불 신청", cls: "bg-orange-600 text-orange-100" };
   if (order.refund_status === "completed") return { label: "환불 완료", cls: "bg-blue-600 text-blue-100" };
-  if (order.refund_status === "rejected") return { label: "환불 거절", cls: "bg-red-800 text-red-200" };
+  if (order.refund_status === "rejected")  return { label: "환불 거절", cls: "bg-red-800 text-red-200" };
   return { label: "취소", cls: "bg-red-600 text-red-100" };
 }
 
@@ -131,9 +131,7 @@ export default function CancelRefundPage() {
               key={p}
               onClick={() => setPage(p)}
               className={`px-3 py-1.5 rounded-lg text-sm transition-colors ${
-                p === page
-                  ? "bg-brand-500 text-white"
-                  : "bg-[#1a1a1a] text-gray-400 hover:bg-[#2a2a2a]"
+                p === page ? "bg-brand-500 text-white" : "bg-[#1a1a1a] text-gray-400 hover:bg-[#2a2a2a]"
               }`}
             >
               {p}

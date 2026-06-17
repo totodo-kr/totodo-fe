@@ -33,7 +33,6 @@ export function useCancelRefund() {
     setProcessing(true);
 
     try {
-      // Fetch only to get final_price for amount fallback and amount validation.
       const { data: order } = await supabase
         .from("orders")
         .select("final_price")
@@ -45,8 +44,6 @@ export function useCancelRefund() {
       const refundAmount = amount ?? order.final_price;
       if (refundAmount <= 0 || refundAmount > order.final_price) return false;
 
-      // Conditional UPDATE — only applies if status=delivered AND refund_status IS NULL,
-      // preventing duplicate refund requests and TOCTOU race conditions.
       const { error } = await supabase
         .from("orders")
         .update({
