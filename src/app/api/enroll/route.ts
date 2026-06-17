@@ -44,15 +44,27 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "이미 수강 중인 강의입니다." }, { status: 409 });
   }
 
-  // 4. 유료 강의: 결제 완료된 order 확인
+  // 4. 유료 강의: 결제 완료된 order 확인 (order_items.lecture_id 기준)
   if (lecture.price > 0) {
-    const { data: order } = await admin
-      .from("orders")
-      .select("id")
-      .eq("user_id", user.id)
-      .eq("status", "paid")
-      .contains("items", [{ lecture_id: lectureId }])
-      .maybeSingle();
+    // order_items에서 해당 강의의 order_id 목록 조회
+    const { data: items } = await admin
+      .from("order_items")
+      .select("order_id")
+      .eq("lecture_id", lectureId);
+
+    const orderIds = (items ?? []).map((i: { order_id: number }) => i.order_id);
+
+    const order =
+      orderIds.length > 0
+        ? await admin
+            .from("orders")
+            .select("id")
+            .eq("user_id", user.id)
+            .eq("status", "paid")
+            .in("id", orderIds)
+            .maybeSingle()
+            .then(({ data }) => data)
+        : null;
 
     if (!order) {
       return NextResponse.json({ error: "결제 내역이 확인되지 않습니다." }, { status: 403 });

@@ -69,6 +69,9 @@ export function useMyOrders() {
       page: number,
       status?: string
     ): Promise<{ orders: MyOrder[]; total: number }> => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return { orders: [], total: 0 };
+
       const from = (page - 1) * PAGE_SIZE;
       const to = from + PAGE_SIZE - 1;
 
@@ -82,6 +85,7 @@ export function useMyOrders() {
            order_items(product_name)`,
           { count: "exact" }
         )
+        .eq("user_id", user.id)
         .order("created_at", { ascending: false })
         .range(from, to);
 
@@ -128,6 +132,9 @@ export function useMyOrders() {
 
   const fetchCancelRefundOrders = useCallback(
     async (page: number): Promise<{ orders: MyOrder[]; total: number }> => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return { orders: [], total: 0 };
+
       const from = (page - 1) * PAGE_SIZE;
       const to = from + PAGE_SIZE - 1;
 
@@ -141,6 +148,7 @@ export function useMyOrders() {
            order_items(product_name)`,
           { count: "exact" }
         )
+        .eq("user_id", user.id)
         .or("status.eq.cancelled,refund_status.not.is.null")
         .order("created_at", { ascending: false })
         .range(from, to);
@@ -180,6 +188,9 @@ export function useMyOrders() {
 
   const fetchOrderDetail = useCallback(
     async (orderId: number): Promise<MyOrderDetail | null> => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return null;
+
       const { data, error } = await supabase
         .from("orders")
         .select(
@@ -188,6 +199,7 @@ export function useMyOrders() {
            shipping_tracking(courier_name, tracking_number, status, tracking_details, shipped_at, delivered_at)`
         )
         .eq("id", orderId)
+        .eq("user_id", user.id)
         .single();
 
       if (error || !data) {

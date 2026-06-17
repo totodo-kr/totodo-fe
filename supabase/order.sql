@@ -154,3 +154,11 @@ CREATE POLICY "shipping_tracking_select_own" ON shipping_tracking FOR SELECT USI
 );
 CREATE POLICY "shipping_tracking_select_admin" ON shipping_tracking FOR SELECT USING (public.is_admin());
 CREATE POLICY "shipping_tracking_write_admin"  ON shipping_tracking FOR ALL   USING (public.is_admin());
+
+-- 2026.06.17.
+-- 강의 결제 지원: order_items.product_id nullable, lecture_id 추가
+ALTER TABLE order_items ALTER COLUMN product_id DROP NOT NULL;
+ALTER TABLE order_items ADD COLUMN IF NOT EXISTS lecture_id INTEGER REFERENCES lectures(id) ON DELETE RESTRICT;
+
+CREATE POLICY "order_items_insert_admin" ON order_items FOR INSERT WITH CHECK (public.is_admin());
+CREATE POLICY "order_items_update_admin" ON order_items FOR UPDATE USING (public.is_admin());

@@ -68,8 +68,7 @@ export default function LectureLayout({ children }: { children: React.ReactNode 
     if (!user) { setShowLoginModal(true); return; }
     if (!lecture) return;
     if (lecture.price > 0) {
-      // TODO: 결제 페이지로 이동
-      alert("유료 강의입니다. 결제 페이지로 이동합니다.");
+      router.push(`/academy/checkout/${lectureIdStr}`);
       return;
     }
     setEnrolling(true);

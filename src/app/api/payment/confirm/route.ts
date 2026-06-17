@@ -6,6 +6,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/utils/supabase/server";
+import { createAdminClient } from "@/utils/supabase/admin";
 
 export async function POST(req: NextRequest) {
   try {
@@ -52,9 +53,10 @@ export async function POST(req: NextRequest) {
     }
 
     // 2. Verify order exists, amount matches, and is not already paid (idempotency)
-    const supabase = await createClient();
+    // admin client used for DB writes — orders RLS has no user-level UPDATE policy
+    const admin = createAdminClient();
 
-    const { data: orderRow } = await supabase
+    const { data: orderRow } = await admin
       .from("orders")
       .select("id, final_price, status")
       .eq("order_number", orderId)
@@ -73,8 +75,8 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "결제 금액이 주문 금액과 일치하지 않습니다." }, { status: 400 });
     }
 
-    // 3. Update order in DB: status='paid', toss_payment_key, payment_method, paid_at
-    const { error: updateError } = await supabase
+    // 3. Update order in DB: status='paid', payment_method, paid_at
+    const { error: updateError } = await admin
       .from("orders")
       .update({
         status: "paid",
@@ -88,15 +90,17 @@ export async function POST(req: NextRequest) {
 
     if (updateError) {
       console.error("Order update error:", updateError);
+      return NextResponse.json({ error: "주문 상태 업데이트에 실패했습니다." }, { status: 500 });
     }
 
     // 4. Clear the user's cart
+    const supabase = await createClient();
     const {
       data: { user },
     } = await supabase.auth.getUser();
 
     if (user) {
-      const { error: cartError } = await supabase
+      const { error: cartError } = await admin
         .from("cart_items")
         .delete()
         .eq("user_id", user.id);
