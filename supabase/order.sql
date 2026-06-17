@@ -118,3 +118,39 @@ CREATE POLICY "order_items_insert_own" ON order_items FOR INSERT WITH CHECK (
   EXISTS (SELECT 1 FROM orders WHERE orders.id = order_items.order_id AND orders.user_id = auth.uid())
 );
 CREATE POLICY "order_items_select_admin" ON order_items FOR SELECT USING (public.is_admin());
+
+-- =============================================
+-- 마이그레이션
+-- =============================================
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS cancel_reason TEXT;
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS cancel_requested_at TIMESTAMP WITH TIME ZONE;
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS refund_status VARCHAR(50);
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS refund_reason TEXT;
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS refund_amount INTEGER;
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS refund_requested_at TIMESTAMP WITH TIME ZONE;
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS refund_completed_at TIMESTAMP WITH TIME ZONE;
+
+-- 배송 추적 테이블 (orders와 1:1 관계)
+CREATE TABLE IF NOT EXISTS shipping_tracking (
+  id               SERIAL PRIMARY KEY,
+  order_id         INTEGER NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
+  courier_name     VARCHAR(100),
+  tracking_number  VARCHAR(100),
+  status           VARCHAR(50),
+  tracking_details JSONB,
+  shipped_at       TIMESTAMP WITH TIME ZONE,
+  delivered_at     TIMESTAMP WITH TIME ZONE,
+  created_at       TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+  updated_at       TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT shipping_tracking_unique_order UNIQUE (order_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_shipping_tracking_order_id ON shipping_tracking(order_id);
+
+ALTER TABLE shipping_tracking ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "shipping_tracking_select_own" ON shipping_tracking FOR SELECT USING (
+  EXISTS (SELECT 1 FROM orders WHERE orders.id = shipping_tracking.order_id AND orders.user_id = auth.uid())
+);
+CREATE POLICY "shipping_tracking_select_admin" ON shipping_tracking FOR SELECT USING (public.is_admin());
+CREATE POLICY "shipping_tracking_write_admin"  ON shipping_tracking FOR ALL   USING (public.is_admin());

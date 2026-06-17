@@ -108,6 +108,52 @@ export function useAdminOrders() {
     return !error;
   };
 
+  const processRefund = async (
+    orderId: number,
+    status: "completed" | "rejected"
+  ): Promise<boolean> => {
+    setUpdatingId(orderId);
+
+    if (status === "rejected") {
+      const supabase = createClient();
+      const { error } = await supabase
+        .from("orders")
+        .update({ refund_status: "rejected" })
+        .eq("id", orderId);
+      if (!error) {
+        setOrders((prev) =>
+          prev.map((o) => (o.id === orderId ? { ...o, refund_status: "rejected" } : o))
+        );
+      }
+      setUpdatingId(null);
+      return !error;
+    }
+
+    const order = orders.find((o) => o.id === orderId);
+    const res = await fetch("/api/payment/cancel", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        orderId,
+        reason: order?.refund_reason ?? "환불 승인",
+        amount: order?.refund_amount ?? undefined,
+        mode: "refund",
+      }),
+    });
+
+    if (res.ok) {
+      const now = new Date().toISOString();
+      setOrders((prev) =>
+        prev.map((o) =>
+          o.id === orderId ? { ...o, refund_status: "completed", refund_completed_at: now } : o
+        )
+      );
+    }
+
+    setUpdatingId(null);
+    return res.ok;
+  };
+
   return {
     orders,
     total,
@@ -116,5 +162,6 @@ export function useAdminOrders() {
     fetchOrders,
     fetchOrderItems,
     updateStatus,
+    processRefund,
   };
 }
