@@ -5,7 +5,6 @@ import { useCallback } from "react";
 
 export type MyOrderStatus =
   | "all"
-  | "pending"
   | "paid"
   | "shipped"
   | "delivered"
@@ -86,12 +85,66 @@ export function useMyOrders() {
 
       if (status && status !== "all") {
         query = query.eq("status", status);
+      } else {
+        query = query.neq("status", "pending").neq("status", "cancelled");
       }
 
       const { data, error, count } = await query;
 
       if (error) {
         console.error("fetchOrders error:", error);
+        return { orders: [], total: 0 };
+      }
+
+      const orders: MyOrder[] = (data ?? []).map((row: Record<string, unknown>) => {
+        const items = (row.order_items as Array<{ product_name: string }>) ?? [];
+        return {
+          id: row.id as number,
+          order_number: row.order_number as string,
+          final_price: row.final_price as number,
+          status: row.status as string,
+          created_at: row.created_at as string,
+          paid_at: row.paid_at as string | null,
+          total_product_price: row.total_product_price as number,
+          total_shipping_fee: row.total_shipping_fee as number,
+          total_discount: row.total_discount as number,
+          payment_method: row.payment_method as string | null,
+          recipient_name: row.recipient_name as string,
+          shipping_address: row.shipping_address as string,
+          cancel_reason: row.cancel_reason as string | null,
+          refund_status: row.refund_status as string | null,
+          refund_amount: row.refund_amount as number | null,
+          first_item_name: items[0]?.product_name ?? "상품 없음",
+          item_count: items.length,
+        };
+      });
+
+      return { orders, total: count ?? 0 };
+    },
+    [supabase]
+  );
+
+  const fetchCancelRefundOrders = useCallback(
+    async (page: number): Promise<{ orders: MyOrder[]; total: number }> => {
+      const from = (page - 1) * PAGE_SIZE;
+      const to = from + PAGE_SIZE - 1;
+
+      const { data, error, count } = await supabase
+        .from("orders")
+        .select(
+          `id, order_number, final_price, status, created_at, paid_at,
+           total_product_price, total_shipping_fee, total_discount,
+           payment_method, recipient_name, shipping_address,
+           cancel_reason, refund_status, refund_amount,
+           order_items(product_name)`,
+          { count: "exact" }
+        )
+        .or("status.eq.cancelled,refund_status.not.is.null")
+        .order("created_at", { ascending: false })
+        .range(from, to);
+
+      if (error) {
+        console.error("fetchCancelRefundOrders error:", error);
         return { orders: [], total: 0 };
       }
 
@@ -197,5 +250,5 @@ export function useMyOrders() {
     [supabase]
   );
 
-  return { fetchOrders, fetchOrderDetail };
+  return { fetchOrders, fetchCancelRefundOrders, fetchOrderDetail };
 }

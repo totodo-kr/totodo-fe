@@ -128,36 +128,48 @@ export function useAdminOrders() {
     orderId: number,
     status: "completed" | "rejected"
   ): Promise<boolean> => {
-    const supabase = createClient();
     setUpdatingId(orderId);
 
-    const updatePayload: Record<string, string> = { refund_status: status };
-    if (status === "completed") {
-      updatePayload.refund_completed_at = new Date().toISOString();
+    if (status === "rejected") {
+      // Rejection: no payment reversal needed, just update DB
+      const supabase = createClient();
+      const { error } = await supabase
+        .from("orders")
+        .update({ refund_status: "rejected" })
+        .eq("id", orderId);
+      if (!error) {
+        setOrders((prev) =>
+          prev.map((o) => (o.id === orderId ? { ...o, refund_status: "rejected" } : o))
+        );
+      }
+      setUpdatingId(null);
+      return !error;
     }
 
-    const { error } = await supabase
-      .from("orders")
-      .update(updatePayload)
-      .eq("id", orderId);
+    // Approved: call Toss cancel API via server route
+    const order = orders.find((o) => o.id === orderId);
+    const res = await fetch("/api/payment/cancel", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        orderId,
+        reason: order?.refund_reason ?? "환불 승인",
+        amount: order?.refund_amount ?? undefined,
+        mode: "refund",
+      }),
+    });
 
-    if (!error) {
+    if (res.ok) {
+      const now = new Date().toISOString();
       setOrders((prev) =>
         prev.map((o) =>
-          o.id === orderId
-            ? {
-                ...o,
-                refund_status: status,
-                refund_completed_at:
-                  status === "completed" ? new Date().toISOString() : o.refund_completed_at,
-              }
-            : o
+          o.id === orderId ? { ...o, refund_status: "completed", refund_completed_at: now } : o
         )
       );
     }
 
     setUpdatingId(null);
-    return !error;
+    return res.ok;
   };
 
   return {

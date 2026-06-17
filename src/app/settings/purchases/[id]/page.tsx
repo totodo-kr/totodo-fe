@@ -3,7 +3,7 @@
 import { use, useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ChevronLeft, Package, MapPin, CreditCard, Truck, AlertCircle } from "lucide-react";
+import { Package, MapPin, CreditCard, Truck, AlertCircle } from "lucide-react";
 import { useAuthStore } from "@/store/useAuthStore";
 import PageLoading from "@/components/PageLoading";
 import SettingsLayout from "@/components/SettingsLayout";
@@ -206,13 +206,6 @@ export default function OrderDetailPage({
     <SettingsLayout title="주문 상세">
       {/* back + header */}
       <div className="mb-6">
-        <Link
-          href="/settings/purchases"
-          className="inline-flex items-center gap-1 text-sm text-gray-400 hover:text-white transition-colors mb-4"
-        >
-          <ChevronLeft size={16} />
-          주문 목록
-        </Link>
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <p className="font-mono text-sm text-gray-500">{order.order_number}</p>
@@ -355,6 +348,8 @@ export default function OrderDetailPage({
                   className={
                     order.refund_status === "completed"
                       ? "text-green-400"
+                      : order.refund_status === "rejected"
+                      ? "text-red-400"
                       : "text-yellow-400"
                   }
                 >
@@ -362,6 +357,8 @@ export default function OrderDetailPage({
                     ? "환불 완료"
                     : order.refund_status === "requested"
                     ? "환불 신청됨"
+                    : order.refund_status === "rejected"
+                    ? "환불 거절"
                     : order.refund_status}
                 </span>
               }

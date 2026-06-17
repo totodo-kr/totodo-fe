@@ -1,10 +1,13 @@
 "use client";
 
+import React from "react";
 import Link from "next/link";
-import { Users, GraduationCap, HelpCircle, ShoppingBag, ArrowRight } from "lucide-react";
-import { useAdminStats } from "@/hooks/useAdminStats";
+import { Users, GraduationCap, HelpCircle, ShoppingBag, RotateCcw, ArrowRight } from "lucide-react";
+import { useAdminStats, type AdminStats } from "@/hooks/useAdminStats";
 
-const kpiCards = [
+type StatKey = "userCount" | "lectureCount" | "faqCount" | "orderCount" | "refundRequestCount";
+
+const kpiCards: { label: string; key: StatKey; icon: React.ElementType; href: string; highlight?: boolean }[] = [
   {
     label: "총 회원수",
     key: "userCount" as const,
@@ -29,6 +32,13 @@ const kpiCards = [
     icon: ShoppingBag,
     href: "/admin/orders",
   },
+  {
+    label: "환불 요청",
+    key: "refundRequestCount" as const,
+    icon: RotateCcw,
+    href: "/admin/orders?status=refund_requested",
+    highlight: true,
+  },
 ];
 
 function formatDate(dateString: string) {
@@ -52,20 +62,23 @@ export default function AdminDashboard() {
       </div>
 
       {/* KPI Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-10">
-        {kpiCards.map(({ label, key, icon: Icon, href }) => (
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-4 mb-10">
+        {kpiCards.map(({ label, key, icon: Icon, href, highlight }) => (
           <Link
             key={key}
             href={href}
             className="group rounded-xl p-5 border transition-all hover:shadow-sm"
-            style={{ background: "#efe9de", borderColor: "#e6dfd8" }}
+            style={{
+              background: highlight ? "#fdecea" : "#efe9de",
+              borderColor: highlight ? "#f5c6c6" : "#e6dfd8",
+            }}
           >
             <div className="flex items-start justify-between mb-3">
               <div
                 className="w-9 h-9 rounded-lg flex items-center justify-center"
-                style={{ background: "#faf9f5" }}
+                style={{ background: highlight ? "#fff" : "#faf9f5" }}
               >
-                <Icon className="w-4 h-4" style={{ color: "#cc785c" }} />
+                <Icon className="w-4 h-4" style={{ color: highlight ? "#c64545" : "#cc785c" }} />
               </div>
               <ArrowRight
                 className="w-4 h-4 opacity-0 group-hover:opacity-100 transition-opacity"

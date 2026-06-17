@@ -43,12 +43,12 @@ export default function DeleteAccountModal({ onConfirm, onClose }: DeleteAccount
         {/* 안내 문구 */}
         <div className="space-y-3 mb-6">
           <p className="text-gray-300 text-sm leading-relaxed">
-            탈퇴하시면 <span className="text-red-400 font-medium">모든 계정 정보와 구매 내역</span>이
+            탈퇴하시면 <span className="text-red-400 font-medium">모든 계정 정보와 주문 내역</span>이
             영구적으로 삭제되며, 이 작업은 되돌릴 수 없습니다.
           </p>
           <ul className="text-gray-400 text-xs space-y-1.5 pl-3">
             <li className="flex gap-2"><span className="text-red-500 mt-0.5">•</span>프로필 및 계정 정보 삭제</li>
-            <li className="flex gap-2"><span className="text-red-500 mt-0.5">•</span>구매 내역 및 수강 기록 삭제</li>
+            <li className="flex gap-2"><span className="text-red-500 mt-0.5">•</span>주문 내역 및 수강 기록 삭제</li>
             <li className="flex gap-2"><span className="text-red-500 mt-0.5">•</span>동일 이메일로 재가입 가능 (기존 데이터 복구 불가)</li>
           </ul>
         </div>

@@ -43,11 +43,9 @@ const STATUS_CLASS: Record<string, string> = {
 
 const TABS: { id: MyOrderStatus; label: string }[] = [
   { id: "all", label: "전체" },
-  { id: "pending", label: "결제대기" },
   { id: "paid", label: "결제완료" },
   { id: "shipped", label: "배송중" },
   { id: "delivered", label: "배송완료" },
-  { id: "cancelled", label: "취소" },
 ];
 
 const PAGE_SIZE = 10;

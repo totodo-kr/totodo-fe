@@ -9,23 +9,14 @@ export function useCancelRefund() {
   const requestCancel = async (orderId: number, reason: string): Promise<boolean> => {
     if (!reason.trim() || reason.length > 1000) return false;
 
-    const supabase = createClient();
     setProcessing(true);
-
     try {
-      // Use conditional UPDATE to prevent TOCTOU race conditions.
-      // Only succeeds if status is still pending/paid — no separate fetch needed.
-      const { error } = await supabase
-        .from("orders")
-        .update({
-          cancel_reason: reason.trim(),
-          cancel_requested_at: new Date().toISOString(),
-          status: "cancelled",
-        })
-        .eq("id", orderId)
-        .in("status", ["pending", "paid"]);
-
-      return !error;
+      const res = await fetch("/api/payment/cancel", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ orderId, reason, mode: "cancel" }),
+      });
+      return res.ok;
     } finally {
       setProcessing(false);
     }
