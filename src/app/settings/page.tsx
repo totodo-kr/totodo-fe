@@ -42,7 +42,8 @@ export default function SettingsPage() {
   const menuItems = [
     // { label: "내 멤버쉽", path: "/settings/my-membership" },
     // { label: "내 쿠폰함", path: "/settings/my-coupons" },
-    { label: "구매 내역", path: "/settings/purchases" },
+    { label: "주문 내역", path: "/settings/purchases" },
+    { label: "취소/환불 내역", path: "/settings/purchases/cancel-refund" },
     // { label: "본인 인증", path: "/settings/certify" },
     { label: "환경 설정", path: "/settings/preferences" },
     { label: "계정 설정", path: "/settings/account-setting" },

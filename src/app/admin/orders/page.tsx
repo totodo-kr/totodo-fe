@@ -15,13 +15,16 @@ import { Badge, Spinner } from "@/components/admin/atoms";
 
 const PAGE_SIZE = 15;
 
-const STATUS_TABS: { label: string; value: OrderStatus | "" }[] = [
+type StatusFilterValue = OrderStatus | "" | "refund_requested";
+
+const STATUS_TABS: { label: string; value: StatusFilterValue }[] = [
   { label: "전체", value: "" },
   { label: "결제대기", value: "pending" },
   { label: "결제완료", value: "paid" },
   { label: "배송중", value: "shipped" },
   { label: "배송완료", value: "delivered" },
   { label: "취소", value: "cancelled" },
+  { label: "환불요청", value: "refund_requested" },
 ];
 
 const STATUS_NEXT: Partial<Record<OrderStatus, OrderStatus[]>> = {
@@ -30,6 +33,20 @@ const STATUS_NEXT: Partial<Record<OrderStatus, OrderStatus[]>> = {
   shipped: ["delivered", "cancelled"],
   delivered: [],
   cancelled: [],
+};
+
+const REFUND_STATUS_LABELS: Record<string, string> = {
+  requested: "환불신청",
+  processing: "처리중",
+  completed: "환불완료",
+  rejected: "거절",
+};
+
+const REFUND_STATUS_COLORS: Record<string, { bg: string; text: string }> = {
+  requested: { bg: "#fff3e0", text: "#e65100" },
+  processing: { bg: "#e3f2fd", text: "#1565c0" },
+  completed: { bg: "#e8f4e8", text: "#2d7d32" },
+  rejected: { bg: "#fdecea", text: "#c62828" },
 };
 
 function formatDate(s: string) {
@@ -125,16 +142,16 @@ function OrderItemsRow({
 }
 
 export default function AdminOrdersPage() {
-  const { orders, total, loading, updatingId, fetchOrders, fetchOrderItems, updateStatus } =
+  const { orders, total, loading, updatingId, fetchOrders, fetchOrderItems, updateStatus, processRefund } =
     useAdminOrders();
   const [page, setPage] = useState(1);
-  const [statusFilter, setStatusFilter] = useState<OrderStatus | "">("");
+  const [statusFilter, setStatusFilter] = useState<StatusFilterValue>("");
   const [expandedId, setExpandedId] = useState<number | null>(null);
 
   const totalPages = Math.ceil(total / PAGE_SIZE);
 
   const load = useCallback(
-    (p: number, s: OrderStatus | "") => fetchOrders(p, s),
+    (p: number, s: StatusFilterValue) => fetchOrders(p, s),
     [fetchOrders]
   );
 
@@ -142,7 +159,7 @@ export default function AdminOrdersPage() {
     load(1, "");
   }, [load]);
 
-  const handleStatusTab = (s: OrderStatus | "") => {
+  const handleStatusTab = (s: StatusFilterValue) => {
     setStatusFilter(s);
     setPage(1);
     setExpandedId(null);
@@ -194,6 +211,14 @@ export default function AdminOrdersPage() {
                 <p className="text-xs font-mono font-medium truncate" style={{ color: "#252523" }}>
                   {order.order_number}
                 </p>
+                {order.refund_status && (
+                  <Badge
+                    bg={REFUND_STATUS_COLORS[order.refund_status]?.bg ?? "#efe9de"}
+                    color={REFUND_STATUS_COLORS[order.refund_status]?.text ?? "#6c6a64"}
+                  >
+                    {REFUND_STATUS_LABELS[order.refund_status] ?? order.refund_status}
+                  </Badge>
+                )}
               </div>
 
               <div className="min-w-0 px-3">
@@ -359,6 +384,154 @@ export default function AdminOrdersPage() {
                     </div>
                   </div>
                 </div>
+
+                {/* 취소/환불 정보 섹션 */}
+                {(order.cancel_reason || order.refund_status) && (
+                  <div className="px-6 pb-4">
+                    <div
+                      className="rounded-xl border p-4"
+                      style={{ borderColor: "#e6dfd8", background: "#fff8f5" }}
+                    >
+                      <p
+                        className="text-xs font-semibold uppercase tracking-wide mb-3"
+                        style={{ color: "#cc785c" }}
+                      >
+                        취소 / 환불 정보
+                      </p>
+
+                      {/* 취소 정보 */}
+                      {order.cancel_reason && (
+                        <div className="mb-3">
+                          <p className="text-xs font-medium mb-1.5" style={{ color: "#6c6a64" }}>
+                            취소 사유
+                          </p>
+                          <p className="text-sm" style={{ color: "#252523" }}>
+                            {order.cancel_reason}
+                          </p>
+                          {order.cancel_requested_at && (
+                            <p className="text-xs mt-1" style={{ color: "#8e8b82" }}>
+                              신청일시: {formatDate(order.cancel_requested_at)}
+                            </p>
+                          )}
+                        </div>
+                      )}
+
+                      {/* 환불 정보 */}
+                      {order.refund_status && (
+                        <div>
+                          {order.cancel_reason && (
+                            <div
+                              className="border-t my-3"
+                              style={{ borderColor: "#e6dfd8" }}
+                            />
+                          )}
+                          <div className="flex items-center gap-2 mb-2">
+                            <p className="text-xs font-medium" style={{ color: "#6c6a64" }}>
+                              환불 상태
+                            </p>
+                            <Badge
+                              bg={REFUND_STATUS_COLORS[order.refund_status]?.bg ?? "#efe9de"}
+                              color={REFUND_STATUS_COLORS[order.refund_status]?.text ?? "#6c6a64"}
+                            >
+                              {REFUND_STATUS_LABELS[order.refund_status] ?? order.refund_status}
+                            </Badge>
+                          </div>
+
+                          <div className="space-y-1 mb-3">
+                            {order.refund_reason && (
+                              <div className="flex gap-3 text-sm">
+                                <span className="w-20 flex-shrink-0" style={{ color: "#8e8b82" }}>
+                                  환불 사유
+                                </span>
+                                <span style={{ color: "#252523" }}>{order.refund_reason}</span>
+                              </div>
+                            )}
+                            {order.refund_amount != null && (
+                              <div className="flex gap-3 text-sm">
+                                <span className="w-20 flex-shrink-0" style={{ color: "#8e8b82" }}>
+                                  환불 금액
+                                </span>
+                                <span className="font-semibold" style={{ color: "#cc785c" }}>
+                                  {formatPrice(order.refund_amount)}
+                                </span>
+                              </div>
+                            )}
+                            {order.refund_requested_at && (
+                              <div className="flex gap-3 text-sm">
+                                <span className="w-20 flex-shrink-0" style={{ color: "#8e8b82" }}>
+                                  신청일시
+                                </span>
+                                <span style={{ color: "#6c6a64" }}>
+                                  {formatDate(order.refund_requested_at)}
+                                </span>
+                              </div>
+                            )}
+                            {order.refund_completed_at && (
+                              <div className="flex gap-3 text-sm">
+                                <span className="w-20 flex-shrink-0" style={{ color: "#8e8b82" }}>
+                                  처리일시
+                                </span>
+                                <span style={{ color: "#6c6a64" }}>
+                                  {formatDate(order.refund_completed_at)}
+                                </span>
+                              </div>
+                            )}
+                          </div>
+
+                          {/* 환불 처리 버튼 (요청 상태일 때만) */}
+                          {order.refund_status === "requested" && (
+                            <div className="flex gap-2 mt-3">
+                              <button
+                                onClick={() => processRefund(order.id, "completed")}
+                                disabled={updatingId === order.id}
+                                className="px-4 py-1.5 rounded-lg text-xs font-semibold transition-colors disabled:opacity-50"
+                                style={{
+                                  background: "#5db872",
+                                  color: "#fff",
+                                }}
+                                onMouseEnter={(e) => {
+                                  if (updatingId !== order.id)
+                                    (e.currentTarget as HTMLButtonElement).style.background =
+                                      "#4aa85e";
+                                }}
+                                onMouseLeave={(e) => {
+                                  (e.currentTarget as HTMLButtonElement).style.background =
+                                    "#5db872";
+                                }}
+                              >
+                                {updatingId === order.id ? (
+                                  <Spinner size="xs" />
+                                ) : (
+                                  "환불 승인"
+                                )}
+                              </button>
+                              <button
+                                onClick={() => processRefund(order.id, "rejected")}
+                                disabled={updatingId === order.id}
+                                className="px-4 py-1.5 rounded-lg text-xs font-semibold transition-colors disabled:opacity-50"
+                                style={{
+                                  background: "#fdecea",
+                                  color: "#c64545",
+                                }}
+                                onMouseEnter={(e) => {
+                                  if (updatingId !== order.id)
+                                    (e.currentTarget as HTMLButtonElement).style.background =
+                                      "#f9d4d1";
+                                }}
+                                onMouseLeave={(e) => {
+                                  (e.currentTarget as HTMLButtonElement).style.background =
+                                    "#fdecea";
+                                }}
+                              >
+                                환불 거절
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
 
                 <div className="px-6 pb-5">
                   <p

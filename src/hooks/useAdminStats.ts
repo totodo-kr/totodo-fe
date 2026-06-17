@@ -6,6 +6,7 @@ export interface AdminStats {
   lectureCount: number;
   faqCount: number;
   orderCount: number;
+  refundRequestCount: number;
   recentUsers: {
     id: string;
     name: string | null;
@@ -34,6 +35,7 @@ export function useAdminStats() {
         { count: lectureCount },
         { count: faqCount },
         { count: orderCount },
+        { count: refundRequestCount },
         { data: recentUsers },
         { data: recentFaqs },
       ] = await Promise.all([
@@ -41,6 +43,7 @@ export function useAdminStats() {
         supabase.from("lectures").select("*", { count: "exact", head: true }),
         supabase.from("faq").select("*", { count: "exact", head: true }),
         supabase.from("orders").select("*", { count: "exact", head: true }),
+        supabase.from("orders").select("*", { count: "exact", head: true }).eq("refund_status", "requested"),
         supabase
           .from("profiles")
           .select("id, name, display_name, role, created_at")
@@ -58,6 +61,7 @@ export function useAdminStats() {
         lectureCount: lectureCount ?? 0,
         faqCount: faqCount ?? 0,
         orderCount: orderCount ?? 0,
+        refundRequestCount: refundRequestCount ?? 0,
         recentUsers: recentUsers ?? [],
         recentFaqs: recentFaqs ?? [],
       });
