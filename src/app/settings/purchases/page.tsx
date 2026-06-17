@@ -39,15 +39,20 @@ const STATUS_CLASS: Record<string, string> = {
   cancelled: "bg-red-600 text-red-100",
 };
 
+const REFUND_STATUS_LABEL: Record<string, string> = {
+  requested: "환불 신청됨",
+  processing: "환불 처리중",
+  completed: "환불 완료",
+  rejected: "환불 거절",
+};
+
 /* ─── tab config ───────────────────────────────────────────── */
 
 const TABS: { id: MyOrderStatus; label: string }[] = [
   { id: "all", label: "전체" },
-  { id: "pending", label: "결제대기" },
   { id: "paid", label: "결제완료" },
   { id: "shipped", label: "배송중" },
   { id: "delivered", label: "배송완료" },
-  { id: "cancelled", label: "취소" },
 ];
 
 const PAGE_SIZE = 10;
@@ -80,7 +85,14 @@ function OrderCard({ order }: { order: MyOrder }) {
       </div>
 
       <div className="flex items-center justify-between border-t border-white/5 pt-3 mt-3">
-        <span className="text-white font-bold">{formatPrice(order.final_price)}</span>
+        <div className="flex items-center gap-2">
+          <span className="text-white font-bold">{formatPrice(order.final_price)}</span>
+          {order.refund_status && (
+            <span className="text-xs px-2 py-0.5 rounded-full bg-yellow-900/50 text-yellow-400">
+              {REFUND_STATUS_LABEL[order.refund_status] ?? order.refund_status}
+            </span>
+          )}
+        </div>
         <div className="flex items-center gap-2">
           {canCancel && (
             <Link
