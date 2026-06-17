@@ -1,12 +1,14 @@
 -- =============================================
 -- 공통 코드 테이블
 -- 관리자 페이지에서 코드 그룹/값을 동적으로 관리
+-- 사전 조건: common.sql (is_admin 함수)
 --
 -- group_code 목록:
 --   DELIVERY_TYPE  배송 타입 (products.delivery_type)
 --   BOOK_TYPE      출판 형태 (type_meta.book_type)
 --   PRINT_COLOR    인쇄 컬러 (type_meta.print_color)
 --   AGE_LIMIT      연령 제한  (type_meta.age_limit)
+--   BOARD_CATEGORY 게시판 카테고리
 -- =============================================
 CREATE TABLE codes (
   id          SERIAL       PRIMARY KEY,
@@ -20,26 +22,21 @@ CREATE TABLE codes (
   UNIQUE (group_code, code)
 );
 
-
-
--- =============================================
--- RLS
--- =============================================
-ALTER TABLE codes ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "코드는 모두 조회 가능" ON codes FOR SELECT TO public USING (is_active = TRUE);
-CREATE POLICY "관리자는 코드 관리 가능" ON codes FOR ALL USING (auth.jwt() ->> 'role' = 'admin');
-
-
-
--- =============================================
--- 커멘트
--- =============================================
 COMMENT ON TABLE codes IS '공통 코드 테이블. 관리자 페이지에서 group_code 단위로 관리';
 COMMENT ON COLUMN codes.group_code IS '코드 그룹 식별자: DELIVERY_TYPE, BOOK_TYPE 등';
 COMMENT ON COLUMN codes.code IS '저장되는 실제 코드 값 (영문, 스네이크케이스)';
 COMMENT ON COLUMN codes.label IS '화면에 표시할 레이블';
 
+-- =============================================
+-- RLS
+-- =============================================
+ALTER TABLE codes ENABLE ROW LEVEL SECURITY;
 
+CREATE POLICY "codes_select_public"  ON codes FOR SELECT USING (is_active = TRUE);
+CREATE POLICY "codes_select_admin"   ON codes FOR SELECT USING (public.is_admin());
+CREATE POLICY "codes_insert_admin"   ON codes FOR INSERT WITH CHECK (public.is_admin());
+CREATE POLICY "codes_update_admin"   ON codes FOR UPDATE USING (public.is_admin());
+CREATE POLICY "codes_delete_admin"   ON codes FOR DELETE USING (public.is_admin());
 
 -- =============================================
 -- 초기 데이터
@@ -63,16 +60,14 @@ INSERT INTO codes (group_code, code, label, sort_order) VALUES
   ('AGE_LIMIT',   '15',  '15세 이상', 3),
   ('AGE_LIMIT',   '18',  '18세 이상', 4),
 
-  ('BOARD_CATEGORY', 'notice', '공지', 1),
+  ('BOARD_CATEGORY', 'notice',   '공지', 1),
   ('BOARD_CATEGORY', 'question', '질문', 2),
-  ('BOARD_CATEGORY', 'general', '일반', 3),
-  ('BOARD_CATEGORY', 'column', '칼럼', 4)
+  ('BOARD_CATEGORY', 'general',  '일반', 3),
+  ('BOARD_CATEGORY', 'column',   '칼럼', 4)
 ON CONFLICT (group_code, code) DO NOTHING;
 
-
-
 -- =============================================
--- 2026-05-30: products.delivery_type 유효성 검사 트리거
+-- products.delivery_type 유효성 검사 트리거
 -- codes PK가 복합키라 단일 컬럼 FK 불가 → 트리거로 대체
 -- 사전 조건: products 테이블에 delivery_type 컬럼이 추가된 이후 실행
 -- =============================================
@@ -95,26 +90,3 @@ CREATE TRIGGER validate_products_delivery_type
   BEFORE INSERT OR UPDATE OF delivery_type ON products
   FOR EACH ROW
   EXECUTE FUNCTION validate_delivery_type();
-
-
--- =============================================
--- 마이그레이션: 어드민 코드 관리 정책 추가 (is_admin() 기반)
--- 기존 auth.jwt() 기반 정책과 병행 사용
--- =============================================
-
--- 비활성 코드도 어드민은 조회 가능
-CREATE POLICY "codes_select_admin"
-  ON codes FOR SELECT
-  USING (public.is_admin());
-
-CREATE POLICY "codes_insert_admin"
-  ON codes FOR INSERT
-  WITH CHECK (public.is_admin());
-
-CREATE POLICY "codes_update_admin"
-  ON codes FOR UPDATE
-  USING (public.is_admin());
-
-CREATE POLICY "codes_delete_admin"
-  ON codes FOR DELETE
-  USING (public.is_admin());

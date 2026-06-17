@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import { Toaster } from "sonner";
 import AuthStateSync from "@/components/AuthStateSync";
 import ConditionalLayout from "@/components/ConditionalLayout";
 import "./globals.css";
@@ -31,6 +32,7 @@ export default function RootLayout({
       >
         <AuthStateSync />
         <ConditionalLayout>{children}</ConditionalLayout>
+        <Toaster position="top-right" richColors closeButton />
       </body>
     </html>
   );
