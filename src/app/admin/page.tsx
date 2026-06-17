@@ -2,7 +2,7 @@
 
 import React from "react";
 import Link from "next/link";
-import { Users, GraduationCap, HelpCircle, ShoppingBag, ArrowRight } from "lucide-react";
+import { Users, GraduationCap, HelpCircle, ShoppingBag, RotateCcw, ArrowRight } from "lucide-react";
 import { useAdminStats } from "@/hooks/useAdminStats";
 
 type StatKey = "userCount" | "lectureCount" | "faqCount" | "orderCount" | "refundRequestCount";
@@ -31,6 +31,13 @@ const kpiCards: { label: string; key: StatKey; icon: React.ElementType; href: st
     key: "orderCount",
     icon: ShoppingBag,
     href: "/admin/orders",
+  },
+  {
+    label: "환불 요청",
+    key: "refundRequestCount",
+    icon: RotateCcw,
+    href: "/admin/orders?status=refund_requested",
+    highlight: true,
   },
 ];
 

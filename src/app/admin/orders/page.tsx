@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
+import { useSearchParams } from "next/navigation";
 import { ChevronDown, ChevronUp, Package } from "lucide-react";
 import {
   useAdminOrders,
@@ -19,7 +20,6 @@ type StatusFilterValue = OrderStatus | "" | "refund_requested";
 
 const STATUS_TABS: { label: string; value: StatusFilterValue }[] = [
   { label: "전체", value: "" },
-  { label: "결제대기", value: "pending" },
   { label: "결제완료", value: "paid" },
   { label: "배송중", value: "shipped" },
   { label: "배송완료", value: "delivered" },
@@ -28,7 +28,6 @@ const STATUS_TABS: { label: string; value: StatusFilterValue }[] = [
 ];
 
 const STATUS_NEXT: Partial<Record<OrderStatus, OrderStatus[]>> = {
-  pending: ["paid", "cancelled"],
   paid: ["shipped", "cancelled"],
   shipped: ["delivered", "cancelled"],
   delivered: [],
@@ -142,10 +141,13 @@ function OrderItemsRow({
 }
 
 export default function AdminOrdersPage() {
+  const searchParams = useSearchParams();
   const { orders, total, loading, updatingId, fetchOrders, fetchOrderItems, updateStatus, processRefund } =
     useAdminOrders();
   const [page, setPage] = useState(1);
-  const [statusFilter, setStatusFilter] = useState<StatusFilterValue>("");
+  const [statusFilter, setStatusFilter] = useState<StatusFilterValue>(
+    () => (searchParams.get("status") as StatusFilterValue) ?? ""
+  );
   const [expandedId, setExpandedId] = useState<number | null>(null);
 
   const totalPages = Math.ceil(total / PAGE_SIZE);
@@ -156,7 +158,7 @@ export default function AdminOrdersPage() {
   );
 
   useEffect(() => {
-    load(1, "");
+    load(1, statusFilter);
   }, [load]);
 
   const handleStatusTab = (s: StatusFilterValue) => {

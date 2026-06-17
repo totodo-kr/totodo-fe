@@ -85,10 +85,11 @@ export function useAdminOrders() {
         .range(from, to);
 
       if (status === "refund_requested") {
-        // Virtual filter: orders with any refund_status set
         query = query.not("refund_status", "is", null);
       } else if (status) {
         query = query.eq("status", status);
+      } else {
+        query = query.neq("status", "pending");
       }
 
       const { data, count } = await query;
