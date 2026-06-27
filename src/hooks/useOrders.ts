@@ -21,6 +21,8 @@ export interface CreateOrderInput {
   shipping_address: string;
   shipping_zipcode?: string;
   shipping_memo?: string;
+  user_coupon_id?: number;
+  coupon_discount?: number;
 }
 
 export function useOrders() {
@@ -70,6 +72,8 @@ export function useOrders() {
           shipping_zipcode: data.shipping_zipcode ?? null,
           shipping_memo: data.shipping_memo ?? null,
           status: "pending",
+          user_coupon_id: data.user_coupon_id ?? null,
+          coupon_discount: data.coupon_discount ?? 0,
         })
         .select("id, order_number")
         .single();

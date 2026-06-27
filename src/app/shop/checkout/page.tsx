@@ -4,10 +4,12 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
-import { Loader2, AlertCircle, ChevronLeft, Package, CreditCard, Building2, Smartphone, Landmark } from "lucide-react";
+import { Loader2, AlertCircle, ChevronLeft, Package, CreditCard, Building2, Smartphone, Landmark, Ticket } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
 import { useAuthStore } from "@/store/useAuthStore";
 import { useOrders, type OrderItem } from "@/hooks/useOrders";
+import { useCouponValidate } from "@/hooks/useCouponValidate";
+import type { UserCoupon } from "@/types/coupon";
 
 interface CartItem {
   id: number;
@@ -43,6 +45,16 @@ export default function CheckoutPage() {
   const router = useRouter();
   const { user, isLoading: authLoading } = useAuthStore();
   const { creating, createOrder } = useOrders();
+  const {
+    availableCoupons,
+    selectedCouponId,
+    discount: couponDiscount,
+    loading: couponsLoading,
+    validating: couponValidating,
+    fetchAvailableCoupons,
+    selectCoupon,
+    clearCoupon,
+  } = useCouponValidate();
 
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
   const [cartLoading, setCartLoading] = useState(true);
@@ -66,7 +78,9 @@ export default function CheckoutPage() {
   );
   const hasPhysical = cartItems.some((item) => item.delivery_type === "physical");
   const shippingFee = hasPhysical && totalProductPrice < 50000 ? 3000 : 0;
-  const totalDiscount = 0;
+  const appliedCouponDiscount = couponDiscount?.coupon_discount ?? 0;
+  const appliedShippingDiscount = couponDiscount?.shipping_discount ?? 0;
+  const totalDiscount = appliedCouponDiscount + appliedShippingDiscount;
   const finalPrice = totalProductPrice + shippingFee - totalDiscount;
 
   // ─── Fetch cart items ────────────────────────────────────────────────────────
@@ -146,8 +160,9 @@ export default function CheckoutPage() {
   useEffect(() => {
     if (!cartLoading && cartItems.length > 0) {
       initTossPayments();
+      fetchAvailableCoupons();
     }
-  }, [cartLoading, initTossPayments]);
+  }, [cartLoading, initTossPayments, fetchAvailableCoupons]);
 
   // ─── Auth redirect ───────────────────────────────────────────────────────────
   useEffect(() => {
@@ -210,6 +225,8 @@ export default function CheckoutPage() {
         shipping_address: shippingAddress.trim(),
         shipping_zipcode: shippingZipcode.trim() || undefined,
         shipping_memo: shippingMemo.trim() || undefined,
+        user_coupon_id: selectedCouponId ?? undefined,
+        coupon_discount: totalDiscount || undefined,
       });
 
       if (!result) {
@@ -436,6 +453,49 @@ export default function CheckoutPage() {
             </section>
           </div>
 
+            {/* Coupon */}
+            <section className="bg-zinc-900 rounded-xl border border-white/10 p-6">
+              <h2 className="text-xl font-bold text-white mb-5 flex items-center gap-2">
+                <Ticket className="w-5 h-5 text-brand-500" />
+                쿠폰 적용
+              </h2>
+
+              {couponsLoading ? (
+                <div className="flex items-center gap-2 text-gray-400 text-sm">
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  쿠폰 목록 불러오는 중...
+                </div>
+              ) : availableCoupons.length === 0 ? (
+                <p className="text-gray-500 text-sm">사용 가능한 쿠폰이 없습니다.</p>
+              ) : (
+                <div className="space-y-2">
+                  {/* 쿠폰 미사용 */}
+                  <CouponSelectCard
+                    selected={selectedCouponId === null}
+                    onClick={clearCoupon}
+                    label="쿠폰 사용 안함"
+                  />
+                  {availableCoupons.map((uc) => (
+                    <CouponSelectCard
+                      key={uc.id}
+                      selected={selectedCouponId === uc.id}
+                      onClick={() => selectCoupon(uc.id, totalProductPrice, shippingFee)}
+                      label={uc.coupon?.name ?? "—"}
+                      sub={formatCouponLabel(uc)}
+                      loading={couponValidating && selectedCouponId !== uc.id}
+                    />
+                  ))}
+                </div>
+              )}
+
+              {couponDiscount && totalDiscount > 0 && (
+                <p className="mt-3 text-sm font-medium text-brand-400">
+                  {totalDiscount.toLocaleString()}원 할인 적용됨
+                </p>
+              )}
+            </section>
+          </div>
+
           {/* ─── Right Column: Order Summary ──────────────────────────── */}
           <div className="lg:col-span-1">
             <div className="bg-zinc-900 rounded-xl border border-white/10 p-6 sticky top-20">
@@ -482,10 +542,16 @@ export default function CheckoutPage() {
                   <span>배송비</span>
                   <span>{shippingFee > 0 ? `${shippingFee.toLocaleString()}원` : "무료"}</span>
                 </div>
-                {totalDiscount > 0 && (
+                {appliedCouponDiscount > 0 && (
                   <div className="flex justify-between text-sm text-green-400">
-                    <span>할인</span>
-                    <span>-{totalDiscount.toLocaleString()}원</span>
+                    <span>쿠폰 할인</span>
+                    <span>-{appliedCouponDiscount.toLocaleString()}원</span>
+                  </div>
+                )}
+                {appliedShippingDiscount > 0 && (
+                  <div className="flex justify-between text-sm text-green-400">
+                    <span>배송비 할인</span>
+                    <span>-{appliedShippingDiscount.toLocaleString()}원</span>
                   </div>
                 )}
                 <div className="border-t border-white/10 pt-3 flex justify-between">
@@ -519,5 +585,58 @@ export default function CheckoutPage() {
         </div>
       </div>
     </main>
+  );
+}
+
+function formatCouponLabel(uc: UserCoupon) {
+  const c = uc.coupon;
+  if (!c) return "";
+  if (c.discount_type === "fixed") return `${c.discount_value.toLocaleString()}원 할인`;
+  if (c.discount_type === "percentage") {
+    const base = `${c.discount_value}% 할인`;
+    return c.max_discount_amount ? `${base} (최대 ${c.max_discount_amount.toLocaleString()}원)` : base;
+  }
+  return "무료배송";
+}
+
+function CouponSelectCard({
+  selected,
+  onClick,
+  label,
+  sub,
+  loading,
+}: {
+  selected: boolean;
+  onClick: () => void;
+  label: string;
+  sub?: string;
+  loading?: boolean;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={loading}
+      className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg border text-left transition-colors disabled:opacity-50 ${
+        selected
+          ? "border-brand-500 bg-brand-500/10"
+          : "border-white/10 hover:border-white/30"
+      }`}
+    >
+      <div
+        className={`w-4 h-4 rounded-full border-2 shrink-0 flex items-center justify-center ${
+          selected ? "border-brand-500" : "border-gray-600"
+        }`}
+      >
+        {selected && <div className="w-2 h-2 rounded-full bg-brand-500" />}
+      </div>
+      <div className="flex-1 min-w-0">
+        <p className={`text-sm font-medium ${selected ? "text-brand-400" : "text-gray-300"}`}>
+          {label}
+        </p>
+        {sub && <p className="text-xs text-gray-500 mt-0.5">{sub}</p>}
+      </div>
+      {loading && <Loader2 className="w-4 h-4 animate-spin text-gray-500 shrink-0" />}
+    </button>
   );
 }
