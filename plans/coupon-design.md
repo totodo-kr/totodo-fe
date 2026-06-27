@@ -3,10 +3,10 @@
 ## Context
 
 현재 코드베이스에는 쿠폰의 흔적이 일부 존재한다:
-- `delivery_type: coupon` 코드가 products에 있지만, 이는 "쿠폰을 상품으로 판매"하는 용도의 다른 개념
-- `src/app/settings/my-coupons/page.tsx` — 완성된 UI지만 백엔드가 전혀 없음
-- `src/app/settings/page.tsx:44` — 내 쿠폰함 메뉴가 주석 처리됨
-- `orders.total_discount` 컬럼은 존재하지만 항상 0 (하드코딩)
+- `delivery_type: coupon` 코드가 products에 있지만, 이는 "쿠폰을 상품으로 판매"하는 용도의 다른 개념 -> 이번 작업으로 쿠폰이 설계되면, 쿠폰을 여기서 살 수도 있게 함. (할인 쿠폰 판매 등)
+- `src/app/settings/my-coupons/page.tsx` — 완성된 UI지만 백엔드가 전혀 없음 (본인이 소유한 쿠폰은 여기서 조회되게 함)
+- `src/app/settings/page.tsx:44` — 내 쿠폰함 메뉴가 주석 처리됨 (이번 작업 이후 주석 해제)
+- `orders.total_discount` 컬럼은 존재하지만 항상 0 (하드코딩) -> 이번 작업으로 쿠폰이 설계되면, 쿠폰 적용으로 할인할 수 있어야 함.
 - 쿠폰 테이블 없음, 발급/사용 로직 없음
 
 이 작업은 **어드민 쿠폰 발급 → 유저 쿠폰 등록/보유 → 결제 시 적용 → 취소/환불 시 복원** 전체 플로우를 설계·구현한다.
@@ -19,7 +19,7 @@
 - `coupons` — 쿠폰 템플릿 (어드민이 정의): 할인 규칙, 조건, 발급 한도
 - `user_coupons` — 유저별 쿠폰 인스턴스: 발급 기록, 사용 여부, 연결된 주문
 
-> `delivery_type: coupon`(상품으로 판매하는 기프티콘 개념)과 **별개**의 시스템. 혼동 금지.
+> `delivery_type: coupon` 상품을 구매하면 연결된 쿠폰 템플릿이 자동으로 `user_coupons`에 발급된다. 즉, 두 시스템은 **연결**되어 있다. 상품과 쿠폰 템플릿의 연결은 `product_details.type_meta->>'coupon_id'`로 관리한다.
 
 ### 할인 유형
 | type | 설명 | 주의사항 |
@@ -31,6 +31,7 @@
 ### 발급 방식
 - `code` — 유저가 코드 직접 입력 등록
 - `admin_direct` — 어드민이 특정 유저에게 직접 발급 (코드 입력 불필요)
+- `purchase` — `delivery_type: coupon` 상품 결제 완료 시 자동 발급. `order_item`의 `product_details.type_meta->>'coupon_id'`로 연결
 
 ### 적용 규칙
 - **주문당 쿠폰 1개만** 적용 (스택 불가)
@@ -70,14 +71,24 @@
 
 ### 이슈 5: 쿠폰 남용 방지
 - `max_issue_count` — 총 발급 한도
-- `max_use_per_user INTEGER DEFAULT 1` — 유저당 사용 횟수
-- `user_coupons`의 UNIQUE(user_id, coupon_id) — 코드 등록 시 중복 방지
-- 쿠폰 복원 후 재사용 가능 횟수는 `max_use_per_user` 기준 (복원 시 used_count 차감)
+- 유저당 사용 횟수는 **항상 1회**로 고정 — `user_coupons`의 UNIQUE(user_id, coupon_id)로 DB 레벨 보장
+- 복원(취소/환불) 후에는 기존 row의 status를 다시 `active`로 되돌리므로 재사용 가능
+- 여러 번 혜택이 필요한 경우(구독 등)는 주기적으로 새 쿠폰을 발급하는 방식으로 처리
 
-### 이슈 6: 부분 환불과 쿠폰
+### 이슈 6: 쿠폰 상품 취소 시 이미 사용된 쿠폰 처리
+`delivery_type: coupon` 상품을 구매 → 발급된 쿠폰을 다른 주문에 사용 → 원래 쿠폰 상품 주문을 취소하는 경우.
+
+**대응**:
+- `/api/payment/cancel`에서 해당 주문의 `order_items`에 `delivery_type: coupon`이 있으면, 자동 발급된 `user_coupon`을 취소(revoke) 시도
+- 단, 해당 `user_coupon.status = 'used'`인 경우(이미 사용됨) → 취소 불가로 간주하고 쿠폰 회수 없이 주문 취소만 진행. 어드민에게 콘솔 경고 로그 남김
+- 즉 "쿠폰 상품을 취소해도 이미 쓴 쿠폰은 회수 안 됨" — 운영 정책으로 명확히 안내 필요
+
+### 이슈 7: 부분 환불과 쿠폰
 쿠폰이 적용된 주문의 부분 환불 시 실제 환불 금액 계산이 복잡.
 
 **대응**: `orders.coupon_discount` 컬럼을 별도 저장 → 환불 금액 = `refund_amount - coupon_discount_ratio`. 운영 정책으로 "쿠폰 적용 주문은 전체 환불만 가능"도 옵션.
+
+> 이슈 6과 이슈 7의 "쿠폰 상품" vs "쿠폰 적용 주문"을 혼동하지 말 것. 이슈 6은 쿠폰 자체를 상품으로 구매한 케이스, 이슈 7은 기존 쿠폰을 결제에 적용한 케이스.
 
 ---
 
@@ -96,11 +107,11 @@ CREATE TABLE coupons (
   discount_value           INTEGER NOT NULL CHECK (discount_value > 0),  -- 원 or %
   max_discount_amount      INTEGER,                             -- 정률 할인 상한액 (NULL=무제한)
   min_order_amount         INTEGER DEFAULT 0,                   -- 최소 주문금액 (할인 전 상품가 기준)
-  issue_method             VARCHAR(20) DEFAULT 'code' CHECK (issue_method IN ('code', 'admin_direct')),
+  issue_method             VARCHAR(20) DEFAULT 'code' CHECK (issue_method IN ('code', 'admin_direct', 'purchase')),
   max_issue_count          INTEGER,                             -- NULL=무제한
   issued_count             INTEGER DEFAULT 0,
   used_count               INTEGER DEFAULT 0,
-  max_use_per_user         INTEGER DEFAULT 1,
+  -- 유저당 1회 사용 고정: user_coupons UNIQUE(user_id, coupon_id)로 DB 레벨 보장
   valid_from               TIMESTAMP WITH TIME ZONE,
   valid_until              TIMESTAMP WITH TIME ZONE,
   is_active                BOOLEAN DEFAULT TRUE,
@@ -116,8 +127,9 @@ CREATE TABLE user_coupons (
   user_id         UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
   coupon_id       INTEGER NOT NULL REFERENCES coupons(id) ON DELETE CASCADE,
   status          VARCHAR(20) DEFAULT 'active' CHECK (status IN ('active', 'used', 'expired', 'cancelled')),
+  issue_method    VARCHAR(20) NOT NULL CHECK (issue_method IN ('code', 'admin_direct', 'purchase')),
   issued_at       TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-  issued_by       UUID REFERENCES auth.users(id),               -- NULL=유저 직접 등록, UUID=어드민 발급
+  issued_admin_id UUID REFERENCES auth.users(id),               -- NULL=시스템 발급(code/purchase), UUID=직접 발급한 어드민
   used_at         TIMESTAMP WITH TIME ZONE,
   used_order_id   INTEGER REFERENCES orders(id),
   restored_at     TIMESTAMP WITH TIME ZONE,                     -- 복원 일시
@@ -136,6 +148,16 @@ CREATE POLICY "coupons_admin_all"     ON coupons FOR ALL   USING (public.is_admi
 CREATE POLICY "user_coupons_own"        ON user_coupons FOR ALL    USING (auth.uid() = user_id);
 CREATE POLICY "user_coupons_admin_all"  ON user_coupons FOR ALL    USING (public.is_admin());
 ```
+
+### `delivery_type: coupon` 상품과 쿠폰 템플릿 연결
+
+`product_details.type_meta` JSONB에 `coupon_id`를 저장한다 (기존 패턴 활용, 별도 컬럼 추가 불필요):
+
+```json
+{ "coupon_id": 7 }
+```
+
+어드민이 쿠폰 상품을 등록할 때 이 값을 설정. `/api/payment/confirm`에서 `delivery_type: coupon` order_item 감지 시 이 값으로 `user_coupons` INSERT.
 
 ### orders 테이블 마이그레이션 (`supabase/order.sql` 하단에 추가)
 
@@ -224,13 +246,21 @@ createOrder() → Toss 모달 → /api/payment/confirm → 완료
    - user_coupons.status = 'used', used_at, used_order_id 업데이트
    - coupons.used_count += 1
    - 기존 로직 (status='paid', 장바구니 삭제) 유지
+   - order_items 중 delivery_type='coupon'인 항목이 있으면:
+     → product_details.type_meta->>'coupon_id'로 쿠폰 템플릿 조회
+     → user_coupons INSERT (issue_method='purchase', issued_by=NULL)
+     → UNIQUE 충돌(이미 보유)인 경우 에러 없이 skip (ON CONFLICT DO NOTHING)
 ```
 
 ### 취소 시 (/api/payment/cancel, mode='cancel')
 ```
-기존 로직 + orders.user_coupon_id 존재 시:
+기존 로직 + orders.user_coupon_id 존재 시 (할인 쿠폰이 적용된 주문):
   → user_coupons.status = 'active', restored_at = NOW(), used_at = NULL, used_order_id = NULL
   → coupons.used_count -= 1
+order_items 중 delivery_type='coupon'인 항목이 있으면 (쿠폰 상품 구매 취소):
+  → 해당 user_coupon.status 확인
+  → 'active'인 경우: status = 'cancelled'로 변경, coupons.issued_count -= 1
+  → 'used'인 경우: 회수 불가, 로그만 남기고 주문 취소는 진행
 ```
 
 ### 환불 승인 시 (/api/payment/cancel, mode='refund')
@@ -252,7 +282,8 @@ createOrder() → Toss 모달 → /api/payment/confirm → 완료
 - "새 쿠폰 추가" 버튼 → `/admin/coupons/write`
 
 `/admin/coupons/write/page.tsx`:
-- 필드: 쿠폰명, 코드(자동생성 or 직접입력), 할인유형(select), 할인값, 정률할인 상한, 최소주문금액, 발급방식, 최대발급수, 유저당최대사용, 유효기간(시작~종료), 환불복원여부
+- 필드: 쿠폰명, 코드(자동생성 or 직접입력), 할인유형(select), 할인값, 정률할인 상한, 최소주문금액, 발급방식, 최대발급수, 유효기간(시작~종료)
+- 유저당 사용 횟수는 1회 고정이므로 UI 노출 없음. 환불복원 정책도 항상 복원으로 확정되어 노출 없음
 
 `/admin/coupons/[id]/page.tsx`:
 - 쿠폰 기본 정보 + 수정
