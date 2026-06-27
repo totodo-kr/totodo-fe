@@ -163,6 +163,10 @@ ALTER TABLE order_items ADD COLUMN IF NOT EXISTS lecture_id INTEGER REFERENCES l
 CREATE POLICY "order_items_insert_admin" ON order_items FOR INSERT WITH CHECK (public.is_admin());
 CREATE POLICY "order_items_update_admin" ON order_items FOR UPDATE USING (public.is_admin());
 
--- 2026.06.27.
--- 쿠폰 컬럼 (user_coupon_id, coupon_discount) 마이그레이션은 coupons.sql에서 처리
--- user_coupons 테이블이 먼저 생성되어야 외래키 참조 가능하므로 coupons.sql 하단에 위치
+-- =============================================
+-- 2026/06/27
+-- orders 마이그레이션
+-- user_coupons 테이블 생성 이후에 참조 가능하므로 이 파일에서 처리
+-- =============================================
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS user_coupon_id INTEGER REFERENCES user_coupons(id);
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS coupon_discount INTEGER DEFAULT 0;
