@@ -92,3 +92,33 @@ CREATE POLICY "coupons_admin_all"     ON coupons FOR ALL   USING (public.is_admi
 CREATE POLICY "user_coupons_own"       ON user_coupons FOR ALL USING (auth.uid() = user_id);
 CREATE POLICY "user_coupons_admin_all" ON user_coupons FOR ALL USING (public.is_admin());
 
+-- =============================================
+-- orders 마이그레이션
+-- user_coupons 테이블 생성 이후에 참조 가능하므로 이 파일에서 처리
+-- =============================================
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS user_coupon_id INTEGER REFERENCES user_coupons(id);
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS coupon_discount INTEGER DEFAULT 0;
+
+-- =============================================
+-- RPC 함수 (카운트 증감 — 동시성 안전)
+-- =============================================
+CREATE OR REPLACE FUNCTION increment_coupon_used_count(coupon_id_arg INT)
+RETURNS void LANGUAGE sql SECURITY DEFINER AS $$
+  UPDATE coupons SET used_count = used_count + 1 WHERE id = coupon_id_arg;
+$$;
+
+CREATE OR REPLACE FUNCTION decrement_coupon_used_count(coupon_id_arg INT, amount_arg INT DEFAULT 1)
+RETURNS void LANGUAGE sql SECURITY DEFINER AS $$
+  UPDATE coupons SET used_count = GREATEST(0, used_count - amount_arg) WHERE id = coupon_id_arg;
+$$;
+
+CREATE OR REPLACE FUNCTION increment_coupon_issued_count(coupon_id_arg INT)
+RETURNS void LANGUAGE sql SECURITY DEFINER AS $$
+  UPDATE coupons SET issued_count = issued_count + 1 WHERE id = coupon_id_arg;
+$$;
+
+CREATE OR REPLACE FUNCTION decrement_coupon_issued_count(coupon_id_arg INT, amount_arg INT DEFAULT 1)
+RETURNS void LANGUAGE sql SECURITY DEFINER AS $$
+  UPDATE coupons SET issued_count = GREATEST(0, issued_count - amount_arg) WHERE id = coupon_id_arg;
+$$;
+

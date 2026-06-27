@@ -28,7 +28,57 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // 1. Call Toss Payments confirm API
+    // admin client used for DB writes — orders RLS has no user-level UPDATE policy
+    const admin = createAdminClient();
+
+    // 1. Verify order exists and is not already paid (idempotency)
+    const { data: orderRow } = await admin
+      .from("orders")
+      .select("id, user_id, final_price, status, user_coupon_id, coupon_discount")
+      .eq("order_number", orderId)
+      .single();
+
+    if (!orderRow) {
+      return NextResponse.json({ error: "주문을 찾을 수 없습니다." }, { status: 404 });
+    }
+
+    if (orderRow.status === "paid") {
+      return NextResponse.json({ success: true, already_confirmed: true });
+    }
+
+    // 2. Amount match check
+    if (orderRow.final_price !== amount) {
+      console.error(`Amount mismatch: DB=${orderRow.final_price}, received=${amount}`);
+      return NextResponse.json({ error: "결제 금액이 주문 금액과 일치하지 않습니다." }, { status: 400 });
+    }
+
+    // 3. [쿠폰] Toss 호출 전 쿠폰 재검증
+    if (orderRow.user_coupon_id) {
+      const { data: userCoupon } = await admin
+        .from("user_coupons")
+        .select("id, status, coupons(is_active, valid_until)")
+        .eq("id", orderRow.user_coupon_id)
+        .eq("status", "active")
+        .single();
+
+      if (!userCoupon) {
+        return NextResponse.json(
+          { error: "선택한 쿠폰이 만료되었어요!", code: "COUPON_EXPIRED" },
+          { status: 400 }
+        );
+      }
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const coupon = userCoupon.coupons as any;
+      if (!coupon?.is_active || (coupon.valid_until && new Date(coupon.valid_until) < new Date())) {
+        return NextResponse.json(
+          { error: "선택한 쿠폰이 만료되었어요!", code: "COUPON_EXPIRED" },
+          { status: 400 }
+        );
+      }
+    }
+
+    // 4. Call Toss Payments confirm API
     const encoded = Buffer.from(`${secretKey}:`).toString("base64");
     const tossRes = await fetch(
       "https://api.tosspayments.com/v1/payments/confirm",
@@ -52,30 +102,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // 2. Verify order exists, amount matches, and is not already paid (idempotency)
-    // admin client used for DB writes — orders RLS has no user-level UPDATE policy
-    const admin = createAdminClient();
-
-    const { data: orderRow } = await admin
-      .from("orders")
-      .select("id, final_price, status")
-      .eq("order_number", orderId)
-      .single();
-
-    if (!orderRow) {
-      return NextResponse.json({ error: "주문을 찾을 수 없습니다." }, { status: 404 });
-    }
-
-    if (orderRow.status === "paid") {
-      return NextResponse.json({ success: true, already_confirmed: true });
-    }
-
-    if (orderRow.final_price !== amount) {
-      console.error(`Amount mismatch: DB=${orderRow.final_price}, received=${amount}`);
-      return NextResponse.json({ error: "결제 금액이 주문 금액과 일치하지 않습니다." }, { status: 400 });
-    }
-
-    // 3. Update order in DB: status='paid', payment_method, paid_at
+    // 5. Update order: status='paid'
     const { error: updateError } = await admin
       .from("orders")
       .update({
@@ -93,11 +120,82 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "주문 상태 업데이트에 실패했습니다." }, { status: 500 });
     }
 
-    // 4. Clear the user's cart
+    // 6. [쿠폰] 할인 쿠폰 status='used' 원자적 처리 (WHERE status='active' 조건으로 레이스 컨디션 방지)
+    if (orderRow.user_coupon_id) {
+      const { error: couponUpdateError } = await admin
+        .from("user_coupons")
+        .update({
+          status: "used",
+          used_at: new Date().toISOString(),
+          used_order_id: orderRow.id,
+        })
+        .eq("id", orderRow.user_coupon_id)
+        .eq("status", "active");
+
+      if (!couponUpdateError) {
+        // 쿠폰 사용 카운트 증가 (UPDATE가 실제로 적용된 경우에만)
+        await admin.rpc("increment_coupon_used_count", { coupon_id_arg: orderRow.user_coupon_id });
+      }
+    }
+
+    // 7. [쿠폰 상품] delivery_type='coupon'인 order_items → user_coupons 자동 발급
+    const { data: orderItems } = await admin
+      .from("order_items")
+      .select(`
+        id, product_id, quantity,
+        products (
+          delivery_type,
+          product_details (type_meta)
+        )
+      `)
+      .eq("order_id", orderRow.id)
+      .not("product_id", "is", null);
+
+    const couponItems = (orderItems ?? []).filter(
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (item: any) => item.products?.delivery_type === "coupon"
+    );
+
+    if (couponItems.length > 0) {
+      let seq = 0;
+      const issuedCouponIds = new Set<number>();
+
+      for (const item of couponItems) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const pd = (item as any).products?.product_details;
+        const typeMeta = Array.isArray(pd) ? pd[0]?.type_meta : pd?.type_meta;
+        const couponId = typeMeta?.coupon_id;
+        if (!couponId) continue;
+
+        for (let q = 0; q < (item as { quantity: number }).quantity; q++) {
+          seq++;
+          const issue_epoch = `${orderRow.id}_${seq}`;
+          // ON CONFLICT DO NOTHING: 멱등성 보장 (confirm 재실행 시 중복 방지)
+          const { error: issueError } = await admin
+            .from("user_coupons")
+            .insert({
+              user_id: orderRow.user_id,
+              coupon_id: couponId,
+              issue_epoch,
+              issue_method: "purchase",
+              status: "active",
+            });
+
+          if (!issueError) {
+            issuedCouponIds.add(couponId);
+          }
+        }
+      }
+
+      // issued_count 증가 (실제 발급된 쿠폰 ID별로)
+      for (const couponId of issuedCouponIds) {
+        await admin.rpc("increment_coupon_issued_count", { coupon_id_arg: couponId });
+      }
+    }
+
+    // 8. Clear the user's cart
     const supabase = await createClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
+    const { data: { user } } = await supabase.auth.getUser();
 
     if (user) {
       const { error: cartError } = await admin
