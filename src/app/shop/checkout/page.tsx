@@ -451,7 +451,6 @@ export default function CheckoutPage() {
                 </div>
               )}
             </section>
-          </div>
 
             {/* Coupon */}
             <section className="bg-zinc-900 rounded-xl border border-white/10 p-6">
@@ -469,7 +468,6 @@ export default function CheckoutPage() {
                 <p className="text-gray-500 text-sm">사용 가능한 쿠폰이 없습니다.</p>
               ) : (
                 <div className="space-y-2">
-                  {/* 쿠폰 미사용 */}
                   <CouponSelectCard
                     selected={selectedCouponId === null}
                     onClick={clearCoupon}
