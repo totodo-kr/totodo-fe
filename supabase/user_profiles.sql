@@ -5,6 +5,7 @@
 -- =============================================
 CREATE TABLE IF NOT EXISTS public.profiles (
   id             UUID REFERENCES auth.users ON DELETE CASCADE NOT NULL PRIMARY KEY,
+  email          TEXT,
   name           TEXT,
   display_name   TEXT,
   country        TEXT,
@@ -33,9 +34,10 @@ CREATE POLICY "Admins can update any profile."
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS TRIGGER LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
 BEGIN
-  INSERT INTO public.profiles (id, name, avatar_url)
+  INSERT INTO public.profiles (id, email, name, avatar_url)
   VALUES (
     NEW.id,
+    NEW.email,
     COALESCE(NEW.raw_user_meta_data ->> 'full_name', NEW.raw_user_meta_data ->> 'name'),
     NEW.raw_user_meta_data ->> 'avatar_url'
   );
@@ -56,3 +58,11 @@ ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS job_description TEXT;
 ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS display_name TEXT;
 
 UPDATE public.profiles SET display_name = name WHERE display_name IS NULL;
+
+-- email 컬럼 추가 및 기존 유저 데이터 채우기
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS email TEXT;
+
+UPDATE public.profiles p
+SET email = u.email
+FROM auth.users u
+WHERE p.id = u.id AND p.email IS NULL;

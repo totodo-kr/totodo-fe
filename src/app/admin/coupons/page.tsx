@@ -119,7 +119,7 @@ export default function AdminCouponsPage() {
         <ResultCount total={total} unit="개" />
       </div>
 
-      <FilterTabs tabs={FILTER_TABS} active={filter} onChange={handleFilter} />
+      <FilterTabs tabs={FILTER_TABS} active={filter} onChange={handleFilter} className="mb-4" />
 
       <AdminTable
         columns={COLUMNS}
