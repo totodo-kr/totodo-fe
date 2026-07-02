@@ -42,7 +42,7 @@ export function useCancelRefund() {
       if (!order) return false;
 
       const refundAmount = amount ?? order.final_price;
-      if (refundAmount <= 0 || refundAmount > order.final_price) return false;
+      if (refundAmount < 0 || refundAmount > order.final_price) return false;
 
       const { error } = await supabase
         .from("orders")

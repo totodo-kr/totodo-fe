@@ -109,9 +109,11 @@ RETURNS void LANGUAGE sql SECURITY DEFINER AS $$
   WHERE id = (SELECT coupon_id FROM user_coupons WHERE id = user_coupon_id_arg);
 $$;
 
-CREATE OR REPLACE FUNCTION decrement_coupon_used_count(coupon_id_arg INT, amount_arg INT DEFAULT 1)
+CREATE OR REPLACE FUNCTION decrement_coupon_used_count(user_coupon_id_arg INT, amount_arg INT DEFAULT 1)
 RETURNS void LANGUAGE sql SECURITY DEFINER AS $$
-  UPDATE coupons SET used_count = GREATEST(0, used_count - amount_arg) WHERE id = coupon_id_arg;
+  UPDATE coupons
+  SET used_count = GREATEST(0, used_count - amount_arg)
+  WHERE id = (SELECT coupon_id FROM user_coupons WHERE id = user_coupon_id_arg);
 $$;
 
 CREATE OR REPLACE FUNCTION increment_coupon_issued_count(coupon_id_arg INT)

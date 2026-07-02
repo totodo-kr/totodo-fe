@@ -35,7 +35,6 @@ export default function RefundPage({ params }: { params: Promise<{ id: string }>
   const [loadingOrder, setLoadingOrder] = useState(true);
   const [notRefundable, setNotRefundable] = useState(false);
   const [reason, setReason] = useState("");
-  const [refundAmount, setRefundAmount] = useState<string>("");
   const [submitError, setSubmitError] = useState("");
 
   useEffect(() => {
@@ -58,7 +57,6 @@ export default function RefundPage({ params }: { params: Promise<{ id: string }>
           setNotRefundable(true);
         } else {
           setOrder(data as OrderSummary);
-          setRefundAmount(String(data.final_price));
         }
         setLoadingOrder(false);
       });
@@ -72,29 +70,15 @@ export default function RefundPage({ params }: { params: Promise<{ id: string }>
       return;
     }
 
-    const parsedAmount = parseInt(refundAmount.replace(/,/g, ""), 10);
-    if (isNaN(parsedAmount) || parsedAmount <= 0) {
-      setSubmitError("올바른 환불 금액을 입력해 주세요.");
-      return;
-    }
-
-    if (order && parsedAmount > order.final_price) {
-      setSubmitError(`환불 금액은 결제금액(${order.final_price.toLocaleString()}원)을 초과할 수 없습니다.`);
-      return;
-    }
+    const refundAmount = order?.final_price ?? 0;
 
     setSubmitError("");
-    const ok = await requestRefund(orderId, reason.trim(), parsedAmount);
+    const ok = await requestRefund(orderId, reason.trim(), refundAmount);
     if (ok) {
       router.push(`/settings/purchases/${id}?refund=1`);
     } else {
       setSubmitError("환불 신청 중 오류가 발생했습니다. 다시 시도해 주세요.");
     }
-  };
-
-  const handleAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const raw = e.target.value.replace(/[^0-9]/g, "");
-    setRefundAmount(raw);
   };
 
   return (
@@ -132,31 +116,6 @@ export default function RefundPage({ params }: { params: Promise<{ id: string }>
               </p>
             </div>
           )}
-
-          {/* 환불 금액 */}
-          <div className="bg-[#1a1a1a] rounded-2xl border border-white/5 p-5">
-            <label className="block text-sm font-medium text-white mb-3">
-              환불 금액
-            </label>
-            <div className="relative">
-              <input
-                type="text"
-                inputMode="numeric"
-                value={refundAmount ? Number(refundAmount).toLocaleString() : ""}
-                onChange={handleAmountChange}
-                placeholder="환불 금액 입력"
-                className="w-full bg-[#252525] border border-white/10 rounded-xl px-4 py-3 text-sm text-white placeholder-gray-600 outline-none focus:border-brand-500/50 transition-colors pr-8"
-              />
-              <span className="absolute right-4 top-1/2 -translate-y-1/2 text-sm text-gray-500">
-                원
-              </span>
-            </div>
-            {order && (
-              <p className="mt-2 text-xs text-gray-600">
-                최대 환불 가능: {order.final_price.toLocaleString()}원
-              </p>
-            )}
-          </div>
 
           {/* 환불 사유 */}
           <div className="bg-[#1a1a1a] rounded-2xl border border-white/5 p-5">

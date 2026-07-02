@@ -84,7 +84,7 @@ export async function POST(req: NextRequest) {
 
     // 4. 쿠폰 → used (WHERE status='active' 조건으로 레이스 컨디션 방지)
     if (orderRow.user_coupon_id) {
-      const { error: couponUpdateError } = await admin
+      const { data: updatedCoupons, error: couponUpdateError } = await admin
         .from("user_coupons")
         .update({
           status: "used",
@@ -92,9 +92,10 @@ export async function POST(req: NextRequest) {
           used_order_id: orderRow.id,
         })
         .eq("id", orderRow.user_coupon_id)
-        .eq("status", "active");
+        .eq("status", "active")
+        .select();
 
-      if (!couponUpdateError) {
+      if (!couponUpdateError && updatedCoupons && updatedCoupons.length > 0) {
         await admin.rpc("increment_coupon_used_count", {
           user_coupon_id_arg: orderRow.user_coupon_id,
         });

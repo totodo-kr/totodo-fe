@@ -175,7 +175,7 @@ export async function POST(req: NextRequest) {
 
       // used_count 감소
       await adminDb.rpc("decrement_coupon_used_count", {
-        coupon_id_arg: order.user_coupon_id,
+        user_coupon_id_arg: order.user_coupon_id,
         amount_arg: 1,
       });
     }
