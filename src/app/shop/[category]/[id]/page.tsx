@@ -3,6 +3,7 @@
 import { use, useEffect, useState, useRef } from "react";
 import Image from "next/image";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Heart, Share2, ChevronRight, Lock, Loader2 } from "lucide-react";
 import { useProducts, ShopProductDetail, ProductReview, ProductQna } from "@/hooks/useProducts";
 import { useCart } from "@/hooks/useCart";
@@ -41,6 +42,7 @@ export default function ProductDetailPage({
   params: Promise<{ category: string; id: string }>;
 }) {
   const { category, id } = use(params);
+  const router = useRouter();
   const { user } = useAuthStore();
   const { fetchProduct, fetchProductReviews, fetchProductQna } = useProducts();
   const { addToCart } = useCart();
@@ -178,6 +180,17 @@ export default function ProductDetailPage({
       setCartAdded(true);
       setTimeout(() => setCartAdded(false), 2000);
     }
+  };
+
+  const [buyLoading, setBuyLoading] = useState(false);
+
+  const handleBuyNow = async () => {
+    if (!user) { setLoginOpen(true); return; }
+    if (buyLoading) return;
+    setBuyLoading(true);
+    await addToCart(productId, quantity);
+    setBuyLoading(false);
+    router.push("/shop/checkout");
   };
 
   const handleToggleWishlist = async () => {
@@ -417,8 +430,12 @@ export default function ProductDetailPage({
                     "장바구니"
                   )}
                 </button>
-                <button className="py-4 px-6 rounded-lg bg-brand-500 hover:bg-brand-600 transition-colors font-bold">
-                  구매하기
+                <button
+                  onClick={handleBuyNow}
+                  disabled={buyLoading}
+                  className="py-4 px-6 rounded-lg bg-brand-500 hover:bg-brand-600 transition-colors font-bold disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                >
+                  {buyLoading ? <Loader2 size={18} className="animate-spin" /> : "구매하기"}
                 </button>
               </div>
             )}
@@ -720,8 +737,12 @@ export default function ProductDetailPage({
                     "장바구니"
                   )}
                 </button>
-                <button className="px-8 py-3 rounded-lg bg-brand-500 hover:bg-brand-600 transition-colors font-bold">
-                  구매하기
+                <button
+                  onClick={handleBuyNow}
+                  disabled={buyLoading}
+                  className="px-8 py-3 rounded-lg bg-brand-500 hover:bg-brand-600 transition-colors font-bold disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                >
+                  {buyLoading ? <Loader2 size={16} className="animate-spin" /> : "구매하기"}
                 </button>
               </div>
             )}

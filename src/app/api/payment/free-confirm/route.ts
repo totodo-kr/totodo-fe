@@ -1,58 +1,46 @@
-// Server-side API route for Toss Payments confirmation.
-//
-// Required environment variables:
-// NEXT_PUBLIC_TOSS_CLIENT_KEY — Toss Payments client key (browser-side)
-// TOSS_SECRET_KEY             — Toss Payments secret key (server-side only, never expose to client)
-
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/utils/supabase/server";
 import { createAdminClient } from "@/utils/supabase/admin";
 
 export async function POST(req: NextRequest) {
   try {
-    const { paymentKey, orderId, amount } = await req.json();
+    const { orderId } = await req.json();
 
-    if (!paymentKey || !orderId || amount === undefined) {
-      return NextResponse.json(
-        { error: "필수 파라미터가 누락되었습니다." },
-        { status: 400 }
-      );
+    if (!orderId) {
+      return NextResponse.json({ error: "필수 파라미터가 누락되었습니다." }, { status: 400 });
     }
 
-    const secretKey = process.env.TOSS_SECRET_KEY;
-    if (!secretKey) {
-      console.error("TOSS_SECRET_KEY is not set");
-      return NextResponse.json(
-        { error: "서버 설정 오류가 발생했습니다." },
-        { status: 500 }
-      );
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+
+    if (!user) {
+      return NextResponse.json({ error: "인증이 필요합니다." }, { status: 401 });
     }
 
-    // admin client used for DB writes — orders RLS has no user-level UPDATE policy
     const admin = createAdminClient();
 
-    // 1. Verify order exists and is not already paid (idempotency)
+    // 1. 주문 조회 (본인 주문, 0원, pending 상태만)
     const { data: orderRow } = await admin
       .from("orders")
-      .select("id, user_id, final_price, status, user_coupon_id, coupon_discount")
+      .select("id, user_id, final_price, status, user_coupon_id")
       .eq("order_number", orderId)
+      .eq("user_id", user.id)
       .single();
 
     if (!orderRow) {
       return NextResponse.json({ error: "주문을 찾을 수 없습니다." }, { status: 404 });
     }
 
+    if (orderRow.final_price !== 0) {
+      return NextResponse.json({ error: "0원 주문이 아닙니다." }, { status: 400 });
+    }
+
+    // 멱등성: 이미 처리된 주문
     if (orderRow.status === "paid") {
       return NextResponse.json({ success: true, already_confirmed: true });
     }
 
-    // 2. Amount match check
-    if (orderRow.final_price !== amount) {
-      console.error(`Amount mismatch: DB=${orderRow.final_price}, received=${amount}`);
-      return NextResponse.json({ error: "결제 금액이 주문 금액과 일치하지 않습니다." }, { status: 400 });
-    }
-
-    // 3. [쿠폰] Toss 호출 전 쿠폰 재검증
+    // 2. 쿠폰 재검증
     if (orderRow.user_coupon_id) {
       const { data: userCoupon } = await admin
         .from("user_coupons")
@@ -78,37 +66,11 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // 4. Call Toss Payments confirm API
-    const encoded = Buffer.from(`${secretKey}:`).toString("base64");
-    const tossRes = await fetch(
-      "https://api.tosspayments.com/v1/payments/confirm",
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Basic ${encoded}`,
-        },
-        body: JSON.stringify({ paymentKey, orderId, amount }),
-      }
-    );
-
-    const tossData = await tossRes.json();
-
-    if (!tossRes.ok) {
-      console.error("Toss confirm error:", tossData);
-      return NextResponse.json(
-        { error: tossData.message ?? "Toss 결제 확인에 실패했습니다." },
-        { status: 400 }
-      );
-    }
-
-    // 5. Update order: status='paid'
+    // 3. 주문 status → paid
     const { error: updateError } = await admin
       .from("orders")
       .update({
         status: "paid",
-        payment_method: tossData.method ?? null,
-        payment_info: tossData,
         paid_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       })
@@ -120,7 +82,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "주문 상태 업데이트에 실패했습니다." }, { status: 500 });
     }
 
-    // 6. [쿠폰] 할인 쿠폰 status='used' 원자적 처리 (WHERE status='active' 조건으로 레이스 컨디션 방지)
+    // 4. 쿠폰 → used (WHERE status='active' 조건으로 레이스 컨디션 방지)
     if (orderRow.user_coupon_id) {
       const { error: couponUpdateError } = await admin
         .from("user_coupons")
@@ -139,7 +101,7 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // 7. [쿠폰 상품] delivery_type='coupon'인 order_items → user_coupons 자동 발급
+    // 5. 쿠폰 상품(delivery_type='coupon') 자동 발급
     const { data: orderItems } = await admin
       .from("order_items")
       .select(`
@@ -152,10 +114,8 @@ export async function POST(req: NextRequest) {
       .eq("order_id", orderRow.id)
       .not("product_id", "is", null);
 
-    const couponItems = (orderItems ?? []).filter(
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (item: any) => item.products?.delivery_type === "coupon"
-    );
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const couponItems = (orderItems ?? []).filter((item: any) => item.products?.delivery_type === "coupon");
 
     if (couponItems.length > 0) {
       let seq = 0;
@@ -171,7 +131,6 @@ export async function POST(req: NextRequest) {
         for (let q = 0; q < (item as { quantity: number }).quantity; q++) {
           seq++;
           const issue_epoch = `${orderRow.id}_${seq}`;
-          // ON CONFLICT DO NOTHING: 멱등성 보장 (confirm 재실행 시 중복 방지)
           const { error: issueError } = await admin
             .from("user_coupons")
             .insert({
@@ -182,43 +141,28 @@ export async function POST(req: NextRequest) {
               status: "active",
             });
 
-          if (!issueError) {
-            issuedCouponIds.add(couponId);
-          }
+          if (!issueError) issuedCouponIds.add(couponId);
         }
       }
 
-      // issued_count 증가 (실제 발급된 쿠폰 ID별로)
       for (const couponId of issuedCouponIds) {
         await admin.rpc("increment_coupon_issued_count", { coupon_id_arg: couponId });
       }
     }
 
-    // 8. Clear the user's cart
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
+    // 6. 장바구니 비우기
+    const { error: cartError } = await admin
+      .from("cart_items")
+      .delete()
+      .eq("user_id", user.id);
 
-    if (user) {
-      const { error: cartError } = await admin
-        .from("cart_items")
-        .delete()
-        .eq("user_id", user.id);
-
-      if (cartError) {
-        console.error("Cart clear error:", cartError);
-      }
+    if (cartError) {
+      console.error("Cart clear error:", cartError);
     }
 
-    return NextResponse.json({
-      success: true,
-      method: tossData.method ?? null,
-      approvedAt: tossData.approvedAt ?? null,
-    });
+    return NextResponse.json({ success: true });
   } catch (err) {
-    console.error("Payment confirm unexpected error:", err);
-    return NextResponse.json(
-      { error: "결제 처리 중 오류가 발생했습니다." },
-      { status: 500 }
-    );
+    console.error("Free order confirm error:", err);
+    return NextResponse.json({ error: "처리 중 오류가 발생했습니다." }, { status: 500 });
   }
 }

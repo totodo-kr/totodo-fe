@@ -46,7 +46,8 @@ export function useOrders() {
    * Returns { order_id, order_number } on success, null on error.
    */
   async function createOrder(
-    data: CreateOrderInput
+    data: CreateOrderInput,
+    status: "pending" | "paid" = "pending"
   ): Promise<{ order_id: number; order_number: string } | null> {
     if (!user) return null;
 
@@ -71,7 +72,7 @@ export function useOrders() {
           shipping_address: data.shipping_address,
           shipping_zipcode: data.shipping_zipcode ?? null,
           shipping_memo: data.shipping_memo ?? null,
-          status: "pending",
+          status,
           user_coupon_id: data.user_coupon_id ?? null,
           coupon_discount: data.coupon_discount ?? 0,
         })

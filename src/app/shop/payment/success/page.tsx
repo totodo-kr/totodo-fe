@@ -13,6 +13,7 @@ function PaymentSuccessContent() {
   const paymentKey = searchParams.get("paymentKey") ?? "";
   const orderId = searchParams.get("orderId") ?? "";
   const amount = searchParams.get("amount") ?? "";
+  const isFree = searchParams.get("free") === "true";
 
   const [status, setStatus] = useState<ConfirmStatus>("pending");
   const [paymentMethod, setPaymentMethod] = useState<string | null>(null);
@@ -30,6 +31,32 @@ function PaymentSuccessContent() {
     const storedOrderId = sessionStorage.getItem("pending_order_id");
     setOrderNumber(storedOrderNumber);
     setOrderIdDb(storedOrderId);
+
+    // 0원 주문: Toss 없이 서버에서 쿠폰 처리 + 장바구니 초기화
+    if (isFree) {
+      async function confirmFreeOrder() {
+        try {
+          const res = await fetch("/api/payment/free-confirm", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ orderId: storedOrderNumber }),
+          });
+          const data = await res.json();
+          if (!res.ok) {
+            throw new Error(data.error ?? "주문 처리에 실패했습니다.");
+          }
+          setStatus("success");
+          sessionStorage.removeItem("pending_order_number");
+          sessionStorage.removeItem("pending_order_id");
+        } catch (err) {
+          console.error("Free confirm error:", err);
+          setErrorMessage(err instanceof Error ? err.message : "주문 처리 중 오류가 발생했습니다.");
+          setStatus("error");
+        }
+      }
+      confirmFreeOrder();
+      return;
+    }
 
     if (!paymentKey || !orderId || !amount) {
       setStatus("error");
@@ -74,7 +101,7 @@ function PaymentSuccessContent() {
     }
 
     confirmPayment();
-  }, [paymentKey, orderId, amount]);
+  }, [paymentKey, orderId, amount, isFree]);
 
   // ─── Pending ────────────────────────────────────────────────────────────────
   if (status === "pending") {
@@ -155,7 +182,7 @@ function PaymentSuccessContent() {
           <div className="flex justify-between text-sm">
             <span className="text-gray-400">결제 금액</span>
             <span className="text-brand-500 font-bold">
-              {Number(amount).toLocaleString()}원
+              {isFree ? "무료" : `${Number(amount).toLocaleString()}원`}
             </span>
           </div>
         </div>

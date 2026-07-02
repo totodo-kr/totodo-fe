@@ -102,9 +102,11 @@ ALTER TABLE orders ADD COLUMN IF NOT EXISTS coupon_discount INTEGER DEFAULT 0;
 -- =============================================
 -- RPC 함수 (카운트 증감 — 동시성 안전)
 -- =============================================
-CREATE OR REPLACE FUNCTION increment_coupon_used_count(coupon_id_arg INT)
+CREATE OR REPLACE FUNCTION increment_coupon_used_count(user_coupon_id_arg INT)
 RETURNS void LANGUAGE sql SECURITY DEFINER AS $$
-  UPDATE coupons SET used_count = used_count + 1 WHERE id = coupon_id_arg;
+  UPDATE coupons
+  SET used_count = used_count + 1
+  WHERE id = (SELECT coupon_id FROM user_coupons WHERE id = user_coupon_id_arg);
 $$;
 
 CREATE OR REPLACE FUNCTION decrement_coupon_used_count(coupon_id_arg INT, amount_arg INT DEFAULT 1)

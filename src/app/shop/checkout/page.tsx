@@ -76,8 +76,10 @@ export default function CheckoutPage() {
     (sum, item) => sum + item.price * item.quantity,
     0
   );
-  const hasPhysical = cartItems.some((item) => item.delivery_type === "physical");
-  const shippingFee = hasPhysical && totalProductPrice < 50000 ? 3000 : 0;
+  const physicalSubtotal = cartItems
+    .filter((item) => item.delivery_type === "physical")
+    .reduce((sum, item) => sum + item.price * item.quantity, 0);
+  const shippingFee = physicalSubtotal > 0 && physicalSubtotal < 30000 ? 3000 : 0;
   const appliedCouponDiscount = couponDiscount?.coupon_discount ?? 0;
   const appliedShippingDiscount = couponDiscount?.shipping_discount ?? 0;
   const totalDiscount = appliedCouponDiscount + appliedShippingDiscount;
@@ -194,10 +196,6 @@ export default function CheckoutPage() {
   // ─── Payment handler ─────────────────────────────────────────────────────────
   async function handlePayment() {
     if (!validateForm()) return;
-    if (!paymentRef.current || !paymentReady) {
-      alert("결제 모듈이 아직 로딩 중입니다. 잠시 후 다시 시도해주세요.");
-      return;
-    }
     if (cartItems.length === 0) {
       alert("장바구니가 비어있습니다.");
       return;
@@ -205,29 +203,56 @@ export default function CheckoutPage() {
 
     setRequestingPayment(true);
 
-    try {
-      const orderItems: OrderItem[] = cartItems.map((item) => ({
-        product_id: item.product_id,
-        product_name: item.title,
-        product_price: item.price,
-        quantity: item.quantity,
-        subtotal: item.price * item.quantity,
-      }));
+    const orderItems: OrderItem[] = cartItems.map((item) => ({
+      product_id: item.product_id,
+      product_name: item.title,
+      product_price: item.price,
+      quantity: item.quantity,
+      subtotal: item.price * item.quantity,
+    }));
 
-      const result = await createOrder({
-        items: orderItems,
-        total_product_price: totalProductPrice,
-        total_shipping_fee: shippingFee,
-        total_discount: totalDiscount,
-        final_price: finalPrice,
-        recipient_name: recipientName.trim(),
-        recipient_phone: recipientPhone.trim(),
-        shipping_address: shippingAddress.trim(),
-        shipping_zipcode: shippingZipcode.trim() || undefined,
-        shipping_memo: shippingMemo.trim() || undefined,
-        user_coupon_id: selectedCouponId ?? undefined,
-        coupon_discount: totalDiscount || undefined,
-      });
+    const orderInput = {
+      items: orderItems,
+      total_product_price: totalProductPrice,
+      total_shipping_fee: shippingFee,
+      total_discount: totalDiscount,
+      final_price: finalPrice,
+      recipient_name: recipientName.trim(),
+      recipient_phone: recipientPhone.trim(),
+      shipping_address: shippingAddress.trim(),
+      shipping_zipcode: shippingZipcode.trim() || undefined,
+      shipping_memo: shippingMemo.trim() || undefined,
+      user_coupon_id: selectedCouponId ?? undefined,
+      coupon_discount: totalDiscount || undefined,
+    };
+
+    // 0원 결제: Toss 없이 바로 완료
+    if (finalPrice === 0) {
+      try {
+        const result = await createOrder(orderInput);
+        if (!result) {
+          alert("주문 생성에 실패했습니다. 다시 시도해주세요.");
+          setRequestingPayment(false);
+          return;
+        }
+        sessionStorage.setItem("pending_order_id", String(result.order_id));
+        sessionStorage.setItem("pending_order_number", result.order_number);
+        router.push("/shop/payment/success?free=true&amount=0");
+      } catch (err) {
+        console.error("Free order error:", err);
+        setRequestingPayment(false);
+      }
+      return;
+    }
+
+    if (!paymentRef.current || !paymentReady) {
+      alert("결제 모듈이 아직 로딩 중입니다. 잠시 후 다시 시도해주세요.");
+      setRequestingPayment(false);
+      return;
+    }
+
+    try {
+      const result = await createOrder(orderInput);
 
       if (!result) {
         alert("주문 생성에 실패했습니다. 다시 시도해주세요.");
@@ -562,7 +587,7 @@ export default function CheckoutPage() {
 
               <button
                 onClick={handlePayment}
-                disabled={creating || requestingPayment || !paymentReady || !!paymentInitError}
+                disabled={creating || requestingPayment || (finalPrice > 0 && (!paymentReady || !!paymentInitError))}
                 className="mt-6 w-full py-4 bg-brand-500 hover:bg-brand-600 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg font-bold text-base transition-colors flex items-center justify-center gap-2"
               >
                 {creating || requestingPayment ? (
@@ -570,6 +595,8 @@ export default function CheckoutPage() {
                     <Loader2 className="w-4 h-4 animate-spin" />
                     처리 중...
                   </>
+                ) : finalPrice === 0 ? (
+                  "무료로 주문하기"
                 ) : (
                   `${finalPrice.toLocaleString()}원 결제하기`
                 )}

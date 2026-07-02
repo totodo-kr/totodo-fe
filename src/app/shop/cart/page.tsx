@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { ShoppingCart, Minus, Plus, X, LogIn } from "lucide-react";
+import { ShoppingCart, Minus, Plus, X, LogIn, Truck } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useAuthStore } from "@/store/useAuthStore";
 import { useCartStore } from "@/store/useCartStore";
@@ -23,14 +23,14 @@ export default function CartPage() {
   }, [user, fetchCart]);
 
   // Calculate shipping: 3000 for physical items, free for digital
-  const physicalCount = items.filter(
-    (item) => item.delivery_type !== "digital"
-  ).length;
-  const shippingFee = physicalCount > 0 ? 3000 : 0;
   const subtotal = items.reduce(
     (sum, item) => sum + item.price * item.quantity,
     0
   );
+  const physicalSubtotal = items
+    .filter((item) => item.delivery_type === "physical")
+    .reduce((sum, item) => sum + item.price * item.quantity, 0);
+  const shippingFee = physicalSubtotal > 0 && physicalSubtotal < 30000 ? 3000 : 0;
   const total = subtotal + shippingFee;
 
   const handleQuantityChange = async (itemId: number, newQty: number) => {
@@ -109,6 +109,41 @@ export default function CartPage() {
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             {/* Cart Items */}
             <div className="lg:col-span-2 space-y-4">
+              {/* Free Shipping Progress */}
+              {physicalSubtotal > 0 && (() => {
+                const FREE = 30000;
+                const remaining = FREE - physicalSubtotal;
+                const progress = Math.min((physicalSubtotal / FREE) * 100, 100);
+                const done = physicalSubtotal >= FREE;
+                return (
+                  <div className="bg-zinc-900 rounded-xl border border-white/10 px-5 py-4">
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="flex items-center gap-2 text-sm">
+                        <Truck size={16} className={done ? "text-green-400" : "text-gray-400"} />
+                        {done ? (
+                          <span className="text-green-400 font-medium">무료배송 달성!</span>
+                        ) : (
+                          <span className="text-gray-300">
+                            <span className="text-white font-bold">{remaining.toLocaleString()}원</span> 추가 시 무료배송!
+                          </span>
+                        )}
+                      </div>
+                      <span className="text-xs text-gray-500">
+                        {physicalSubtotal.toLocaleString()} / 30,000원
+                      </span>
+                    </div>
+                    <div className="h-2 bg-white/10 rounded-full overflow-hidden">
+                      <div
+                        className="h-full rounded-full transition-all duration-500"
+                        style={{
+                          width: `${progress}%`,
+                          background: done ? "#5db872" : "linear-gradient(90deg, #cc785c, #e8a55a)",
+                        }}
+                      />
+                    </div>
+                  </div>
+                );
+              })()}
               {items.map((item) => (
                 <div
                   key={item.id}
@@ -149,9 +184,9 @@ export default function CartPage() {
                           )}
                       </div>
                       <p className="text-gray-500 text-xs mt-1">
-                        {item.delivery_type === "digital"
-                          ? "디지털 상품 (배송 없음)"
-                          : "실물 상품"}
+                        {item.delivery_type === "physical"
+                          ? "실물 상품"
+                          : "디지털 상품 (배송 없음)"}
                       </p>
                     </div>
 
