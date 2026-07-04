@@ -126,3 +126,11 @@ RETURNS void LANGUAGE sql SECURITY DEFINER AS $$
   UPDATE coupons SET issued_count = GREATEST(0, issued_count - amount_arg) WHERE id = coupon_id_arg;
 $$;
 
+-- =============================================
+-- 2026/07/04 — Phase 0: digital_fulfillment_id 컬럼 추가
+-- order.sql이 먼저 실행되어 digital_fulfillments 테이블이 생성된 이후 실행
+-- purchase 발급(쿠폰형 상품 구매)만 값이 들어감. code/admin_direct 발급은 NULL 유지.
+-- =============================================
+ALTER TABLE user_coupons
+  ADD COLUMN IF NOT EXISTS digital_fulfillment_id INTEGER REFERENCES digital_fulfillments(id);
+

@@ -170,3 +170,83 @@ CREATE POLICY "order_items_update_admin" ON order_items FOR UPDATE USING (public
 -- =============================================
 ALTER TABLE orders ADD COLUMN IF NOT EXISTS user_coupon_id INTEGER REFERENCES user_coupons(id);
 ALTER TABLE orders ADD COLUMN IF NOT EXISTS coupon_discount INTEGER DEFAULT 0;
+
+-- =============================================
+-- 2026/07/04 — Phase 0: 실물 vs 디지털 주문 생애주기 분리
+-- =============================================
+
+-- §1: order_items에 delivery_type 스냅샷
+ALTER TABLE order_items
+  ADD COLUMN IF NOT EXISTS delivery_type VARCHAR(50) NOT NULL DEFAULT 'physical';
+
+ALTER TABLE order_items
+  ADD CONSTRAINT order_items_digital_download_qty_one
+  CHECK (delivery_type != 'digital_download' OR quantity = 1);
+
+-- §2: orders에 order_type 컬럼 추가
+ALTER TABLE orders
+  ADD COLUMN IF NOT EXISTS order_type VARCHAR(20) NOT NULL DEFAULT 'physical';
+-- 'physical' | 'digital' | 'mixed'
+
+-- §3: 디지털 이행 공통 레이어 + 타입별 자식 테이블
+CREATE TABLE IF NOT EXISTS digital_fulfillments (
+  id            SERIAL PRIMARY KEY,
+  order_id      INTEGER NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
+  order_item_id INTEGER NOT NULL UNIQUE REFERENCES order_items(id) ON DELETE CASCADE,
+  user_id       UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  delivery_type VARCHAR(50) NOT NULL,
+  status        VARCHAR(20) NOT NULL DEFAULT 'success'
+                  CHECK (status IN ('success', 'failed', 'cancelled')),
+  fulfilled_at  TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+  created_at    TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS ebook_downloads (
+  id                     SERIAL PRIMARY KEY,
+  digital_fulfillment_id INTEGER NOT NULL UNIQUE REFERENCES digital_fulfillments(id) ON DELETE CASCADE,
+  download_token         VARCHAR(255) UNIQUE NOT NULL,
+  download_count         INTEGER NOT NULL DEFAULT 0,
+  download_limit         INTEGER NOT NULL DEFAULT 3,
+  expires_at             TIMESTAMP WITH TIME ZONE,
+  first_downloaded_at    TIMESTAMP WITH TIME ZONE,
+  source_ref             TEXT,
+  created_at             TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS gifticon_codes (
+  id                       SERIAL PRIMARY KEY,
+  product_id               INTEGER NOT NULL REFERENCES products(id) ON DELETE CASCADE,
+  code                     TEXT NOT NULL
+                             CHECK (code ~ '^\d{4}-\d{4}-\d{4}$'),
+  status                   VARCHAR(20) NOT NULL DEFAULT 'available'
+                             CHECK (status IN ('available', 'issued', 'revealed', 'void')),
+  issued_to_fulfillment_id INTEGER REFERENCES digital_fulfillments(id),
+  issued_at                TIMESTAMP WITH TIME ZONE,
+  revealed_at              TIMESTAMP WITH TIME ZONE,
+  created_at               TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE (product_id, code)
+);
+
+-- §7: gifticon_codes 부분 인덱스
+CREATE INDEX IF NOT EXISTS idx_gifticon_codes_available
+  ON gifticon_codes(product_id) WHERE status = 'available';
+CREATE INDEX IF NOT EXISTS idx_gifticon_codes_issued_fulfillment
+  ON gifticon_codes(issued_to_fulfillment_id) WHERE issued_to_fulfillment_id IS NOT NULL;
+
+-- §8: RLS
+ALTER TABLE digital_fulfillments ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "digital_fulfillments_select_own"   ON digital_fulfillments FOR SELECT USING (auth.uid() = user_id);
+CREATE POLICY "digital_fulfillments_select_admin" ON digital_fulfillments FOR ALL    USING (public.is_admin());
+
+ALTER TABLE ebook_downloads ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "ebook_downloads_select_own" ON ebook_downloads FOR SELECT USING (
+  EXISTS (SELECT 1 FROM digital_fulfillments df WHERE df.id = ebook_downloads.digital_fulfillment_id AND df.user_id = auth.uid())
+);
+CREATE POLICY "ebook_downloads_admin_all" ON ebook_downloads FOR ALL USING (public.is_admin());
+
+ALTER TABLE gifticon_codes ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "gifticon_codes_select_own_issued" ON gifticon_codes FOR SELECT USING (
+  issued_to_fulfillment_id IS NOT NULL
+  AND EXISTS (SELECT 1 FROM digital_fulfillments df WHERE df.id = gifticon_codes.issued_to_fulfillment_id AND df.user_id = auth.uid())
+);
+CREATE POLICY "gifticon_codes_admin_all" ON gifticon_codes FOR ALL USING (public.is_admin());

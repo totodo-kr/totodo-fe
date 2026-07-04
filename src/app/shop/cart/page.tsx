@@ -210,6 +210,7 @@ export default function CartPage() {
                         }
                         disabled={
                           pendingIds.has(item.id) ||
+                          item.delivery_type === "digital_download" ||
                           (item.stock !== null &&
                             item.stock !== -1 &&
                             item.quantity >= (item.stock ?? Infinity))

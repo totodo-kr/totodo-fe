@@ -5,6 +5,8 @@ import { createClient } from "@/utils/supabase/client";
 import { useAuthStore } from "@/store/useAuthStore";
 import { useCartStore, CartItem } from "@/store/useCartStore";
 
+const DIGITAL_DOWNLOAD = "digital_download";
+
 export function useCart() {
   const { user } = useAuthStore();
   const { items, setItems, setLoading, updateItemQuantity, removeItem, clearCart } =
@@ -56,15 +58,16 @@ export function useCart() {
       // Check if item already exists in cart
       const { data: existing, error: fetchError } = await supabase
         .from("cart_items")
-        .select("id, quantity")
+        .select("id, quantity, products(delivery_type)")
         .eq("product_id", productId)
         .maybeSingle();
 
       if (fetchError) throw fetchError;
 
       if (existing) {
-        // Update quantity
-        const newQty = existing.quantity + quantity;
+        const deliveryType = (existing as any).products?.delivery_type;
+        // digital_download는 항상 수량 1로 클램프
+        const newQty = deliveryType === DIGITAL_DOWNLOAD ? 1 : existing.quantity + quantity;
         const { error: updateError } = await supabase
           .from("cart_items")
           .update({ quantity: newQty, updated_at: new Date().toISOString() })

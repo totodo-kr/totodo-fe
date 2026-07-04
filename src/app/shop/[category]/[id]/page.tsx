@@ -386,19 +386,24 @@ export default function ProductDetailPage({
                   <div className="flex items-center gap-3">
                     <button
                       onClick={() => setQuantity((q) => Math.max(1, q - 1))}
-                      className="w-8 h-8 rounded border border-white/20 hover:border-white/40 transition-colors flex items-center justify-center"
+                      disabled={product.delivery_type === "digital_download"}
+                      className="w-8 h-8 rounded border border-white/20 hover:border-white/40 transition-colors flex items-center justify-center disabled:opacity-40 disabled:cursor-not-allowed"
                     >
                       -
                     </button>
                     <span className="w-8 text-center font-medium">{quantity}</span>
                     <button
                       onClick={() => setQuantity((q) => q + 1)}
-                      className="w-8 h-8 rounded border border-white/20 hover:border-white/40 transition-colors flex items-center justify-center"
+                      disabled={product.delivery_type === "digital_download"}
+                      className="w-8 h-8 rounded border border-white/20 hover:border-white/40 transition-colors flex items-center justify-center disabled:opacity-40 disabled:cursor-not-allowed"
                     >
                       +
                     </button>
                   </div>
                 </div>
+                {product.delivery_type === "digital_download" && (
+                  <p className="text-xs text-gray-500 mt-2">디지털 다운로드 상품은 1개만 구매 가능합니다.</p>
+                )}
               </div>
             )}
 
