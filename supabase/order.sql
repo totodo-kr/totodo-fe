@@ -280,3 +280,30 @@ BEGIN
   RETURN v_code_id;
 END;
 $$;
+
+-- =============================================
+-- 2026/07/05 — Phase 2: 다운로드 횟수 원자적 증가 RPC (§6)
+-- 단일 UPDATE ... WHERE ... RETURNING으로 조건 확인과 증가를 한 트랜잭션에서 처리해
+-- 동시 요청이 download_limit을 넘겨 증가시키는 경쟁을 방지한다.
+-- 조건 불충족(한도 초과/만료)이면 행이 반환되지 않는다.
+-- =============================================
+CREATE OR REPLACE FUNCTION increment_ebook_download_count(p_token VARCHAR)
+RETURNS TABLE (
+  id INTEGER,
+  digital_fulfillment_id INTEGER,
+  source_ref TEXT,
+  download_count INTEGER,
+  download_limit INTEGER
+) LANGUAGE plpgsql SECURITY DEFINER AS $$
+BEGIN
+  RETURN QUERY
+  UPDATE ebook_downloads
+  SET download_count = ebook_downloads.download_count + 1,
+      first_downloaded_at = COALESCE(ebook_downloads.first_downloaded_at, CURRENT_TIMESTAMP)
+  WHERE ebook_downloads.download_token = p_token
+    AND ebook_downloads.download_count < ebook_downloads.download_limit
+    AND (ebook_downloads.expires_at IS NULL OR ebook_downloads.expires_at > CURRENT_TIMESTAMP)
+  RETURNING ebook_downloads.id, ebook_downloads.digital_fulfillment_id, ebook_downloads.source_ref,
+            ebook_downloads.download_count, ebook_downloads.download_limit;
+END;
+$$;

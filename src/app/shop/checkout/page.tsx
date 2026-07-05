@@ -209,6 +209,7 @@ export default function CheckoutPage() {
       product_price: item.price,
       quantity: item.quantity,
       subtotal: item.price * item.quantity,
+      delivery_type: item.delivery_type,
     }));
 
     const orderInput = {

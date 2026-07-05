@@ -236,13 +236,36 @@ export async function POST(req: NextRequest) {
         }
 
       } else if (deliveryType === "gifticon") {
-        // 원자적 코드 예약 (SELECT FOR UPDATE SKIP LOCKED)
-        const { data: codeId, error: claimError } = await admin.rpc("claim_gifticon_code", {
-          p_product_id: item.product_id,
-          p_fulfillment_id: fulfillmentId,
-        });
+        // quantity개만큼 원자적 코드 예약 (SELECT FOR UPDATE SKIP LOCKED)
+        // 하나라도 재고 소진으로 실패하면 이 fulfillment 전체를 취소 대상으로 본다 —
+        // 이미 예약된 나머지 코드는 아직 유저에게 노출되지 않았으므로 재고 풀로 되돌린다
+        // (§7의 "취소 시 void 처리, 재고 반납 안 함"은 유저에게 이미 인도된 코드 기준이며
+        //  이 케이스는 인도 전 confirm 트랜잭션 내부 롤백이라 다른 상황).
+        const claimedCodeIds: number[] = [];
+        let stockExhausted = false;
 
-        if (claimError || codeId === null) {
+        for (let q = 0; q < item.quantity; q++) {
+          const { data: codeId, error: claimError } = await admin.rpc("claim_gifticon_code", {
+            p_product_id: item.product_id,
+            p_fulfillment_id: fulfillmentId,
+          });
+
+          if (claimError || codeId === null) {
+            stockExhausted = true;
+            break;
+          }
+
+          claimedCodeIds.push(codeId);
+        }
+
+        if (stockExhausted) {
+          if (claimedCodeIds.length > 0) {
+            await admin
+              .from("gifticon_codes")
+              .update({ status: "available", issued_to_fulfillment_id: null, issued_at: null })
+              .in("id", claimedCodeIds);
+          }
+
           // 사전 체크를 통과했음에도 경쟁으로 재고 소진 → 자동 부분 취소
           await admin
             .from("digital_fulfillments")

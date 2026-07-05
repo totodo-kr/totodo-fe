@@ -8,6 +8,7 @@ export interface OrderItem {
   product_price: number;
   quantity: number;
   subtotal: number;
+  delivery_type: string;
 }
 
 export interface CreateOrderInput {
@@ -57,6 +58,11 @@ export function useOrders() {
     try {
       const order_number = generateOrderNumber();
 
+      // §2: order_items.delivery_type 스냅샷 조합으로 order_type 파생
+      const hasPhysical = data.items.some((item) => item.delivery_type === "physical");
+      const hasDigital = data.items.some((item) => item.delivery_type !== "physical");
+      const order_type = hasPhysical && hasDigital ? "mixed" : hasDigital ? "digital" : "physical";
+
       // 1. Insert order
       const { data: orderRow, error: orderError } = await supabase
         .from("orders")
@@ -73,6 +79,7 @@ export function useOrders() {
           shipping_zipcode: data.shipping_zipcode ?? null,
           shipping_memo: data.shipping_memo ?? null,
           status,
+          order_type,
           user_coupon_id: data.user_coupon_id ?? null,
           coupon_discount: data.coupon_discount ?? 0,
         })
@@ -94,6 +101,7 @@ export function useOrders() {
         product_price: item.product_price,
         quantity: item.quantity,
         subtotal: item.subtotal,
+        delivery_type: item.delivery_type,
       }));
 
       const { error: itemsError } = await supabase
