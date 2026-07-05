@@ -11,6 +11,7 @@ import SearchSelect from "@/components/admin/molecules/SearchSelect";
 import { Spinner } from "@/components/admin/atoms";
 import AdminRichTextEditor from "@/components/admin/AdminRichTextEditor";
 import GifticonCodePanel from "./GifticonCodePanel";
+import EbookFilePanel from "./EbookFilePanel";
 import { getMetaSchema, MetaField } from "@/config/productMetaSchemas";
 import {
   ProductFormData,
@@ -18,6 +19,7 @@ import {
   useAdminProductDetail,
 } from "@/hooks/useAdminProductDetail";
 import { ProductCategory } from "@/hooks/useAdminProducts";
+import { useAdminCoupons } from "@/hooks/useAdminCoupons";
 
 const DELIVERY_OPTIONS = [
   { value: "physical", label: "배송 (physical)" },
@@ -83,6 +85,7 @@ const inputStyle = {
 export default function ProductForm({ mode, productId, initialData, categories }: ProductFormProps) {
   const router = useRouter();
   const { createProduct, updateProduct, deleteProduct, saving, error: hookError } = useAdminProductDetail();
+  const { coupons, fetchCoupons } = useAdminCoupons();
 
   const [form, setForm] = useState<ProductFormData>(initialData ?? EMPTY_FORM);
   const [fieldErrors, setFieldErrors] = useState<FieldError>({});
@@ -90,6 +93,10 @@ export default function ProductForm({ mode, productId, initialData, categories }
   useEffect(() => {
     if (hookError) toast.error(hookError);
   }, [hookError]);
+
+  useEffect(() => {
+    if (form.delivery_type === "coupon") fetchCoupons(1, "active", "");
+  }, [form.delivery_type, fetchCoupons]);
 
   const set = <K extends keyof ProductFormData>(key: K, value: ProductFormData[K]) =>
     setForm((prev) => ({ ...prev, [key]: value }));
@@ -469,6 +476,27 @@ export default function ProductForm({ mode, productId, initialData, categories }
             />
           </FieldRow>
 
+          {form.delivery_type === "coupon" && (
+            <FieldRow label="연결할 쿠폰" required>
+              <SearchSelect
+                options={coupons.map((c) => ({
+                  value: String(c.id),
+                  label: c.name,
+                  prefix: c.code,
+                }))}
+                value={
+                  form.type_meta.coupon_id != null ? String(form.type_meta.coupon_id) : ""
+                }
+                onChange={(v) => setMetaField("coupon_id", v === "" ? null : Number(v))}
+                placeholder="발급할 쿠폰을 선택하세요"
+                className="w-full"
+              />
+              <p className="text-xs mt-1.5" style={{ color: "#8e8b82" }}>
+                이 상품을 구매하면 여기서 선택한 쿠폰이 실제로 발급됩니다. 선택하지 않으면 결제 자체가 차단됩니다.
+              </p>
+            </FieldRow>
+          )}
+
           {metaSchema.length > 0 && (
             <div className="mb-4">
               <p className="text-sm font-medium mb-3" style={{ color: "#252523" }}>
@@ -499,6 +527,15 @@ export default function ProductForm({ mode, productId, initialData, categories }
       {/* 기프티콘 코드 풀 관리 — 수정 모드 + gifticon 타입일 때만 (신규 등록 시엔 상품 id가 아직 없음) */}
       {mode === "edit" && productId !== undefined && form.delivery_type === "gifticon" && (
         <GifticonCodePanel productId={productId} />
+      )}
+
+      {/* 전자책 파일 관리 — 수정 모드 + digital_download 타입일 때만 */}
+      {mode === "edit" && productId !== undefined && form.delivery_type === "digital_download" && (
+        <EbookFilePanel
+          productId={productId}
+          filePath={(form.type_meta.file_path as string) ?? null}
+          onFilePathChange={(path) => setMetaField("file_path", path)}
+        />
       )}
 
       {/* 고정 푸터 */}

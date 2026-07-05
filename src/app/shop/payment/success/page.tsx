@@ -18,6 +18,9 @@ function PaymentSuccessContent() {
   const [status, setStatus] = useState<ConfirmStatus>("pending");
   const [paymentMethod, setPaymentMethod] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [partialFailures, setPartialFailures] = useState<
+    Array<{ order_item_id: number; reason: string }>
+  >([]);
 
   // order info from sessionStorage (set on checkout page)
   const [orderNumber, setOrderNumber] = useState<string | null>(null);
@@ -45,6 +48,7 @@ function PaymentSuccessContent() {
           if (!res.ok) {
             throw new Error(data.error ?? "주문 처리에 실패했습니다.");
           }
+          setPartialFailures(data.partialFailures ?? []);
           setStatus("success");
           sessionStorage.removeItem("pending_order_number");
           sessionStorage.removeItem("pending_order_id");
@@ -86,6 +90,7 @@ function PaymentSuccessContent() {
         }
 
         setPaymentMethod(data.method ?? null);
+        setPartialFailures(data.partialFailures ?? []);
         setStatus("success");
 
         // Clear session storage
@@ -186,6 +191,21 @@ function PaymentSuccessContent() {
             </span>
           </div>
         </div>
+
+        {/* 품절 등으로 자동 처리되지 못한 아이템 안내 */}
+        {partialFailures.length > 0 && (
+          <div className="w-full bg-yellow-500/10 border border-yellow-500/30 rounded-xl p-4 flex gap-3">
+            <AlertCircle className="w-5 h-5 text-yellow-400 shrink-0 mt-0.5" />
+            <div className="text-sm text-yellow-200">
+              <p className="font-semibold mb-1">일부 상품은 품절로 자동 취소/환불되었습니다</p>
+              <ul className="list-disc list-inside space-y-0.5 text-yellow-200/80">
+                {partialFailures.map((f) => (
+                  <li key={f.order_item_id}>{f.reason}</li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        )}
 
         {/* Actions */}
         <div className="flex flex-col gap-3 w-full">

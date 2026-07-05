@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/utils/supabase/server";
 import { createAdminClient } from "@/utils/supabase/admin";
+import { validateDigitalItemsBeforeCharge, createDigitalFulfillments } from "@/lib/fulfillment/digitalFulfillment";
 
 export async function POST(req: NextRequest) {
   try {
@@ -66,6 +67,13 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    // 2.5. [디지털 상품] 0원 확정 전 사전 검증 — 기프티콘 재고, 다운로드 파일 준비, 쿠폰 연결 여부
+    // (0원이라도 "지급 못 하는 상품을 판매 확정"하면 안 되므로 유료 결제와 동일하게 검증한다)
+    const validation = await validateDigitalItemsBeforeCharge(admin, orderRow.id);
+    if (!validation.ok) {
+      return NextResponse.json({ error: validation.error, code: validation.code }, { status: 400 });
+    }
+
     // 3. 주문 status → paid
     const { error: updateError } = await admin
       .from("orders")
@@ -102,54 +110,14 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // 5. 쿠폰 상품(delivery_type='coupon') 자동 발급
-    const { data: orderItems } = await admin
-      .from("order_items")
-      .select(`
-        id, product_id, quantity,
-        products (
-          delivery_type,
-          product_details (type_meta)
-        )
-      `)
-      .eq("order_id", orderRow.id)
-      .not("product_id", "is", null);
-
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const couponItems = (orderItems ?? []).filter((item: any) => item.products?.delivery_type === "coupon");
-
-    if (couponItems.length > 0) {
-      let seq = 0;
-      const issuedCouponIds = new Set<number>();
-
-      for (const item of couponItems) {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const pd = (item as any).products?.product_details;
-        const typeMeta = Array.isArray(pd) ? pd[0]?.type_meta : pd?.type_meta;
-        const couponId = typeMeta?.coupon_id;
-        if (!couponId) continue;
-
-        for (let q = 0; q < (item as { quantity: number }).quantity; q++) {
-          seq++;
-          const issue_epoch = `${orderRow.id}_${seq}`;
-          const { error: issueError } = await admin
-            .from("user_coupons")
-            .insert({
-              user_id: orderRow.user_id,
-              coupon_id: couponId,
-              issue_epoch,
-              issue_method: "purchase",
-              status: "active",
-            });
-
-          if (!issueError) issuedCouponIds.add(couponId);
-        }
-      }
-
-      for (const couponId of issuedCouponIds) {
-        await admin.rpc("increment_coupon_issued_count", { coupon_id_arg: couponId });
-      }
-    }
+    // 5. [디지털 상품] 공통 이행 생성 (digital_download/gifticon/coupon)
+    // Toss 결제 자체가 없는 경로이므로 tossRefund는 넘기지 않는다 —
+    // 재고 소진 시 부분 취소 대신 그냥 취소 상태로 남기고 안내만 한다.
+    const partialFailures = await createDigitalFulfillments({
+      admin,
+      orderId: orderRow.id,
+      userId: orderRow.user_id,
+    });
 
     // 6. 장바구니 비우기
     const { error: cartError } = await admin
@@ -161,7 +129,10 @@ export async function POST(req: NextRequest) {
       console.error("Cart clear error:", cartError);
     }
 
-    return NextResponse.json({ success: true });
+    return NextResponse.json({
+      success: true,
+      ...(partialFailures.length > 0 && { partialFailures }),
+    });
   } catch (err) {
     console.error("Free order confirm error:", err);
     return NextResponse.json({ error: "처리 중 오류가 발생했습니다." }, { status: 500 });
