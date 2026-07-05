@@ -41,6 +41,7 @@ export interface AdminOrder {
   shipping_address: string;
   shipping_memo: string | null;
   status: OrderStatus;
+  order_type: string;
   payment_method: string | null;
   paid_at: string | null;
   created_at: string;
@@ -55,6 +56,47 @@ export interface AdminOrder {
   refund_completed_at?: string | null;
 }
 
+export interface FulfillmentEbookInfo {
+  id: number;
+  download_token: string;
+  download_count: number;
+  download_limit: number;
+  first_downloaded_at: string | null;
+  expires_at: string | null;
+}
+
+export interface FulfillmentGifticonCode {
+  id: number;
+  status: string;
+  revealed_at: string | null;
+}
+
+export interface FulfillmentUserCoupon {
+  id: number;
+  status: string;
+  used_at: string | null;
+}
+
+export interface AdminFulfillmentItem {
+  order_item_id: number;
+  product_id: number;
+  product_name: string;
+  delivery_type: string;
+  fulfillment: {
+    id: number;
+    status: "success" | "failed" | "cancelled";
+    ebook_download: FulfillmentEbookInfo | null;
+    gifticon_codes: FulfillmentGifticonCode[];
+    user_coupons: FulfillmentUserCoupon[];
+  } | null;
+}
+
+// 1:1 관계도 PostgREST가 배열로 반환할 수 있어 배열/단일 객체 양쪽 모두 처리한다.
+function firstOrNull<T>(value: T | T[] | null | undefined): T | null {
+  if (Array.isArray(value)) return value.length > 0 ? value[0] : null;
+  return value ?? null;
+}
+
 const PAGE_SIZE = 15;
 
 export function useAdminOrders() {
@@ -64,7 +106,7 @@ export function useAdminOrders() {
   const [updatingId, setUpdatingId] = useState<number | null>(null);
 
   const fetchOrders = useCallback(
-    async (page = 1, status?: OrderStatus | "" | "refund_requested") => {
+    async (page = 1, status?: OrderStatus | "" | "refund_requested" | "digital") => {
       const supabase = createClient();
       setLoading(true);
 
@@ -76,7 +118,7 @@ export function useAdminOrders() {
         .select(
           `id, order_number, user_id, total_product_price, total_shipping_fee,
            total_discount, final_price, recipient_name, recipient_phone,
-           shipping_address, shipping_memo, status, payment_method, paid_at, created_at,
+           shipping_address, shipping_memo, status, order_type, payment_method, paid_at, created_at,
            cancel_reason, cancel_requested_at,
            refund_reason, refund_amount, refund_status, refund_requested_at, refund_completed_at`,
           { count: "exact" }
@@ -86,6 +128,8 @@ export function useAdminOrders() {
 
       if (status === "refund_requested") {
         query = query.not("refund_status", "is", null);
+      } else if (status === "digital") {
+        query = query.eq("order_type", "digital").neq("status", "pending");
       } else if (status) {
         query = query.eq("status", status);
       } else {
@@ -107,6 +151,113 @@ export function useAdminOrders() {
       .select("id, product_id, product_name, product_price, quantity, subtotal")
       .eq("order_id", orderId);
     return (data as OrderItem[]) ?? [];
+  };
+
+  // §11: 주문의 디지털 이행 현황 (order_items + digital_fulfillments + 자식 테이블 join)
+  const fetchFulfillments = async (orderId: number): Promise<AdminFulfillmentItem[]> => {
+    const supabase = createClient();
+
+    const { data: rawItems } = await supabase
+      .from("order_items")
+      .select(
+        `id, product_id, product_name, delivery_type,
+         digital_fulfillments(
+           id, status,
+           ebook_downloads(id, download_token, download_count, download_limit, first_downloaded_at, expires_at),
+           gifticon_codes!issued_to_fulfillment_id(id, status, revealed_at)
+         )`
+      )
+      .eq("order_id", orderId)
+      .neq("delivery_type", "physical");
+
+    const items = (rawItems as Array<Record<string, unknown>>) ?? [];
+
+    const fulfillmentByItemId = new Map<number, Record<string, unknown>>();
+    for (const item of items) {
+      const fulfillment = firstOrNull(
+        item.digital_fulfillments as Record<string, unknown> | Record<string, unknown>[] | null
+      );
+      if (fulfillment) fulfillmentByItemId.set(item.id as number, fulfillment);
+    }
+
+    const fulfillmentIds = Array.from(fulfillmentByItemId.values()).map((f) => f.id as number);
+
+    const userCouponsByFulfillmentId = new Map<number, FulfillmentUserCoupon[]>();
+    if (fulfillmentIds.length > 0) {
+      const { data: userCoupons } = await supabase
+        .from("user_coupons")
+        .select("id, status, used_at, digital_fulfillment_id")
+        .in("digital_fulfillment_id", fulfillmentIds);
+
+      for (const uc of (userCoupons ?? []) as Array<Record<string, unknown>>) {
+        const fulfillmentId = uc.digital_fulfillment_id as number;
+        const list = userCouponsByFulfillmentId.get(fulfillmentId) ?? [];
+        list.push({
+          id: uc.id as number,
+          status: uc.status as string,
+          used_at: uc.used_at as string | null,
+        });
+        userCouponsByFulfillmentId.set(fulfillmentId, list);
+      }
+    }
+
+    return items.map((item) => {
+      const fulfillmentRow = fulfillmentByItemId.get(item.id as number) ?? null;
+
+      let fulfillment: AdminFulfillmentItem["fulfillment"] = null;
+      if (fulfillmentRow) {
+        const fulfillmentId = fulfillmentRow.id as number;
+        const ebookRow = firstOrNull(
+          fulfillmentRow.ebook_downloads as Record<string, unknown> | Record<string, unknown>[] | null
+        );
+
+        fulfillment = {
+          id: fulfillmentId,
+          status: fulfillmentRow.status as "success" | "failed" | "cancelled",
+          ebook_download: ebookRow
+            ? {
+                id: ebookRow.id as number,
+                download_token: ebookRow.download_token as string,
+                download_count: ebookRow.download_count as number,
+                download_limit: ebookRow.download_limit as number,
+                first_downloaded_at: ebookRow.first_downloaded_at as string | null,
+                expires_at: ebookRow.expires_at as string | null,
+              }
+            : null,
+          gifticon_codes: (fulfillmentRow.gifticon_codes as FulfillmentGifticonCode[]) ?? [],
+          user_coupons: userCouponsByFulfillmentId.get(fulfillmentId) ?? [],
+        };
+      }
+
+      return {
+        order_item_id: item.id as number,
+        product_id: item.product_id as number,
+        product_name: item.product_name as string,
+        delivery_type: item.delivery_type as string,
+        fulfillment,
+      };
+    });
+  };
+
+  // §11: 다운로드 횟수 초기화
+  const resetDownloadCount = async (ebookDownloadId: number): Promise<boolean> => {
+    const supabase = createClient();
+    const { error } = await supabase
+      .from("ebook_downloads")
+      .update({ download_count: 0, first_downloaded_at: null })
+      .eq("id", ebookDownloadId);
+    return !error;
+  };
+
+  // §11: 기프티콘 코드 재발급 — claim_gifticon_code RPC는 service_role 전용이라
+  // 브라우저에서 직접 호출할 수 없다. 서버 라우트를 거친다.
+  const reissueGifticonCode = async (gifticonCodeId: number): Promise<boolean> => {
+    const res = await fetch("/api/admin/gifticon/reissue", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ gifticon_code_id: gifticonCodeId }),
+    });
+    return res.ok;
   };
 
   const updateStatus = async (orderId: number, status: OrderStatus) => {
@@ -178,6 +329,9 @@ export function useAdminOrders() {
     updatingId,
     fetchOrders,
     fetchOrderItems,
+    fetchFulfillments,
+    resetDownloadCount,
+    reissueGifticonCode,
     updateStatus,
     processRefund,
   };

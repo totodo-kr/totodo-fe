@@ -134,3 +134,21 @@ $$;
 ALTER TABLE user_coupons
   ADD COLUMN IF NOT EXISTS digital_fulfillment_id INTEGER REFERENCES digital_fulfillments(id);
 
+-- =============================================
+-- 2026/07/05 — 보안 조치: SECURITY DEFINER 함수 실행 권한 제한
+-- Postgres는 새 함수에 기본적으로 PUBLIC(anon, authenticated 포함)에게 EXECUTE 권한을 준다.
+-- 아래 카운트 증감 함수들은 실제로는 API 라우트(service_role)만 호출해야 하는데,
+-- 이 REVOKE/GRANT가 없으면 로그인한 임의 유저가 브라우저에서 직접 rpc()로 호출해
+-- coupons.issued_count/used_count 카운터를 임의로 조작할 수 있었다
+-- (max_issue_count 발급 한도 우회 등으로 악용 가능).
+-- =============================================
+REVOKE EXECUTE ON FUNCTION increment_coupon_used_count(INT) FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION decrement_coupon_used_count(INT, INT) FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION increment_coupon_issued_count(INT) FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION decrement_coupon_issued_count(INT, INT) FROM PUBLIC;
+
+GRANT EXECUTE ON FUNCTION increment_coupon_used_count(INT) TO service_role;
+GRANT EXECUTE ON FUNCTION decrement_coupon_used_count(INT, INT) TO service_role;
+GRANT EXECUTE ON FUNCTION increment_coupon_issued_count(INT) TO service_role;
+GRANT EXECUTE ON FUNCTION decrement_coupon_issued_count(INT, INT) TO service_role;
+

@@ -307,3 +307,17 @@ BEGIN
             ebook_downloads.download_count, ebook_downloads.download_limit;
 END;
 $$;
+
+-- =============================================
+-- 2026/07/05 — 보안 조치: SECURITY DEFINER 함수 실행 권한 제한
+-- Postgres는 새 함수에 기본적으로 PUBLIC(anon, authenticated 포함)에게 EXECUTE 권한을 준다.
+-- 이 REVOKE가 없으면 로그인한 임의 유저가 브라우저에서 claim_gifticon_code를 직접 호출해
+-- (본인이 결제한 것과 무관한 임의의 p_fulfillment_id를 넘겨) 재고 전체를 무료로 가져갈 수 있었다.
+-- 실제 호출부는 confirm/route.ts, download/[token]/route.ts 등 service_role 클라이언트뿐이므로
+-- service_role에게만 남겨도 정상 동작에는 영향이 없다.
+-- =============================================
+REVOKE EXECUTE ON FUNCTION claim_gifticon_code(INTEGER, INTEGER) FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION increment_ebook_download_count(VARCHAR) FROM PUBLIC;
+
+GRANT EXECUTE ON FUNCTION claim_gifticon_code(INTEGER, INTEGER) TO service_role;
+GRANT EXECUTE ON FUNCTION increment_ebook_download_count(VARCHAR) TO service_role;

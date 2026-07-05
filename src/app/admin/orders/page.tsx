@@ -2,13 +2,15 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { useSearchParams } from "next/navigation";
-import { ChevronDown, ChevronUp, Package } from "lucide-react";
+import { ChevronDown, ChevronUp, Package, AlertTriangle } from "lucide-react";
 import {
   useAdminOrders,
   OrderStatus,
   ORDER_STATUS_LABELS,
   ORDER_STATUS_COLORS,
   OrderItem,
+  AdminOrder,
+  AdminFulfillmentItem,
 } from "@/hooks/useAdminOrders";
 import { AdminPageHeader, AdminTable } from "@/components/admin/organisms";
 import { Pagination, FilterTabs } from "@/components/admin/molecules";
@@ -16,7 +18,7 @@ import { Badge, Spinner } from "@/components/admin/atoms";
 
 const PAGE_SIZE = 15;
 
-type StatusFilterValue = OrderStatus | "" | "refund_requested";
+type StatusFilterValue = OrderStatus | "" | "refund_requested" | "digital";
 
 const STATUS_TABS: { label: string; value: StatusFilterValue }[] = [
   { label: "전체", value: "" },
@@ -25,6 +27,7 @@ const STATUS_TABS: { label: string; value: StatusFilterValue }[] = [
   { label: "배송완료", value: "delivered" },
   { label: "취소", value: "cancelled" },
   { label: "환불요청", value: "refund_requested" },
+  { label: "디지털", value: "digital" },
 ];
 
 const STATUS_NEXT: Partial<Record<OrderStatus, OrderStatus[]>> = {
@@ -32,6 +35,39 @@ const STATUS_NEXT: Partial<Record<OrderStatus, OrderStatus[]>> = {
   shipped: ["delivered", "cancelled"],
   delivered: [],
   cancelled: [],
+};
+
+// order_type='digital' 주문은 배송 개념이 없으므로 shipped/delivered로의 전환을 숨긴다.
+function getNextStatusOptions(order: AdminOrder): OrderStatus[] {
+  const next = STATUS_NEXT[order.status] ?? [];
+  if (order.order_type === "digital") {
+    return next.filter((s) => s !== "shipped" && s !== "delivered");
+  }
+  return next;
+}
+
+const FULFILLMENT_STATUS_LABEL: Record<string, string> = {
+  success: "정상",
+  failed: "이행 실패",
+  cancelled: "취소됨",
+};
+
+const FULFILLMENT_STATUS_COLORS: Record<string, { bg: string; text: string }> = {
+  success: { bg: "#e8f4e8", text: "#2d7d32" },
+  failed: { bg: "#fdecea", text: "#c62828" },
+  cancelled: { bg: "#efe9de", text: "#6c6a64" },
+};
+
+const DELIVERY_TYPE_LABEL: Record<string, string> = {
+  digital_download: "다운로드",
+  gifticon: "기프티콘",
+  coupon: "쿠폰",
+};
+
+const GIFTICON_CODE_STATUS_LABEL: Record<string, string> = {
+  issued: "발급됨(미열람)",
+  revealed: "열람됨",
+  void: "폐기됨",
 };
 
 const REFUND_STATUS_LABELS: Record<string, string> = {
@@ -140,10 +176,197 @@ function OrderItemsRow({
   );
 }
 
+function FulfillmentPanel({
+  orderId,
+  fetchFulfillments,
+  resetDownloadCount,
+  reissueGifticonCode,
+}: {
+  orderId: number;
+  fetchFulfillments: (id: number) => Promise<AdminFulfillmentItem[]>;
+  resetDownloadCount: (id: number) => Promise<boolean>;
+  reissueGifticonCode: (id: number) => Promise<boolean>;
+}) {
+  const [items, setItems] = useState<AdminFulfillmentItem[] | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [actionId, setActionId] = useState<number | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    const data = await fetchFulfillments(orderId);
+    setItems(data);
+    setLoading(false);
+  }, [orderId, fetchFulfillments]);
+
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-4">
+        <Spinner size="md" />
+      </div>
+    );
+  }
+
+  // 물리 아이템만 있는 주문은 이행 현황이 없으므로 패널 자체를 숨긴다.
+  if (!items || items.length === 0) return null;
+
+  const handleReset = async (ebookId: number) => {
+    setActionId(ebookId);
+    setActionError(null);
+    await resetDownloadCount(ebookId);
+    await load();
+    setActionId(null);
+  };
+
+  const handleReissue = async (codeId: number) => {
+    setActionId(codeId);
+    setActionError(null);
+    const ok = await reissueGifticonCode(codeId);
+    if (!ok) setActionError("재고가 없어 재발급할 수 없습니다.");
+    await load();
+    setActionId(null);
+  };
+
+  return (
+    <div className="px-6 pb-5">
+      <p
+        className="text-xs font-semibold uppercase tracking-wide mb-2 flex items-center gap-1.5"
+        style={{ color: "#6c6a64" }}
+      >
+        디지털 이행 현황
+      </p>
+
+      {actionError && (
+        <p className="text-xs mb-2" style={{ color: "#c64545" }}>
+          {actionError}
+        </p>
+      )}
+
+      <div className="space-y-2">
+        {items.map((item) => {
+          const f = item.fulfillment;
+          const isFailed = f?.status === "failed";
+          const statusColors = FULFILLMENT_STATUS_COLORS[f?.status ?? "cancelled"];
+
+          return (
+            <div
+              key={item.order_item_id}
+              className="rounded-lg border p-3"
+              style={{
+                borderColor: isFailed ? "#c64545" : "#e6dfd8",
+                background: isFailed ? "#fff5f4" : "#fff",
+              }}
+            >
+              <div className="flex items-center justify-between gap-3 mb-2">
+                <div className="flex items-center gap-2 min-w-0">
+                  {isFailed && <AlertTriangle className="w-3.5 h-3.5 shrink-0" style={{ color: "#c64545" }} />}
+                  <span className="text-sm font-medium truncate" style={{ color: "#252523" }}>
+                    {item.product_name}
+                  </span>
+                  <Badge bg="#efe9de" color="#6c6a64">
+                    {DELIVERY_TYPE_LABEL[item.delivery_type] ?? item.delivery_type}
+                  </Badge>
+                </div>
+                {f && (
+                  <Badge bg={statusColors.bg} color={statusColors.text} className="shrink-0">
+                    {isFailed ? "⚠ 이행 실패 (수동 처리 필요)" : FULFILLMENT_STATUS_LABEL[f.status]}
+                  </Badge>
+                )}
+              </div>
+
+              {!f && (
+                <p className="text-xs" style={{ color: "#8e8b82" }}>
+                  이행 레코드 없음
+                </p>
+              )}
+
+              {/* digital_download */}
+              {f?.ebook_download && (
+                <div className="flex items-center justify-between gap-3 text-xs">
+                  <div style={{ color: "#6c6a64" }}>
+                    <span>
+                      {f.ebook_download.download_count}/{f.ebook_download.download_limit}회 사용
+                    </span>
+                    <span className="ml-3">
+                      최초 다운로드: {formatDate(f.ebook_download.first_downloaded_at ?? "") || "-"}
+                    </span>
+                    <span className="ml-3">
+                      만료: {f.ebook_download.expires_at ? formatDate(f.ebook_download.expires_at) : "-"}
+                    </span>
+                  </div>
+                  <button
+                    onClick={() => handleReset(f.ebook_download!.id)}
+                    disabled={actionId === f.ebook_download.id}
+                    className="px-3 py-1 rounded-lg text-xs font-medium transition-colors disabled:opacity-50 shrink-0"
+                    style={{ background: "#efe9de", color: "#6c6a64" }}
+                  >
+                    {actionId === f.ebook_download.id ? <Spinner size="xs" /> : "다운로드 횟수 초기화"}
+                  </button>
+                </div>
+              )}
+
+              {/* gifticon */}
+              {f && f.gifticon_codes.length > 0 && (
+                <div className="space-y-1.5">
+                  {f.gifticon_codes.map((code) => (
+                    <div key={code.id} className="flex items-center justify-between gap-3 text-xs">
+                      <span style={{ color: "#6c6a64" }}>
+                        코드 #{code.id} · {GIFTICON_CODE_STATUS_LABEL[code.status] ?? code.status}
+                        {code.revealed_at && ` · 열람일: ${formatDate(code.revealed_at)}`}
+                      </span>
+                      {(code.status === "issued" || code.status === "revealed") && (
+                        <button
+                          onClick={() => handleReissue(code.id)}
+                          disabled={actionId === code.id}
+                          className="px-3 py-1 rounded-lg text-xs font-medium transition-colors disabled:opacity-50 shrink-0"
+                          style={{ background: "#efe9de", color: "#6c6a64" }}
+                        >
+                          {actionId === code.id ? <Spinner size="xs" /> : "재발급"}
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* coupon */}
+              {f && f.user_coupons.length > 0 && (
+                <div className="space-y-1">
+                  {f.user_coupons.map((uc) => (
+                    <div key={uc.id} className="text-xs" style={{ color: "#6c6a64" }}>
+                      쿠폰 #{uc.id} · {uc.status === "used" ? "사용완료" : uc.status === "active" ? "사용가능" : "취소됨"}
+                      {uc.used_at && ` · 사용일: ${formatDate(uc.used_at)}`}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 export default function AdminOrdersPage() {
   const searchParams = useSearchParams();
-  const { orders, total, loading, updatingId, fetchOrders, fetchOrderItems, updateStatus, processRefund } =
-    useAdminOrders();
+  const {
+    orders,
+    total,
+    loading,
+    updatingId,
+    fetchOrders,
+    fetchOrderItems,
+    fetchFulfillments,
+    resetDownloadCount,
+    reissueGifticonCode,
+    updateStatus,
+    processRefund,
+  } = useAdminOrders();
   const [page, setPage] = useState(1);
   const [statusFilter, setStatusFilter] = useState<StatusFilterValue>(
     () => (searchParams.get("status") as StatusFilterValue) ?? ""
@@ -256,7 +479,7 @@ export default function AdminOrdersPage() {
               <div className="flex justify-center">
                 {updatingId === order.id ? (
                   <Spinner size="sm" />
-                ) : (STATUS_NEXT[order.status]?.length ?? 0) > 0 ? (
+                ) : getNextStatusOptions(order).length > 0 ? (
                   <select
                     value=""
                     onChange={(e) =>
@@ -268,7 +491,7 @@ export default function AdminOrdersPage() {
                     <option value="" disabled>
                       변경
                     </option>
-                    {STATUS_NEXT[order.status]?.map((s) => (
+                    {getNextStatusOptions(order).map((s) => (
                       <option key={s} value={s}>
                         → {ORDER_STATUS_LABELS[s]}
                       </option>
@@ -533,6 +756,15 @@ export default function AdminOrdersPage() {
                       )}
                     </div>
                   </div>
+                )}
+
+                {order.order_type !== "physical" && (
+                  <FulfillmentPanel
+                    orderId={order.id}
+                    fetchFulfillments={fetchFulfillments}
+                    resetDownloadCount={resetDownloadCount}
+                    reissueGifticonCode={reissueGifticonCode}
+                  />
                 )}
 
                 <div className="px-6 pb-5">

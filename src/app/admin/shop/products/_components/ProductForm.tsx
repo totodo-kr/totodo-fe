@@ -10,6 +10,7 @@ import { IconActionButton } from "@/components/admin/molecules";
 import SearchSelect from "@/components/admin/molecules/SearchSelect";
 import { Spinner } from "@/components/admin/atoms";
 import AdminRichTextEditor from "@/components/admin/AdminRichTextEditor";
+import GifticonCodePanel from "./GifticonCodePanel";
 import { getMetaSchema, MetaField } from "@/config/productMetaSchemas";
 import {
   ProductFormData,
@@ -494,6 +495,11 @@ export default function ProductForm({ mode, productId, initialData, categories }
         </section>
 
       </form>
+
+      {/* 기프티콘 코드 풀 관리 — 수정 모드 + gifticon 타입일 때만 (신규 등록 시엔 상품 id가 아직 없음) */}
+      {mode === "edit" && productId !== undefined && form.delivery_type === "gifticon" && (
+        <GifticonCodePanel productId={productId} />
+      )}
 
       {/* 고정 푸터 */}
       <div
