@@ -64,6 +64,7 @@ export default function SearchSelect({
     <div ref={containerRef} className={`relative ${className ?? "w-64"}`}>
       {/* 트리거 */}
       <button
+        type="button"
         onClick={handleOpen}
         className="w-full h-10 px-3 rounded-lg text-sm border flex items-center justify-between gap-2 transition-all"
         style={{
@@ -142,6 +143,7 @@ export default function SearchSelect({
                 const isActive = option.value === value;
                 return (
                   <button
+                    type="button"
                     key={option.value}
                     onClick={() => handleSelect(option.value)}
                     className="w-full px-3 py-2 text-sm text-left flex items-center gap-2 transition-colors"
