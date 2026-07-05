@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/utils/supabase/server";
 import { createAdminClient } from "@/utils/supabase/admin";
+import { DIGITAL_CANCEL_WINDOW_HOURS } from "@/lib/fulfillment/cancelPolicy";
 
 export async function POST(req: NextRequest) {
   try {
@@ -24,7 +25,7 @@ export async function POST(req: NextRequest) {
     const adminDb = createAdminClient();
     const { data: order } = await adminDb
       .from("orders")
-      .select("id, user_id, status, final_price, refund_amount, refund_status, payment_info, user_coupon_id, coupon_discount")
+      .select("id, user_id, status, final_price, refund_amount, refund_status, payment_info, user_coupon_id, coupon_discount, paid_at")
       .eq("id", orderId)
       .single();
 
@@ -70,6 +71,37 @@ export async function POST(req: NextRequest) {
       (f) => f.delivery_type === "gifticon"
     );
     const gifticonFulfillmentIds = gifticonFulfillments.map((f) => f.id);
+
+    // [digital_download] §4: 다운로드 완료했거나 결제 후 24시간이 지난 경우 취소/환불 자체를 막는다.
+    // 별도의 부분 취소 경로가 없으므로(order_item 단위 선택 취소 불가) 위반 시 요청 전체를 거부한다.
+    const digitalDownloadFulfillmentIds = (allFulfillments ?? [])
+      .filter((f) => f.delivery_type === "digital_download")
+      .map((f) => f.id);
+
+    if (digitalDownloadFulfillmentIds.length > 0) {
+      const { data: ebooks } = await adminDb
+        .from("ebook_downloads")
+        .select("digital_fulfillment_id, download_count")
+        .in("digital_fulfillment_id", digitalDownloadFulfillmentIds);
+
+      const anyDownloaded = (ebooks ?? []).some((e) => (e.download_count ?? 0) > 0);
+      if (anyDownloaded) {
+        return NextResponse.json(
+          { error: "다운로드한 상품이 포함되어 있어 취소/환불할 수 없습니다." },
+          { status: 400 }
+        );
+      }
+
+      if (order.paid_at) {
+        const hoursSincePaid = (Date.now() - new Date(order.paid_at).getTime()) / (1000 * 60 * 60);
+        if (hoursSincePaid > DIGITAL_CANCEL_WINDOW_HOURS) {
+          return NextResponse.json(
+            { error: `결제 후 ${DIGITAL_CANCEL_WINDOW_HOURS}시간이 지나 취소/환불할 수 없습니다.` },
+            { status: 400 }
+          );
+        }
+      }
+    }
 
     // [쿠폰 상품] purchase 쿠폰 상태 확인 및 처리
     // Phase 1 이후: digital_fulfillment_id FK 조인
@@ -149,14 +181,17 @@ export async function POST(req: NextRequest) {
       const revealedCodes = (issuedCodes ?? []).filter((c) => c.revealed_at !== null);
 
       if (revealedCodes.length > 0) {
-        // 열람한 코드의 order_item subtotal을 환불 제외에 추가
+        // 열람한 코드 1개당 unit price(product_price) 1개분만 환불 제외에 추가.
+        // quantity > 1인 아이템(코드 여러 개가 같은 fulfillment_id를 공유)은 subtotal 전체가 아니라
+        // 실제 열람된 코드 수만큼만 제외해야 한다 — 그렇지 않으면 일부만 열람했는데도
+        // 전액(또는 그 이상)이 중복 차감되는 버그가 생긴다.
         const { data: gifticonItems } = await adminDb
           .from("order_items")
-          .select("id, subtotal")
+          .select("id, product_price")
           .in("id", gifticonFulfillments.map((f) => f.order_item_id));
 
-        const itemSubtotalMap = new Map(
-          (gifticonItems ?? []).map((i) => [i.id, i.subtotal as number])
+        const itemUnitPriceMap = new Map(
+          (gifticonItems ?? []).map((i) => [i.id, i.product_price as number])
         );
         const fulfillmentItemMap = new Map(
           gifticonFulfillments.map((f) => [f.id, f.order_item_id])
@@ -164,7 +199,7 @@ export async function POST(req: NextRequest) {
 
         for (const code of revealedCodes) {
           const itemId = fulfillmentItemMap.get(code.issued_to_fulfillment_id);
-          excludedFromRefund += itemSubtotalMap.get(itemId ?? 0) ?? 0;
+          excludedFromRefund += itemUnitPriceMap.get(itemId ?? 0) ?? 0;
         }
       }
 

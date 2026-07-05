@@ -11,11 +11,10 @@ export interface OrderItemWithFulfillment {
   digital_fulfillment?: {
     status: FulfillmentStatus;
     ebook_download?: { download_count: number } | null;
-    gifticon_code?: { revealed_at: string | null } | null;
-    // §4 매트릭스의 coupon 행(발급 쿠폰 active/used)을 판단하기 위해
-    // plan 원안 인터페이스에 없던 필드를 추가함 — user_coupons.status를
-    // digital_fulfillment_id로 조인해 채운다 (cancel/route.ts와 동일 조인 패턴).
-    user_coupon?: { status: string } | null;
+    // 기프티콘/쿠폰은 quantity > 1이면 하나의 fulfillment에 코드/쿠폰이 여러 개 딸릴 수 있다
+    // (issued_to_fulfillment_id, digital_fulfillment_id 모두 1:N) — 배열로 받는다.
+    gifticon_codes?: Array<{ revealed_at: string | null }>;
+    user_coupons?: Array<{ status: string }>;
   } | null;
 }
 
@@ -82,10 +81,8 @@ export function canCancelItem(
     }
 
     case "coupon": {
-      const status = item.digital_fulfillment?.user_coupon?.status;
-      if (status !== "active") {
-        return { allowed: false, reason: "이미 사용되었거나 취소된 쿠폰입니다." };
-      }
+      // 쿠폰 사용 여부는 주문 취소 자체를 막지 않는다 — active 쿠폰만 cancelled 처리되고
+      // used 쿠폰은 그대로 둔 채 환불 금액에서만 제외된다 (실제 cancel/route.ts 동작과 일치).
       return { allowed: true };
     }
 
@@ -120,19 +117,18 @@ export function canRefundItem(
     }
 
     case "gifticon": {
-      const revealedAt = item.digital_fulfillment?.gifticon_code?.revealed_at ?? null;
-      return { allowed: true, excludeAmount: revealedAt !== null };
+      const codes = item.digital_fulfillment?.gifticon_codes ?? [];
+      const anyRevealed = codes.some((c) => c.revealed_at !== null);
+      return { allowed: true, excludeAmount: anyRevealed };
     }
 
     case "coupon": {
-      const status = item.digital_fulfillment?.user_coupon?.status;
-      if (status === "used") {
-        return { allowed: true, excludeAmount: true };
+      const coupons = item.digital_fulfillment?.user_coupons ?? [];
+      if (coupons.length === 0) {
+        return { allowed: false, excludeAmount: false, reason: "환불 대상이 아닙니다." };
       }
-      if (status === "active") {
-        return { allowed: true, excludeAmount: false };
-      }
-      return { allowed: false, excludeAmount: false, reason: "환불 대상이 아닙니다." };
+      const anyUsed = coupons.some((c) => c.status === "used");
+      return { allowed: true, excludeAmount: anyUsed };
     }
 
     default:

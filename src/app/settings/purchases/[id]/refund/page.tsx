@@ -4,8 +4,8 @@ import { use, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import SettingsLayout from "@/components/SettingsLayout";
 import { useAuthStore } from "@/store/useAuthStore";
-import { createClient } from "@/utils/supabase/client";
-import { useCancelRefund } from "@/hooks/useCancelRefund";
+import { useMyOrders, type MyOrderDetail } from "@/hooks/useMyOrders";
+import { useCancelRefund, computeOrderEligibility } from "@/hooks/useCancelRefund";
 
 const QUICK_REASONS = [
   "상품 불량",
@@ -15,52 +15,52 @@ const QUICK_REASONS = [
   "기타",
 ];
 
-interface OrderSummary {
-  id: number;
-  order_number: string;
-  final_price: number;
-  status: string;
-  refund_status: string | null;
-}
-
 export default function RefundPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const orderId = Number(id);
 
   const { user } = useAuthStore();
   const router = useRouter();
+  const { fetchOrderDetail } = useMyOrders();
   const { processing, requestRefund } = useCancelRefund();
 
-  const [order, setOrder] = useState<OrderSummary | null>(null);
+  const [order, setOrder] = useState<MyOrderDetail | null>(null);
   const [loadingOrder, setLoadingOrder] = useState(true);
-  const [notRefundable, setNotRefundable] = useState(false);
+  const [blockReason, setBlockReason] = useState<string | null>(null);
   const [reason, setReason] = useState("");
   const [submitError, setSubmitError] = useState("");
 
   useEffect(() => {
     if (!user) return;
 
-    const supabase = createClient();
     setLoadingOrder(true);
-
-    supabase
-      .from("orders")
-      .select("id, order_number, final_price, status, refund_status")
-      .eq("id", orderId)
-      .eq("user_id", user.id)
-      .single()
-      .then(({ data, error }) => {
-        if (error || !data) {
-          setNotRefundable(true);
-        } else if (data.status !== "delivered" || data.refund_status !== null) {
-          setOrder(data as OrderSummary);
-          setNotRefundable(true);
-        } else {
-          setOrder(data as OrderSummary);
-        }
+    fetchOrderDetail(orderId).then((data) => {
+      if (!data) {
+        setBlockReason("주문 정보를 찾을 수 없습니다.");
         setLoadingOrder(false);
-      });
-  }, [user, orderId]);
+        return;
+      }
+
+      setOrder(data);
+
+      const eligibility = computeOrderEligibility(
+        {
+          status: data.status,
+          paid_at: data.paid_at,
+          delivered_at: data.shipping_tracking?.delivered_at ?? null,
+          order_type: data.order_type,
+          refund_status: data.refund_status,
+        },
+        data.order_items
+      );
+
+      if (!eligibility.orderRefundAllowed) {
+        setBlockReason(eligibility.orderRefundReason ?? "이 주문은 환불 신청이 불가능한 상태입니다.");
+      }
+
+      setLoadingOrder(false);
+    });
+  }, [user, orderId, fetchOrderDetail]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -69,11 +69,10 @@ export default function RefundPage({ params }: { params: Promise<{ id: string }>
       setSubmitError("환불 사유를 입력해 주세요.");
       return;
     }
-
-    const refundAmount = order?.final_price ?? 0;
+    if (!order) return;
 
     setSubmitError("");
-    const ok = await requestRefund(orderId, reason.trim(), refundAmount);
+    const ok = await requestRefund(orderId, reason.trim(), order.order_type, order.final_price);
     if (ok) {
       router.push(`/settings/purchases/${id}?refund=1`);
     } else {
@@ -87,15 +86,9 @@ export default function RefundPage({ params }: { params: Promise<{ id: string }>
         <div className="flex items-center justify-center py-20">
           <div className="w-6 h-6 border-2 border-white/20 border-t-white rounded-full animate-spin" />
         </div>
-      ) : notRefundable ? (
+      ) : blockReason ? (
         <div className="bg-[#1a1a1a] rounded-2xl border border-white/5 p-8 text-center">
-          <p className="text-gray-400 mb-2">
-            {order
-              ? order.refund_status !== null
-                ? "이미 환불 신청이 접수되었거나 처리 완료된 주문입니다."
-                : "이 주문은 환불 신청이 불가능한 상태입니다."
-              : "주문 정보를 찾을 수 없습니다."}
-          </p>
+          <p className="text-gray-400 mb-2">{blockReason}</p>
           <button
             onClick={() => router.back()}
             className="mt-6 px-6 py-2 rounded-full text-sm bg-[#2a2a2a] text-gray-300 hover:bg-[#333] transition-colors"
@@ -155,9 +148,10 @@ export default function RefundPage({ params }: { params: Promise<{ id: string }>
             <p className="text-xs font-semibold text-gray-400 mb-2">환불 안내</p>
             <ul className="text-xs text-gray-500 space-y-1 list-disc list-inside">
               <li>배송 완료 후 7일 이내 환불 신청이 가능합니다.</li>
+              <li>디지털 단독 주문은 배송 없이 결제 완료 상태에서 바로 환불 신청이 가능합니다.</li>
               <li>단순 변심의 경우 반품 배송비(3,000원)가 차감될 수 있습니다.</li>
+              <li>이미 다운로드/열람/사용한 디지털 상품은 해당 금액이 환불에서 제외됩니다.</li>
               <li>환불 승인 후 영업일 기준 3~5일 내 결제 취소가 진행됩니다.</li>
-              <li>부분 환불의 경우 관리자 확인 후 처리됩니다.</li>
             </ul>
           </div>
 

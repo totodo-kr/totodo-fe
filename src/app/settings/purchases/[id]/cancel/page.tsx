@@ -4,17 +4,10 @@ import { use, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import SettingsLayout from "@/components/SettingsLayout";
 import { useAuthStore } from "@/store/useAuthStore";
-import { createClient } from "@/utils/supabase/client";
-import { useCancelRefund } from "@/hooks/useCancelRefund";
+import { useMyOrders, type MyOrderDetail } from "@/hooks/useMyOrders";
+import { useCancelRefund, computeOrderEligibility } from "@/hooks/useCancelRefund";
 
 const QUICK_REASONS = ["단순 변심", "다른 상품 구매", "배송 지연", "기타"];
-
-interface OrderSummary {
-  id: number;
-  order_number: string;
-  final_price: number;
-  status: string;
-}
 
 export default function CancelPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
@@ -22,38 +15,46 @@ export default function CancelPage({ params }: { params: Promise<{ id: string }>
 
   const { user } = useAuthStore();
   const router = useRouter();
+  const { fetchOrderDetail } = useMyOrders();
   const { processing, requestCancel } = useCancelRefund();
 
-  const [order, setOrder] = useState<OrderSummary | null>(null);
+  const [order, setOrder] = useState<MyOrderDetail | null>(null);
   const [loadingOrder, setLoadingOrder] = useState(true);
-  const [notCancellable, setNotCancellable] = useState(false);
+  const [blockReason, setBlockReason] = useState<string | null>(null);
   const [reason, setReason] = useState("");
   const [submitError, setSubmitError] = useState("");
 
   useEffect(() => {
     if (!user) return;
 
-    const supabase = createClient();
     setLoadingOrder(true);
-
-    supabase
-      .from("orders")
-      .select("id, order_number, final_price, status")
-      .eq("id", orderId)
-      .eq("user_id", user.id)
-      .single()
-      .then(({ data, error }) => {
-        if (error || !data) {
-          setNotCancellable(true);
-        } else if (data.status !== "pending" && data.status !== "paid") {
-          setOrder(data as OrderSummary);
-          setNotCancellable(true);
-        } else {
-          setOrder(data as OrderSummary);
-        }
+    fetchOrderDetail(orderId).then((data) => {
+      if (!data) {
+        setBlockReason("주문 정보를 찾을 수 없습니다.");
         setLoadingOrder(false);
-      });
-  }, [user, orderId]);
+        return;
+      }
+
+      setOrder(data);
+
+      const eligibility = computeOrderEligibility(
+        {
+          status: data.status,
+          paid_at: data.paid_at,
+          delivered_at: data.shipping_tracking?.delivered_at ?? null,
+          order_type: data.order_type,
+          refund_status: data.refund_status,
+        },
+        data.order_items
+      );
+
+      if (!eligibility.orderCancelAllowed) {
+        setBlockReason(eligibility.orderCancelReason ?? "이 주문은 취소가 불가능한 상태입니다.");
+      }
+
+      setLoadingOrder(false);
+    });
+  }, [user, orderId, fetchOrderDetail]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -76,13 +77,9 @@ export default function CancelPage({ params }: { params: Promise<{ id: string }>
         <div className="flex items-center justify-center py-20">
           <div className="w-6 h-6 border-2 border-white/20 border-t-white rounded-full animate-spin" />
         </div>
-      ) : notCancellable ? (
+      ) : blockReason ? (
         <div className="bg-[#1a1a1a] rounded-2xl border border-white/5 p-8 text-center">
-          <p className="text-gray-400 mb-2">
-            {order
-              ? "이 주문은 취소가 불가능한 상태입니다."
-              : "주문 정보를 찾을 수 없습니다."}
-          </p>
+          <p className="text-gray-400 mb-2">{blockReason}</p>
           {order && (
             <p className="text-xs text-gray-600 mb-6">
               현재 상태: <span className="text-gray-400">{order.status}</span>
@@ -148,6 +145,7 @@ export default function CancelPage({ params }: { params: Promise<{ id: string }>
             <p className="text-xs font-semibold text-gray-400 mb-2">취소 안내</p>
             <ul className="text-xs text-gray-500 space-y-1 list-disc list-inside">
               <li>결제 완료 후 배송 전 주문에 한해 취소가 가능합니다.</li>
+              <li>다운로드 상품은 다운로드 이후, 결제 후 24시간이 지나면 취소할 수 없습니다.</li>
               <li>취소 처리 완료 후 결제 수단에 따라 환급이 진행됩니다.</li>
               <li>결제 취소는 영업일 기준 3~5일 소요될 수 있습니다.</li>
             </ul>
