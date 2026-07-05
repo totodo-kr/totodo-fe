@@ -53,17 +53,46 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // [쿠폰 상품] delivery_type='coupon'인 order_items의 purchase 쿠폰 상태 확인
-    // 이미 사용된 쿠폰이 있으면 해당 금액을 환불에서 제외
     let excludedFromRefund = 0;
 
-    const { data: purchaseUserCoupons } = await adminDb
-      .from("user_coupons")
-      .select("id, status, coupon_id")
-      .eq("issue_method", "purchase")
-      .like("issue_epoch", `${order.id}_%`);
+    // 이 주문의 모든 디지털 이행 레코드 조회 (Phase 1 이후 생성된 주문)
+    const { data: allFulfillments } = await adminDb
+      .from("digital_fulfillments")
+      .select("id, order_item_id, delivery_type")
+      .eq("order_id", order.id)
+      .eq("status", "success");
 
-    if (purchaseUserCoupons && purchaseUserCoupons.length > 0) {
+    const couponFulfillmentIds = (allFulfillments ?? [])
+      .filter((f) => f.delivery_type === "coupon")
+      .map((f) => f.id);
+
+    const gifticonFulfillments = (allFulfillments ?? []).filter(
+      (f) => f.delivery_type === "gifticon"
+    );
+    const gifticonFulfillmentIds = gifticonFulfillments.map((f) => f.id);
+
+    // [쿠폰 상품] purchase 쿠폰 상태 확인 및 처리
+    // Phase 1 이후: digital_fulfillment_id FK 조인
+    // Phase 1 이전 주문 fallback: issue_epoch LIKE (전환 기간 안전망)
+    let purchaseUserCoupons: { id: number; status: string; coupon_id: number }[] = [];
+
+    if (couponFulfillmentIds.length > 0) {
+      const { data } = await adminDb
+        .from("user_coupons")
+        .select("id, status, coupon_id")
+        .in("digital_fulfillment_id", couponFulfillmentIds);
+      purchaseUserCoupons = (data ?? []) as typeof purchaseUserCoupons;
+    } else {
+      // Phase 1 이전 발급 주문: issue_epoch 패턴으로 fallback
+      const { data } = await adminDb
+        .from("user_coupons")
+        .select("id, status, coupon_id")
+        .eq("issue_method", "purchase")
+        .like("issue_epoch", `${order.id}_%`);
+      purchaseUserCoupons = (data ?? []) as typeof purchaseUserCoupons;
+    }
+
+    if (purchaseUserCoupons.length > 0) {
       const usedCoupons = purchaseUserCoupons.filter((uc) => uc.status === "used");
       const activeCoupons = purchaseUserCoupons.filter((uc) => uc.status === "active");
 
@@ -87,11 +116,9 @@ export async function POST(req: NextRequest) {
           0
         );
 
-        // 사용된 쿠폰 비율만큼 환불 제외
-        excludedFromRefund = Math.round(totalCouponAmount * (usedCoupons.length / totalCouponUnits));
+        excludedFromRefund += Math.round(totalCouponAmount * (usedCoupons.length / totalCouponUnits));
       }
 
-      // active 상태의 purchase 쿠폰은 cancelled로 처리
       if (activeCoupons.length > 0) {
         const activeIds = activeCoupons.map((uc) => uc.id);
         await adminDb
@@ -99,7 +126,6 @@ export async function POST(req: NextRequest) {
           .update({ status: "cancelled" })
           .in("id", activeIds);
 
-        // 쿠폰별로 issued_count 감소
         const couponIdCounts = activeCoupons.reduce<Record<number, number>>((acc, uc) => {
           acc[uc.coupon_id] = (acc[uc.coupon_id] ?? 0) + 1;
           return acc;
@@ -111,6 +137,48 @@ export async function POST(req: NextRequest) {
           });
         }
       }
+    }
+
+    // [기프티콘 상품] revealed_at 기반 환불 제외 계산 + 코드 void 처리
+    if (gifticonFulfillmentIds.length > 0) {
+      const { data: issuedCodes } = await adminDb
+        .from("gifticon_codes")
+        .select("id, revealed_at, issued_to_fulfillment_id")
+        .in("issued_to_fulfillment_id", gifticonFulfillmentIds);
+
+      const revealedCodes = (issuedCodes ?? []).filter((c) => c.revealed_at !== null);
+
+      if (revealedCodes.length > 0) {
+        // 열람한 코드의 order_item subtotal을 환불 제외에 추가
+        const { data: gifticonItems } = await adminDb
+          .from("order_items")
+          .select("id, subtotal")
+          .in("id", gifticonFulfillments.map((f) => f.order_item_id));
+
+        const itemSubtotalMap = new Map(
+          (gifticonItems ?? []).map((i) => [i.id, i.subtotal as number])
+        );
+        const fulfillmentItemMap = new Map(
+          gifticonFulfillments.map((f) => [f.id, f.order_item_id])
+        );
+
+        for (const code of revealedCodes) {
+          const itemId = fulfillmentItemMap.get(code.issued_to_fulfillment_id);
+          excludedFromRefund += itemSubtotalMap.get(itemId ?? 0) ?? 0;
+        }
+      }
+
+      // 열람 여부와 무관하게 코드를 void 처리 (재고 풀로 반납 안 함)
+      await adminDb
+        .from("gifticon_codes")
+        .update({ status: "void" })
+        .in("issued_to_fulfillment_id", gifticonFulfillmentIds);
+
+      // 기프티콘 이행 레코드 cancelled 처리
+      await adminDb
+        .from("digital_fulfillments")
+        .update({ status: "cancelled" })
+        .in("id", gifticonFulfillmentIds);
     }
 
     const paymentInfo = order.payment_info as Record<string, unknown> | null;
@@ -165,7 +233,7 @@ export async function POST(req: NextRequest) {
       const restoreFields =
         mode === "cancel"
           ? { status: "active", used_at: null, used_order_id: null, restored_at: now }
-          : { status: "active", restored_at: now };  // 환불: used_at/used_order_id 이력 보존
+          : { status: "active", restored_at: now };
 
       await adminDb
         .from("user_coupons")
@@ -173,7 +241,6 @@ export async function POST(req: NextRequest) {
         .eq("id", order.user_coupon_id)
         .eq("status", "used");
 
-      // used_count 감소
       await adminDb.rpc("decrement_coupon_used_count", {
         user_coupon_id_arg: order.user_coupon_id,
         amount_arg: 1,

@@ -250,3 +250,33 @@ CREATE POLICY "gifticon_codes_select_own_issued" ON gifticon_codes FOR SELECT US
   AND EXISTS (SELECT 1 FROM digital_fulfillments df WHERE df.id = gifticon_codes.issued_to_fulfillment_id AND df.user_id = auth.uid())
 );
 CREATE POLICY "gifticon_codes_admin_all" ON gifticon_codes FOR ALL USING (public.is_admin());
+
+-- =============================================
+-- 2026/07/05 — Phase 1: gifticon 원자적 코드 예약 RPC (§7)
+-- SECURITY DEFINER로 RLS를 우회해 available 재고를 읽어야 함.
+-- 재고 없으면 NULL 반환 → confirm route가 자동 부분 취소 처리.
+-- =============================================
+CREATE OR REPLACE FUNCTION claim_gifticon_code(p_product_id INTEGER, p_fulfillment_id INTEGER)
+RETURNS INTEGER LANGUAGE plpgsql SECURITY DEFINER AS $$
+DECLARE
+  v_code_id INTEGER;
+BEGIN
+  SELECT id INTO v_code_id
+  FROM gifticon_codes
+  WHERE product_id = p_product_id AND status = 'available'
+  FOR UPDATE SKIP LOCKED
+  LIMIT 1;
+
+  IF v_code_id IS NULL THEN
+    RETURN NULL;
+  END IF;
+
+  UPDATE gifticon_codes
+  SET status = 'issued',
+      issued_to_fulfillment_id = p_fulfillment_id,
+      issued_at = CURRENT_TIMESTAMP
+  WHERE id = v_code_id;
+
+  RETURN v_code_id;
+END;
+$$;
