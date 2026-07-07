@@ -216,20 +216,29 @@ export function useProducts() {
   );
 
   const fetchProductQna = useCallback(
-    async (productId: number, page = 1): Promise<{ qna: ProductQna[]; total: number }> => {
+    async (
+      productId: number,
+      page = 1,
+      userId?: string
+    ): Promise<{ qna: ProductQna[]; total: number }> => {
       const supabase = createClient();
 
       const from = (page - 1) * QNA_PAGE_SIZE;
       const to = from + QNA_PAGE_SIZE - 1;
 
-      const { data, count, error } = await supabase
+      let query = supabase
         .from("product_qna")
         .select(
           "id, product_id, user_id, title, content, is_private, answer, answered_at, created_at",
           { count: "exact" }
         )
-        .eq("product_id", productId)
-        .eq("is_private", false)
+        .eq("product_id", productId);
+
+      query = userId
+        ? query.or(`is_private.eq.false,user_id.eq.${userId}`)
+        : query.eq("is_private", false);
+
+      const { data, count, error } = await query
         .order("created_at", { ascending: false })
         .range(from, to);
 
@@ -239,6 +248,31 @@ export function useProducts() {
       }
 
       return { qna: (data as ProductQna[]) ?? [], total: count ?? 0 };
+    },
+    []
+  );
+
+  const submitQna = useCallback(
+    async (input: {
+      productId: number;
+      userId: string;
+      title: string;
+      content: string;
+      isPrivate: boolean;
+    }): Promise<{ ok: boolean; error?: string }> => {
+      const supabase = createClient();
+
+      const { error } = await supabase.from("product_qna").insert({
+        product_id: input.productId,
+        user_id: input.userId,
+        title: input.title.trim(),
+        content: input.content.trim(),
+        is_private: input.isPrivate,
+      });
+
+      if (!error) return { ok: true };
+      console.error("Error submitting Q&A:", error);
+      return { ok: false, error: error.message };
     },
     []
   );
@@ -265,6 +299,7 @@ export function useProducts() {
     fetchProduct,
     fetchProductReviews,
     fetchProductQna,
+    submitQna,
     fetchCategories,
   };
 }

@@ -9,6 +9,10 @@ import PageLoading from "@/components/PageLoading";
 import SettingsLayout from "@/components/SettingsLayout";
 import { useMyOrders, type MyOrderDetail, type MyOrderItemDetail } from "@/hooks/useMyOrders";
 import { computeOrderEligibility } from "@/hooks/useCancelRefund";
+import { createClient } from "@/utils/supabase/client";
+import ProductReviewModal from "@/components/ProductReviewModal";
+
+const REVIEWABLE_STATUSES = ["paid", "shipped", "delivered"];
 
 /* ─── helpers ─────────────────────────────────────────────── */
 
@@ -373,6 +377,13 @@ export default function OrderDetailPage({
   const [actionLoading, setActionLoading] = useState(false);
   const [actionError, setActionError] = useState("");
 
+  const [reviewTarget, setReviewTarget] = useState<{
+    orderItemId: number;
+    productId: number;
+    productName: string;
+  } | null>(null);
+  const [reviewedItemIds, setReviewedItemIds] = useState<Set<number>>(new Set());
+
   useEffect(() => {
     if (!isLoading && !user) {
       router.push("/");
@@ -445,6 +456,22 @@ export default function OrderDetailPage({
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [order]);
+
+  // 이미 리뷰를 작성한 주문 항목을 파악해 버튼 라벨을 "리뷰 작성"/"리뷰 수정"으로 구분
+  useEffect(() => {
+    if (!order || order.order_items.length === 0) return;
+    const supabase = createClient();
+    const itemIds = order.order_items.map((item) => item.id);
+
+    supabase
+      .from("product_reviews")
+      .select("order_item_id")
+      .in("order_item_id", itemIds)
+      .then(({ data }) => {
+        const ids = (data ?? []).map((row) => row.order_item_id as number);
+        setReviewedItemIds(new Set(ids));
+      });
   }, [order]);
 
   const handleRequestDownload = (item: MyOrderItemDetail) => {
@@ -524,6 +551,7 @@ export default function OrderDetailPage({
   );
 
   const hasTracking = !!order.shipping_tracking?.tracking_number;
+  const eligibleForReview = REVIEWABLE_STATUSES.includes(order.status);
 
   const badgeClass = STATUS_CLASS[order.status] ?? "bg-gray-600 text-gray-200";
   const statusLabel =
@@ -609,6 +637,24 @@ export default function OrderDetailPage({
                 onRequestDownload={handleRequestDownload}
                 onRequestReveal={handleRequestReveal}
               />
+
+              {eligibleForReview && (
+                <div className="mt-2 flex justify-end">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setReviewTarget({
+                        orderItemId: item.id,
+                        productId: item.product_id,
+                        productName: item.product_name,
+                      })
+                    }
+                    className="text-xs px-3 py-1.5 rounded-lg bg-[#2a2a2a] text-gray-300 hover:bg-[#333] hover:text-white transition-colors"
+                  >
+                    {reviewedItemIds.has(item.id) ? "리뷰 수정" : "리뷰 작성"}
+                  </button>
+                </div>
+              )}
             </div>
           ))}
         </div>
@@ -812,6 +858,18 @@ export default function OrderDetailPage({
 
       {actionError && (
         <p className="mt-3 text-xs text-red-400 text-center">{actionError}</p>
+      )}
+
+      {reviewTarget && (
+        <ProductReviewModal
+          orderItemId={reviewTarget.orderItemId}
+          productId={reviewTarget.productId}
+          productName={reviewTarget.productName}
+          onClose={() => setReviewTarget(null)}
+          onSubmitted={() => {
+            setReviewedItemIds((prev) => new Set(prev).add(reviewTarget.orderItemId));
+          }}
+        />
       )}
     </SettingsLayout>
   );

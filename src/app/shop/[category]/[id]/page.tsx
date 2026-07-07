@@ -44,7 +44,7 @@ export default function ProductDetailPage({
   const { category, id } = use(params);
   const router = useRouter();
   const { user } = useAuthStore();
-  const { fetchProduct, fetchProductReviews, fetchProductQna } = useProducts();
+  const { fetchProduct, fetchProductReviews, fetchProductQna, submitQna } = useProducts();
   const { addToCart } = useCart();
   const { isInWishlist, toggleWishlist, fetchWishlist } = useWishlist();
 
@@ -67,6 +67,12 @@ export default function ProductDetailPage({
   const [wishlistPending, setWishlistPending] = useState(false);
   const [loginOpen, setLoginOpen] = useState(false);
 
+  const [showQnaForm, setShowQnaForm] = useState(false);
+  const [qnaTitle, setQnaTitle] = useState("");
+  const [qnaContent, setQnaContent] = useState("");
+  const [qnaPrivate, setQnaPrivate] = useState(false);
+  const [qnaSubmitting, setQnaSubmitting] = useState(false);
+
   const detailRef = useRef<HTMLDivElement>(null);
   const reviewRef = useRef<HTMLDivElement>(null);
   const returnRef = useRef<HTMLDivElement>(null);
@@ -76,6 +82,16 @@ export default function ProductDetailPage({
   useEffect(() => {
     if (user) fetchWishlist();
   }, [user, fetchWishlist]);
+
+  // 로그인 상태가 확정된 후 본인이 작성한 비밀글도 포함해 Q&A를 다시 조회
+  useEffect(() => {
+    if (!user) return;
+    const productId = parseInt(id, 10);
+    fetchProductQna(productId, 1, user.id).then((qnaData) => {
+      setQna(qnaData.qna);
+      setQnaTotal(qnaData.total);
+    });
+  }, [user, id, fetchProductQna]);
 
   useEffect(() => {
     async function load() {
@@ -198,6 +214,41 @@ export default function ProductDetailPage({
     setWishlistPending(true);
     await toggleWishlist(productId);
     setWishlistPending(false);
+  };
+
+  const handleOpenQnaForm = () => {
+    if (!user) { setLoginOpen(true); return; }
+    setShowQnaForm((prev) => !prev);
+  };
+
+  const handleSubmitQna = async () => {
+    if (!user) { setLoginOpen(true); return; }
+    if (!qnaTitle.trim() || !qnaContent.trim()) {
+      alert("제목과 내용을 입력해주세요.");
+      return;
+    }
+
+    setQnaSubmitting(true);
+    const result = await submitQna({
+      productId,
+      userId: user.id,
+      title: qnaTitle,
+      content: qnaContent,
+      isPrivate: qnaPrivate,
+    });
+    setQnaSubmitting(false);
+
+    if (result.ok) {
+      setQnaTitle("");
+      setQnaContent("");
+      setQnaPrivate(false);
+      setShowQnaForm(false);
+      const qnaData = await fetchProductQna(productId, 1, user.id);
+      setQna(qnaData.qna);
+      setQnaTotal(qnaData.total);
+    } else {
+      alert(`문의 등록 중 오류가 발생했습니다.\n\n${result.error ?? ""}`);
+    }
   };
 
   if (loading) return <PageLoading />;
@@ -606,10 +657,10 @@ export default function ProductDetailPage({
                 <div className="text-3xl font-bold">{product.review_count || 0}</div>
               </div>
               <div className="text-center border-l border-white/10 pl-8">
-                <div className="text-gray-400 mb-4">고객님의 리뷰를 공유해주세요!</div>
-                <button className="px-6 py-2 bg-brand-500 hover:bg-brand-600 rounded-lg font-medium transition-colors">
-                  리뷰 작성하기
-                </button>
+                <div className="text-gray-400 mb-4">구매하신 상품의 리뷰를 남겨주세요!</div>
+                <p className="text-xs text-gray-500">
+                  마이페이지 &gt; 구매내역에서 작성할 수 있어요.
+                </p>
               </div>
             </div>
           </section>
@@ -633,6 +684,15 @@ export default function ProductDetailPage({
                   </div>
                   {review.title && <p className="font-semibold">{review.title}</p>}
                   <p className="text-gray-300 text-sm leading-relaxed">{review.content}</p>
+                  {review.images && review.images.length > 0 && (
+                    <div className="flex flex-wrap gap-2">
+                      {review.images.map((img, idx) => (
+                        <div key={idx} className="relative w-20 h-20 rounded-lg overflow-hidden bg-zinc-800">
+                          <Image src={img.url} alt="리뷰 이미지" fill className="object-cover" />
+                        </div>
+                      ))}
+                    </div>
+                  )}
                   {review.helpful_count > 0 && (
                     <p className="text-xs text-gray-500">도움이 됐어요 {review.helpful_count}명</p>
                   )}
@@ -685,7 +745,10 @@ export default function ProductDetailPage({
                   <div key={item.id} className="py-4 space-y-2">
                     <div className="flex items-center gap-4">
                       <span className="font-medium">Q.</span>
-                      <span className="flex-1">{item.title}</span>
+                      <span className="flex-1 flex items-center gap-2">
+                        {item.is_private && <Lock className="w-3.5 h-3.5 text-gray-500 shrink-0" />}
+                        {item.title}
+                      </span>
                       <span className="text-sm text-gray-500">
                         {new Date(item.created_at).toLocaleDateString("ko-KR")}
                       </span>
@@ -704,8 +767,54 @@ export default function ProductDetailPage({
                 <p className="text-gray-400">등록된 Q&A가 없습니다.</p>
               </div>
             )}
+
+            {showQnaForm && (
+              <div className="mt-8 border border-white/10 rounded-lg p-6 bg-zinc-800/50 space-y-4">
+                <input
+                  value={qnaTitle}
+                  onChange={(e) => setQnaTitle(e.target.value)}
+                  placeholder="제목을 입력해주세요."
+                  className="w-full bg-zinc-900 border border-white/10 rounded-lg p-3 text-white placeholder:text-gray-600 focus:outline-none focus:border-brand-500 transition-colors"
+                />
+                <textarea
+                  value={qnaContent}
+                  onChange={(e) => setQnaContent(e.target.value)}
+                  placeholder="문의하실 내용을 입력해주세요."
+                  rows={4}
+                  className="w-full bg-zinc-900 border border-white/10 rounded-lg p-3 text-white placeholder:text-gray-600 focus:outline-none focus:border-brand-500 transition-colors resize-none"
+                />
+                <label className="flex items-center gap-2 text-sm text-gray-400 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={qnaPrivate}
+                    onChange={(e) => setQnaPrivate(e.target.checked)}
+                    className="accent-brand-500"
+                  />
+                  비밀글로 작성 (작성자와 관리자만 볼 수 있어요)
+                </label>
+                <div className="flex justify-end gap-2">
+                  <button
+                    onClick={() => setShowQnaForm(false)}
+                    className="px-4 py-2 text-sm text-gray-400 hover:text-white transition-colors"
+                  >
+                    취소
+                  </button>
+                  <button
+                    onClick={handleSubmitQna}
+                    disabled={qnaSubmitting}
+                    className="px-6 py-2 bg-brand-500 hover:bg-brand-600 rounded-lg font-medium text-sm transition-colors disabled:opacity-50"
+                  >
+                    {qnaSubmitting ? "등록 중..." : "등록하기"}
+                  </button>
+                </div>
+              </div>
+            )}
+
             <div className="flex justify-center gap-3 mt-8">
-              <button className="px-6 py-2 rounded-lg bg-zinc-800 hover:bg-zinc-700 transition-colors font-medium">
+              <button
+                onClick={handleOpenQnaForm}
+                className="px-6 py-2 rounded-lg bg-zinc-800 hover:bg-zinc-700 transition-colors font-medium"
+              >
                 문의하기
               </button>
             </div>
