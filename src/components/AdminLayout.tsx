@@ -49,7 +49,16 @@ const navItems: NavItem[] = [
       { href: "/admin/academy/lectures", label: "강의 목록" },
     ],
   },
-  { kind: "link", href: "/admin/shop/products", label: "상품 관리", icon: ShoppingBag },
+  {
+    kind: "group",
+    label: "상품 관리",
+    icon: ShoppingBag,
+    basePath: "/admin/shop",
+    children: [
+      { href: "/admin/shop/products", label: "상품 목록" },
+      { href: "/admin/shop/categories", label: "상품 카테고리 목록" },
+    ],
+  },
   { kind: "link", href: "/admin/orders", label: "주문 관리", icon: ClipboardList },
   { kind: "link", href: "/admin/coupons", label: "쿠폰 관리", icon: Ticket },
   { kind: "link", href: "/admin/faq", label: "FAQ 관리", icon: HelpCircle },

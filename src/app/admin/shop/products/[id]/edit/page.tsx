@@ -35,7 +35,7 @@ export default function AdminProductEditPage() {
     const supabase = createClient();
 
     Promise.all([
-      supabase.from("product_categories").select("id, name, slug").order("id"),
+      supabase.from("product_categories").select("id, name, slug, field_schema").order("id"),
       fetchProduct(productId),
     ]).then(([{ data: cats }, product]) => {
       setCategories(cats ?? []);

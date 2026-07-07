@@ -9,7 +9,7 @@ export interface MetaField {
   span?: "full" | "half"; // grid span
 }
 
-const SHIPPING_FEE: MetaField = {
+export const SHIPPING_FEE: MetaField = {
   key: "shipping_fee",
   label: "배송비 (원)",
   type: "number",
@@ -17,51 +17,7 @@ const SHIPPING_FEE: MetaField = {
   span: "half",
 };
 
-export const CATEGORY_META_SCHEMAS: Record<string, MetaField[]> = {
-  // ───── 도서 ─────
-  books: [
-    SHIPPING_FEE,
-    { key: "isbn", label: "ISBN", type: "text", placeholder: "979-1-1234-5678-9", span: "half" },
-    { key: "author", label: "저자", type: "text", placeholder: "홍길동", span: "half" },
-    { key: "publisher", label: "출판사", type: "text", placeholder: "출판사명", span: "half" },
-    { key: "publish_date", label: "출판일", type: "text", placeholder: "2024.06.26", span: "half" },
-    {
-      key: "book_type",
-      label: "도서 형태",
-      type: "select",
-      options: ["종이책", "전자책", "오디오북"],
-      span: "half",
-    },
-    {
-      key: "print_color",
-      label: "인쇄 컬러",
-      type: "select",
-      options: ["흑백", "컬러", "2도"],
-      span: "half",
-    },
-    {
-      key: "age_limit",
-      label: "연령 제한",
-      type: "select",
-      options: ["전연령", "12세 이상", "15세 이상", "18세 이상"],
-      span: "half",
-    },
-    { key: "page_count", label: "페이지 수", type: "number", placeholder: "156", span: "half" },
-    { key: "author_introduction", label: "저자 소개", type: "richtext", span: "full" },
-    { key: "table_of_contents", label: "목차", type: "richtext", span: "full" },
-  ],
-
-  // ───── 잡화/굿즈 ─────
-  goods: [
-    SHIPPING_FEE,
-    { key: "size", label: "사이즈 / 규격", type: "text", placeholder: "A4, 210×297mm 등", span: "half" },
-    { key: "material", label: "소재", type: "text", placeholder: "면, 폴리에스터 등", span: "half" },
-    { key: "published_by", label: "제조사", type: "text", span: "half" },
-    { key: "distributor", label: "판매사 / 유통사", type: "text", span: "half" },
-  ],
-};
-
-// delivery_type 기반 폴백 스키마 (카테고리 스키마가 없을 때)
+// delivery_type 기반 폴백 스키마 (카테고리에 field_schema가 없을 때)
 export const DELIVERY_META_SCHEMAS: Record<string, MetaField[]> = {
   // 실제 다운로드 파일(file_path)은 ProductForm의 EbookFilePanel에서 Storage 업로드로만 설정한다 —
   // 관리자가 직접 URL을 입력하게 하면 비공개 버킷 경로와 어긋날 수 있어 이 스키마에서 제외.
@@ -88,10 +44,10 @@ export const DELIVERY_META_SCHEMAS: Record<string, MetaField[]> = {
   ],
 };
 
-export function getMetaSchema(categorySlug: string, deliveryType: string): MetaField[] {
-  return (
-    CATEGORY_META_SCHEMAS[categorySlug] ??
-    DELIVERY_META_SCHEMAS[deliveryType] ??
-    []
-  );
+export function getMetaSchema(
+  categoryFieldSchema: MetaField[] | null | undefined,
+  deliveryType: string
+): MetaField[] {
+  if (categoryFieldSchema && categoryFieldSchema.length > 0) return categoryFieldSchema;
+  return DELIVERY_META_SCHEMAS[deliveryType] ?? [];
 }

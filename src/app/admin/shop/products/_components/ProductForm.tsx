@@ -2,8 +2,9 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { toast } from "sonner";
-import { Plus, Trash2 } from "lucide-react";
+import { Plus, Trash2, MessageCircle, Star } from "lucide-react";
 import { clsx } from "clsx";
 import { AdminPageHeader } from "@/components/admin/organisms";
 import { IconActionButton } from "@/components/admin/molecules";
@@ -105,7 +106,7 @@ export default function ProductForm({ mode, productId, initialData, categories }
     setForm((prev) => ({ ...prev, type_meta: { ...prev.type_meta, [key]: value } }));
 
   const selectedCategory = categories.find((c) => c.id === form.category_id);
-  const metaSchema = getMetaSchema(selectedCategory?.slug ?? "", form.delivery_type);
+  const metaSchema = getMetaSchema(selectedCategory?.field_schema, form.delivery_type);
 
   const validate = (): boolean => {
     const errors: FieldError = {};
@@ -170,6 +171,27 @@ export default function ProductForm({ mode, productId, initialData, categories }
             : "상품 정보를 수정합니다."
         }
       />
+
+      {mode === "edit" && productId && (
+        <div className="flex gap-2 mb-6 -mt-4">
+          <Link
+            href={`/admin/shop/products/${productId}/reviews`}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors"
+            style={{ background: "#efe9de", color: "#6c6a64" }}
+          >
+            <Star className="w-3.5 h-3.5" />
+            리뷰 관리
+          </Link>
+          <Link
+            href={`/admin/shop/products/${productId}/qna`}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors"
+            style={{ background: "#efe9de", color: "#6c6a64" }}
+          >
+            <MessageCircle className="w-3.5 h-3.5" />
+            Q&A 관리
+          </Link>
+        </div>
+      )}
 
       <form id="product-form" onSubmit={handleSubmit} noValidate>
         {/* 기본 정보 */}

@@ -1,5 +1,6 @@
 import { useState, useCallback } from "react";
 import { createClient } from "@/utils/supabase/client";
+import { MetaField } from "@/config/productMetaSchemas";
 
 export interface AdminProduct {
   id: number;
@@ -22,6 +23,7 @@ export interface ProductCategory {
   id: number;
   name: string;
   slug: string;
+  field_schema: MetaField[];
 }
 
 const PAGE_SIZE = 15;
@@ -37,7 +39,7 @@ export function useAdminProducts() {
     const supabase = createClient();
     const { data } = await supabase
       .from("product_categories")
-      .select("id, name, slug")
+      .select("id, name, slug, field_schema")
       .order("id");
     setCategories(data ?? []);
   }, []);

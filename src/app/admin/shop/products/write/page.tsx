@@ -25,7 +25,7 @@ export default function AdminProductWritePage() {
     const supabase = createClient();
     supabase
       .from("product_categories")
-      .select("id, name, slug")
+      .select("id, name, slug, field_schema")
       .order("id")
       .then(({ data }) => {
         setCategories(data ?? []);
