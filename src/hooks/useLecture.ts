@@ -19,6 +19,8 @@ export interface LectureCard {
 
 export interface PurchasedLectureCard extends LectureCard {
   enrollment_id: number;
+  order_id: number | null;
+  progress: number;
 }
 
 export interface LectureDetail {
@@ -394,7 +396,7 @@ export function useMyPurchasedLectures() {
       const { data, error } = await supabase
         .from("lecture_enrollments")
         .select(`
-          id,
+          id, order_id,
           lecture:lectures!inner(
             id, title, subtitle, thumbnail_url, price,
             instructors!inner(user_id),
@@ -406,6 +408,15 @@ export function useMyPurchasedLectures() {
 
       if (error) throw error;
 
+      const { data: progressData } = await supabase
+        .from("lecture_watch_progress")
+        .select("session_id, is_completed")
+        .eq("user_id", user.id);
+
+      const completedIds = new Set(
+        (progressData ?? []).filter((p: any) => p.is_completed).map((p: any) => p.session_id)
+      );
+
       const profileMap = await fetchProfiles(
         supabase,
         (data ?? []).map((e: any) => e.lecture.instructors.user_id)
@@ -415,17 +426,21 @@ export function useMyPurchasedLectures() {
         (data ?? []).map((e: any) => {
           const l = e.lecture;
           const allSessions = (l.lecture_chapters ?? []).flatMap((c: any) => c.lecture_sessions ?? []);
+          const total = allSessions.length;
+          const completed = allSessions.filter((s: any) => completedIds.has(s.id)).length;
           const profile = profileMap[l.instructors.user_id];
           return {
             enrollment_id: e.id,
+            order_id: e.order_id ?? null,
             id: l.id,
             title: l.title,
             subtitle: l.subtitle,
             thumbnail_url: l.thumbnail_url,
             price: l.price,
-            total_sessions: allSessions.length,
+            total_sessions: total,
             instructor_name: instructorName(profile),
             instructor_avatar: profile?.avatar_url ?? null,
+            progress: total > 0 ? Math.round((completed / total) * 100) : 0,
           };
         })
       );

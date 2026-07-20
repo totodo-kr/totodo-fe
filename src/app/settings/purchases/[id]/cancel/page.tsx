@@ -1,11 +1,13 @@
 "use client";
 
-import { use, useEffect, useState } from "react";
+import { use, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import SettingsLayout from "@/components/SettingsLayout";
 import { useAuthStore } from "@/store/useAuthStore";
 import { useMyOrders, type MyOrderDetail } from "@/hooks/useMyOrders";
 import { useCancelRefund, computeOrderEligibility } from "@/hooks/useCancelRefund";
+import { createClient } from "@/utils/supabase/client";
+import { fetchLectureProgress } from "@/lib/lecture/progress";
 
 const QUICK_REASONS = ["단순 변심", "다른 상품 구매", "배송 지연", "기타"];
 
@@ -17,6 +19,7 @@ export default function CancelPage({ params }: { params: Promise<{ id: string }>
   const router = useRouter();
   const { fetchOrderDetail } = useMyOrders();
   const { processing, requestCancel } = useCancelRefund();
+  const supabase = useMemo(() => createClient(), []);
 
   const [order, setOrder] = useState<MyOrderDetail | null>(null);
   const [loadingOrder, setLoadingOrder] = useState(true);
@@ -24,16 +27,38 @@ export default function CancelPage({ params }: { params: Promise<{ id: string }>
   const [reason, setReason] = useState("");
   const [submitError, setSubmitError] = useState("");
 
+  const isLectureOrder = order?.order_items.some((item) => item.lecture_id != null) ?? false;
+  const pageTitle = isLectureOrder ? "수강 취소" : "주문 취소 신청";
+  const submitLabel = isLectureOrder ? "수강 취소" : "취소 신청";
+
   useEffect(() => {
     if (!user) return;
+    let cancelled = false;
 
     setLoadingOrder(true);
-    fetchOrderDetail(orderId).then((data) => {
+    (async () => {
+      const data = await fetchOrderDetail(orderId);
       if (!data) {
-        setBlockReason("주문 정보를 찾을 수 없습니다.");
-        setLoadingOrder(false);
+        if (!cancelled) {
+          setBlockReason("주문 정보를 찾을 수 없습니다.");
+          setLoadingOrder(false);
+        }
         return;
       }
+
+      const lectureItems = data.order_items.filter((item) => item.lecture_id != null);
+      const progressByItemId = new Map<number, number>();
+      for (const item of lectureItems) {
+        const progress = await fetchLectureProgress(supabase, user.id, item.lecture_id!);
+        progressByItemId.set(item.id, progress);
+      }
+
+      if (cancelled) return;
+
+      const itemsWithProgress = data.order_items.map((item) => ({
+        ...item,
+        lecture_progress: progressByItemId.get(item.id),
+      }));
 
       setOrder(data);
 
@@ -45,7 +70,7 @@ export default function CancelPage({ params }: { params: Promise<{ id: string }>
           order_type: data.order_type,
           refund_status: data.refund_status,
         },
-        data.order_items
+        itemsWithProgress
       );
 
       if (!eligibility.orderCancelAllowed) {
@@ -53,8 +78,12 @@ export default function CancelPage({ params }: { params: Promise<{ id: string }>
       }
 
       setLoadingOrder(false);
-    });
-  }, [user, orderId, fetchOrderDetail]);
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [user, orderId, fetchOrderDetail, supabase]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -72,7 +101,7 @@ export default function CancelPage({ params }: { params: Promise<{ id: string }>
   };
 
   return (
-    <SettingsLayout title="주문 취소 신청">
+    <SettingsLayout title={pageTitle}>
       {loadingOrder ? (
         <div className="flex items-center justify-center py-20">
           <div className="w-6 h-6 border-2 border-white/20 border-t-white rounded-full animate-spin" />
@@ -144,8 +173,17 @@ export default function CancelPage({ params }: { params: Promise<{ id: string }>
           <div className="bg-[#1a1a1a] rounded-2xl border border-white/5 p-5">
             <p className="text-xs font-semibold text-gray-400 mb-2">취소 안내</p>
             <ul className="text-xs text-gray-500 space-y-1 list-disc list-inside">
-              <li>결제 완료 후 배송 전 주문에 한해 취소가 가능합니다.</li>
-              <li>다운로드 상품은 다운로드 이후, 결제 후 24시간이 지나면 취소할 수 없습니다.</li>
+              {isLectureOrder ? (
+                <>
+                  <li>강의 진척률이 10%를 초과하면 취소할 수 없습니다.</li>
+                  <li>취소 완료 시 수강 등록도 함께 취소됩니다.</li>
+                </>
+              ) : (
+                <>
+                  <li>결제 완료 후 배송 전 주문에 한해 취소가 가능합니다.</li>
+                  <li>다운로드 상품은 다운로드 이후, 결제 후 24시간이 지나면 취소할 수 없습니다.</li>
+                </>
+              )}
               <li>취소 처리 완료 후 결제 수단에 따라 환급이 진행됩니다.</li>
               <li>결제 취소는 영업일 기준 3~5일 소요될 수 있습니다.</li>
             </ul>
@@ -171,7 +209,7 @@ export default function CancelPage({ params }: { params: Promise<{ id: string }>
                   처리 중...
                 </>
               ) : (
-                "취소 신청"
+                submitLabel
               )}
             </button>
           </div>

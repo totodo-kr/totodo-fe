@@ -99,7 +99,7 @@ function OrderCard({ order }: { order: MyOrder }) {
               href={`/settings/purchases/${order.id}/cancel`}
               className="text-xs px-3 py-1.5 rounded-lg bg-[#2a2a2a] text-gray-400 hover:bg-[#333] hover:text-white transition-colors"
             >
-              취소 신청
+              {order.is_lecture_order ? "수강 취소" : "취소 신청"}
             </Link>
           )}
           {canRefund && (

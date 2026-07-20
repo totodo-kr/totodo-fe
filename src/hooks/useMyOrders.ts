@@ -28,6 +28,7 @@ export interface MyOrder {
   refund_amount?: number | null;
   first_item_name?: string;
   item_count?: number;
+  is_lecture_order?: boolean;
 }
 
 export interface EbookDownloadInfo {
@@ -70,6 +71,7 @@ export interface MyOrderItemDetail {
   quantity: number;
   subtotal: number;
   delivery_type: string;
+  lecture_id: number | null;
   digital_fulfillment: OrderItemFulfillment | null;
 }
 
@@ -102,10 +104,11 @@ const ORDER_LIST_COLUMNS = `id, order_number, final_price, status, order_type, c
            total_product_price, total_shipping_fee, total_discount,
            payment_method, recipient_name, shipping_address,
            cancel_reason, refund_status, refund_amount,
-           order_items(product_name)`;
+           order_items(product_name, lecture_id)`;
 
 function mapListRow(row: Record<string, unknown>): MyOrder {
-  const items = (row.order_items as Array<{ product_name: string }>) ?? [];
+  const items =
+    (row.order_items as Array<{ product_name: string; lecture_id: number | null }>) ?? [];
   return {
     id: row.id as number,
     order_number: row.order_number as string,
@@ -125,6 +128,7 @@ function mapListRow(row: Record<string, unknown>): MyOrder {
     refund_amount: row.refund_amount as number | null,
     first_item_name: items[0]?.product_name ?? "상품 없음",
     item_count: items.length,
+    is_lecture_order: items.some((i) => i.lecture_id != null),
   };
 }
 
@@ -218,7 +222,7 @@ export function useMyOrders() {
         .select(
           `*,
            order_items(
-             id, product_id, product_name, product_price, quantity, subtotal, delivery_type,
+             id, product_id, product_name, product_price, quantity, subtotal, delivery_type, lecture_id,
              digital_fulfillments(
                id, status,
                ebook_downloads(download_token, download_count, download_limit, expires_at),
@@ -341,6 +345,7 @@ export function useMyOrders() {
           quantity: item.quantity as number,
           subtotal: item.subtotal as number,
           delivery_type: item.delivery_type as string,
+          lecture_id: item.lecture_id as number | null,
           digital_fulfillment,
         };
       });

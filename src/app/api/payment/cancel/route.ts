@@ -1,7 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/utils/supabase/server";
 import { createAdminClient } from "@/utils/supabase/admin";
-import { DIGITAL_CANCEL_WINDOW_HOURS, canRefundOrderByDeliveryState } from "@/lib/fulfillment/cancelPolicy";
+import {
+  DIGITAL_CANCEL_WINDOW_HOURS,
+  LECTURE_CANCEL_PROGRESS_PERCENT,
+  canRefundOrderByDeliveryState,
+} from "@/lib/fulfillment/cancelPolicy";
+import { fetchLectureProgress } from "@/lib/lecture/progress";
 
 export async function POST(req: NextRequest) {
   try {
@@ -39,6 +44,26 @@ export async function POST(req: NextRequest) {
       }
       if (!["pending", "paid"].includes(order.status)) {
         return NextResponse.json({ error: "취소할 수 없는 주문 상태입니다." }, { status: 400 });
+      }
+
+      // [강의] 진척률이 기준치를 초과하면 취소 자체를 막는다.
+      const { data: lectureOrderItems } = await adminDb
+        .from("order_items")
+        .select("lecture_id")
+        .eq("order_id", order.id)
+        .not("lecture_id", "is", null);
+
+      const lectureIds = [
+        ...new Set((lectureOrderItems ?? []).map((i) => i.lecture_id as number)),
+      ];
+      for (const lectureId of lectureIds) {
+        const progress = await fetchLectureProgress(adminDb, user.id, lectureId);
+        if (progress > LECTURE_CANCEL_PROGRESS_PERCENT) {
+          return NextResponse.json(
+            { error: `강의 진척률이 ${LECTURE_CANCEL_PROGRESS_PERCENT}%를 초과하여 취소할 수 없습니다.` },
+            { status: 400 }
+          );
+        }
       }
     } else {
       const { data: profile } = await adminDb
@@ -275,6 +300,13 @@ export async function POST(req: NextRequest) {
         .from("orders")
         .update({ status: "cancelled", cancel_reason: reason.trim(), cancel_requested_at: now, updated_at: now })
         .eq("id", orderId);
+
+      // [강의] 결제 취소 시 수강 등록도 함께 취소한다.
+      await adminDb
+        .from("lecture_enrollments")
+        .update({ status: "cancelled" })
+        .eq("order_id", orderId)
+        .eq("status", "active");
     } else {
       await adminDb
         .from("orders")

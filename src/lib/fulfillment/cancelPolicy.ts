@@ -8,6 +8,10 @@ export interface OrderItemWithFulfillment {
   delivery_type: string;
   product_price: number;
   quantity: number;
+  // 강의 상품 order_item에만 설정됨 (order_items.lecture_id)
+  lecture_id?: number | null;
+  // lecture_id가 있을 때만 의미 있는 0~100 진척률. 호출부가 미리 계산해 채워 넣는다.
+  lecture_progress?: number;
   digital_fulfillment?: {
     status: FulfillmentStatus;
     ebook_download?: { download_count: number } | null;
@@ -26,6 +30,7 @@ export interface OrderForPolicy {
 
 export const DIGITAL_CANCEL_WINDOW_HOURS = 24;
 export const PHYSICAL_REFUND_WINDOW_DAYS = 7;
+export const LECTURE_CANCEL_PROGRESS_PERCENT = 10;
 
 export interface CancelEligibility {
   allowed: boolean;
@@ -61,6 +66,19 @@ export function canCancelItem(
   item: OrderItemWithFulfillment,
   order: OrderForPolicy
 ): CancelEligibility {
+  if (item.lecture_id) {
+    if (!["pending", "paid"].includes(order.status)) {
+      return { allowed: false, reason: "이미 처리된 주문은 취소할 수 없습니다." };
+    }
+    if ((item.lecture_progress ?? 0) > LECTURE_CANCEL_PROGRESS_PERCENT) {
+      return {
+        allowed: false,
+        reason: `강의 진척률이 ${LECTURE_CANCEL_PROGRESS_PERCENT}%를 초과하여 취소할 수 없습니다.`,
+      };
+    }
+    return { allowed: true };
+  }
+
   switch (item.delivery_type) {
     case "physical": {
       if (!["pending", "paid"].includes(order.status)) {
@@ -106,6 +124,10 @@ export function canRefundItem(
   item: OrderItemWithFulfillment,
   order: OrderForPolicy
 ): RefundEligibility {
+  if (item.lecture_id) {
+    return { allowed: false, excludeAmount: false, reason: "강의 상품은 환불 신청 대상이 아닙니다." };
+  }
+
   switch (item.delivery_type) {
     case "physical": {
       if (order.status !== "delivered" || !order.delivered_at) {

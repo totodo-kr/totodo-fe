@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/utils/supabase/server";
 import { createAdminClient } from "@/utils/supabase/admin";
+import { LECTURE_CANCEL_PROGRESS_PERCENT } from "@/lib/fulfillment/cancelPolicy";
+import { fetchLectureProgress } from "@/lib/lecture/progress";
 
 export async function POST(req: NextRequest) {
   // 유저 인증
@@ -20,7 +22,7 @@ export async function POST(req: NextRequest) {
   // 해당 수강이 요청 유저 본인 것인지 확인
   const { data: enrollment, error: enrollError } = await admin
     .from("lecture_enrollments")
-    .select("id, user_id, status")
+    .select("id, user_id, lecture_id, status")
     .eq("id", enrollmentId)
     .single();
 
@@ -32,6 +34,14 @@ export async function POST(req: NextRequest) {
   }
   if (enrollment.status !== "active") {
     return NextResponse.json({ error: "이미 취소된 수강입니다." }, { status: 409 });
+  }
+
+  const progress = await fetchLectureProgress(admin, user.id, enrollment.lecture_id);
+  if (progress > LECTURE_CANCEL_PROGRESS_PERCENT) {
+    return NextResponse.json(
+      { error: `강의 진척률이 ${LECTURE_CANCEL_PROGRESS_PERCENT}%를 초과하여 취소할 수 없습니다.` },
+      { status: 400 }
+    );
   }
 
   const { error } = await admin
