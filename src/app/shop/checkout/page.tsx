@@ -72,6 +72,8 @@ export default function CheckoutPage() {
   const [paymentInitError, setPaymentInitError] = useState<string | null>(null);
   const [requestingPayment, setRequestingPayment] = useState(false);
 
+  const hasPhysicalItem = cartItems.some((item) => item.delivery_type === "physical");
+
   const totalProductPrice = cartItems.reduce(
     (sum, item) => sum + item.price * item.quantity,
     0
@@ -185,7 +187,7 @@ export default function CheckoutPage() {
     } else if (!/^[0-9]{10,11}$/.test(recipientPhone.replace(/-/g, ""))) {
       errors.recipient_phone = "올바른 전화번호를 입력해주세요.";
     }
-    if (!shippingAddress.trim()) {
+    if (hasPhysicalItem && !shippingAddress.trim()) {
       errors.shipping_address = "배송 주소를 입력해주세요.";
     }
 
@@ -220,7 +222,7 @@ export default function CheckoutPage() {
       final_price: finalPrice,
       recipient_name: recipientName.trim(),
       recipient_phone: recipientPhone.trim(),
-      shipping_address: shippingAddress.trim(),
+      shipping_address: hasPhysicalItem ? shippingAddress.trim() : "",
       shipping_zipcode: shippingZipcode.trim() || undefined,
       shipping_memo: shippingMemo.trim() || undefined,
       user_coupon_id: selectedCouponId ?? undefined,
@@ -385,63 +387,67 @@ export default function CheckoutPage() {
                   )}
                 </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-400 mb-1.5">
-                    배송 주소 <span className="text-red-400">*</span>
-                  </label>
-                  <div className="flex gap-2 mb-2">
-                    <input
-                      type="text"
-                      value={shippingZipcode}
-                      onChange={(e) => setShippingZipcode(e.target.value)}
-                      placeholder="우편번호"
-                      className="w-32 px-4 py-3 bg-black/30 border border-white/10 rounded-lg text-white placeholder-gray-600 focus:outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 transition-colors"
-                    />
-                  </div>
-                  <input
-                    type="text"
-                    value={shippingAddress}
-                    onChange={(e) => setShippingAddress(e.target.value)}
-                    placeholder="도로명 주소를 입력해주세요"
-                    className={`w-full px-4 py-3 bg-black/30 border rounded-lg text-white placeholder-gray-600 focus:outline-none focus:ring-2 transition-colors ${
-                      formErrors.shipping_address
-                        ? "border-red-500 focus:ring-red-500/30"
-                        : "border-white/10 focus:border-brand-500 focus:ring-brand-500/20"
-                    }`}
-                  />
-                  {formErrors.shipping_address && (
-                    <p className="mt-1.5 text-xs text-red-400 flex items-center gap-1">
-                      <AlertCircle size={12} />
-                      {formErrors.shipping_address}
-                    </p>
-                  )}
-                </div>
+                {hasPhysicalItem && (
+                  <>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-400 mb-1.5">
+                        배송 주소 <span className="text-red-400">*</span>
+                      </label>
+                      <div className="flex gap-2 mb-2">
+                        <input
+                          type="text"
+                          value={shippingZipcode}
+                          onChange={(e) => setShippingZipcode(e.target.value)}
+                          placeholder="우편번호"
+                          className="w-32 px-4 py-3 bg-black/30 border border-white/10 rounded-lg text-white placeholder-gray-600 focus:outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 transition-colors"
+                        />
+                      </div>
+                      <input
+                        type="text"
+                        value={shippingAddress}
+                        onChange={(e) => setShippingAddress(e.target.value)}
+                        placeholder="도로명 주소를 입력해주세요"
+                        className={`w-full px-4 py-3 bg-black/30 border rounded-lg text-white placeholder-gray-600 focus:outline-none focus:ring-2 transition-colors ${
+                          formErrors.shipping_address
+                            ? "border-red-500 focus:ring-red-500/30"
+                            : "border-white/10 focus:border-brand-500 focus:ring-brand-500/20"
+                        }`}
+                      />
+                      {formErrors.shipping_address && (
+                        <p className="mt-1.5 text-xs text-red-400 flex items-center gap-1">
+                          <AlertCircle size={12} />
+                          {formErrors.shipping_address}
+                        </p>
+                      )}
+                    </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-400 mb-1.5">
-                    배송 메모 <span className="text-gray-600 text-xs">(선택)</span>
-                  </label>
-                  <select
-                    value={shippingMemo}
-                    onChange={(e) => setShippingMemo(e.target.value)}
-                    className="w-full px-4 py-3 bg-black/30 border border-white/10 rounded-lg text-white focus:outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 transition-colors appearance-none"
-                  >
-                    <option value="">배송 메모를 선택해주세요</option>
-                    <option value="문 앞에 놓아주세요">문 앞에 놓아주세요</option>
-                    <option value="경비실에 맡겨주세요">경비실에 맡겨주세요</option>
-                    <option value="부재 시 문자 남겨주세요">부재 시 문자 남겨주세요</option>
-                    <option value="배송 전 연락주세요">배송 전 연락주세요</option>
-                    <option value="직접 입력">직접 입력</option>
-                  </select>
-                  {shippingMemo === "직접 입력" && (
-                    <input
-                      type="text"
-                      placeholder="메모를 입력해주세요"
-                      className="mt-2 w-full px-4 py-3 bg-black/30 border border-white/10 rounded-lg text-white placeholder-gray-600 focus:outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 transition-colors"
-                      onChange={(e) => setShippingMemo(e.target.value)}
-                    />
-                  )}
-                </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-400 mb-1.5">
+                        배송 메모 <span className="text-gray-600 text-xs">(선택)</span>
+                      </label>
+                      <select
+                        value={shippingMemo}
+                        onChange={(e) => setShippingMemo(e.target.value)}
+                        className="w-full px-4 py-3 bg-black/30 border border-white/10 rounded-lg text-white focus:outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 transition-colors appearance-none"
+                      >
+                        <option value="">배송 메모를 선택해주세요</option>
+                        <option value="문 앞에 놓아주세요">문 앞에 놓아주세요</option>
+                        <option value="경비실에 맡겨주세요">경비실에 맡겨주세요</option>
+                        <option value="부재 시 문자 남겨주세요">부재 시 문자 남겨주세요</option>
+                        <option value="배송 전 연락주세요">배송 전 연락주세요</option>
+                        <option value="직접 입력">직접 입력</option>
+                      </select>
+                      {shippingMemo === "직접 입력" && (
+                        <input
+                          type="text"
+                          placeholder="메모를 입력해주세요"
+                          className="mt-2 w-full px-4 py-3 bg-black/30 border border-white/10 rounded-lg text-white placeholder-gray-600 focus:outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 transition-colors"
+                          onChange={(e) => setShippingMemo(e.target.value)}
+                        />
+                      )}
+                    </div>
+                  </>
+                )}
               </div>
             </section>
 
@@ -499,16 +505,21 @@ export default function CheckoutPage() {
                     onClick={clearCoupon}
                     label="쿠폰 사용 안함"
                   />
-                  {availableCoupons.map((uc) => (
-                    <CouponSelectCard
-                      key={uc.id}
-                      selected={selectedCouponId === uc.id}
-                      onClick={() => selectCoupon(uc.id, totalProductPrice, shippingFee)}
-                      label={uc.coupon?.name ?? "—"}
-                      sub={formatCouponLabel(uc)}
-                      loading={couponValidating && selectedCouponId !== uc.id}
-                    />
-                  ))}
+                  {availableCoupons.map((uc) => {
+                    const ineligibleReason = getCouponIneligibleReason(uc, totalProductPrice);
+                    return (
+                      <CouponSelectCard
+                        key={uc.id}
+                        selected={selectedCouponId === uc.id}
+                        onClick={() => selectCoupon(uc.id, totalProductPrice, shippingFee)}
+                        label={uc.coupon?.name ?? "—"}
+                        sub={formatCouponLabel(uc)}
+                        loading={couponValidating && selectedCouponId !== uc.id}
+                        disabled={!!ineligibleReason}
+                        disabledReason={ineligibleReason ?? undefined}
+                      />
+                    );
+                  })}
                 </div>
               )}
 
@@ -625,42 +636,72 @@ function formatCouponLabel(uc: UserCoupon) {
   return "무료배송";
 }
 
+function getCouponIneligibleReason(uc: UserCoupon, productAmount: number): string | null {
+  const c = uc.coupon;
+  if (!c) return null;
+  if (c.is_active === false) return "비활성화된 쿠폰입니다.";
+
+  const now = new Date();
+  if (c.valid_from && new Date(c.valid_from) > now) return "아직 사용 기간이 아닙니다.";
+  if (c.valid_until && new Date(c.valid_until) < now) return "만료된 쿠폰입니다.";
+
+  if (productAmount < (c.min_order_amount ?? 0)) {
+    return `최소 주문금액 ${c.min_order_amount.toLocaleString()}원 이상 구매 시 사용 가능`;
+  }
+
+  return null;
+}
+
 function CouponSelectCard({
   selected,
   onClick,
   label,
   sub,
   loading,
+  disabled,
+  disabledReason,
 }: {
   selected: boolean;
   onClick: () => void;
   label: string;
   sub?: string;
   loading?: boolean;
+  disabled?: boolean;
+  disabledReason?: string;
 }) {
   return (
     <button
       type="button"
       onClick={onClick}
-      disabled={loading}
-      className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg border text-left transition-colors disabled:opacity-50 ${
+      disabled={loading || disabled}
+      className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg border text-left transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
         selected
           ? "border-brand-500 bg-brand-500/10"
+          : disabled
+          ? "border-white/5 bg-white/[0.02]"
           : "border-white/10 hover:border-white/30"
       }`}
     >
       <div
         className={`w-4 h-4 rounded-full border-2 shrink-0 flex items-center justify-center ${
-          selected ? "border-brand-500" : "border-gray-600"
+          selected ? "border-brand-500" : disabled ? "border-gray-700" : "border-gray-600"
         }`}
       >
         {selected && <div className="w-2 h-2 rounded-full bg-brand-500" />}
       </div>
       <div className="flex-1 min-w-0">
-        <p className={`text-sm font-medium ${selected ? "text-brand-400" : "text-gray-300"}`}>
+        <p
+          className={`text-sm font-medium ${
+            selected ? "text-brand-400" : disabled ? "text-gray-600" : "text-gray-300"
+          }`}
+        >
           {label}
         </p>
-        {sub && <p className="text-xs text-gray-500 mt-0.5">{sub}</p>}
+        {disabled && disabledReason ? (
+          <p className="text-xs text-amber-500/80 mt-0.5">{disabledReason}</p>
+        ) : (
+          sub && <p className="text-xs text-gray-500 mt-0.5">{sub}</p>
+        )}
       </div>
       {loading && <Loader2 className="w-4 h-4 animate-spin text-gray-500 shrink-0" />}
     </button>

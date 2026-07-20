@@ -22,7 +22,7 @@ export function useCouponValidate() {
         *,
         coupon:coupons (
           id, name, discount_type, discount_value, max_discount_amount,
-          min_order_amount, valid_from, valid_until
+          min_order_amount, valid_from, valid_until, is_active
         )
       `)
       .eq("user_id", user.id)
