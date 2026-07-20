@@ -17,7 +17,7 @@ export default function WatchPage() {
   const courseId = params.id as string;
   const sessionId = params.sessionId as string;
 
-  const { session, videoSrc, videoType, chapters, loading } = useLectureSession(courseId, sessionId);
+  const { session, videoSrc, videoType, chapters, loading, locked, isEnrolled } = useLectureSession(courseId, sessionId);
   const { initialSeconds, saveProgress } = useWatchProgress(
     session?.id ?? null,
     session?.duration_seconds ?? 0
@@ -192,6 +192,20 @@ export default function WatchPage() {
             <div className="absolute inset-0 flex items-center justify-center bg-zinc-900">
               {loading ? (
                 <div className="w-10 h-10 border-2 border-white/20 border-t-white rounded-full animate-spin" />
+              ) : locked ? (
+                <div className="text-center px-6">
+                  <svg className="w-14 h-14 mx-auto mb-4 text-white/30" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zM9 6c0-1.66 1.34-3 3-3s3 1.34 3 3v2H9V6z" />
+                  </svg>
+                  <p className="text-white/60 mb-4">수강 신청 후 시청할 수 있는 강의입니다.</p>
+                  <Link
+                    href={`/academy/${courseId}/information`}
+                    className="inline-block px-5 py-2.5 rounded-full text-sm font-bold text-white transition-colors"
+                    style={{ background: "#a200cb" }}
+                  >
+                    강의 소개로 이동
+                  </Link>
+                </div>
               ) : (
                 <div className="text-center">
                   <div className="mb-8 text-5xl text-white/20">{session?.title ?? ""}</div>
@@ -215,9 +229,9 @@ export default function WatchPage() {
                 value={currentTime}
                 step={0.1}
                 onChange={handleSeek}
-                className="w-full h-1 appearance-none rounded-full cursor-pointer"
+                className="video-progress-range w-full h-1 appearance-none rounded-full cursor-pointer"
                 style={{
-                  background: `linear-gradient(to right, #cc785c ${progressPct}%, rgba(255,255,255,0.3) ${progressPct}%)`,
+                  background: `linear-gradient(to right, #9ca3af ${progressPct}%, rgba(255,255,255,0.25) ${progressPct}%)`,
                 }}
               />
             </div>
@@ -343,33 +357,43 @@ export default function WatchPage() {
                     <div key={chapter.id}>
                       <h3 className="text-sm font-bold text-white mb-2 px-2">{chapter.title}</h3>
                       <div className="space-y-1">
-                        {chapter.sessions.map((s) => (
-                          <Link
-                            key={s.id}
-                            href={`/academy/${courseId}/session/${s.id}`}
-                            className={`block p-3 rounded-lg transition-colors ${
-                              Number(sessionId) === s.id
+                        {chapter.sessions.map((s) => {
+                          const isLocked = !s.is_preview && !isEnrolled;
+                          const rowClassName = `block p-3 rounded-lg transition-colors ${
+                            isLocked
+                              ? "opacity-50 cursor-not-allowed"
+                              : Number(sessionId) === s.id
                                 ? "bg-zinc-800 border border-brand-500"
                                 : "hover:bg-zinc-800/50"
-                            }`}
-                          >
+                          }`;
+                          const rowContent = (
                             <div className="flex items-start gap-3">
                               <div className="flex-shrink-0 mt-1">
-                                <svg
-                                  className={`w-5 h-5 ${
-                                    Number(sessionId) === s.id ? "text-brand-500" : "text-gray-400"
-                                  }`}
-                                  fill="currentColor"
-                                  viewBox="0 0 24 24"
-                                >
-                                  <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 14.5v-9l6 4.5-6 4.5z" />
-                                </svg>
+                                {isLocked ? (
+                                  <svg className="w-5 h-5 text-gray-500" fill="currentColor" viewBox="0 0 24 24">
+                                    <path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zM9 6c0-1.66 1.34-3 3-3s3 1.34 3 3v2H9V6z" />
+                                  </svg>
+                                ) : (
+                                  <svg
+                                    className={`w-5 h-5 ${
+                                      Number(sessionId) === s.id ? "text-brand-500" : "text-gray-400"
+                                    }`}
+                                    fill="currentColor"
+                                    viewBox="0 0 24 24"
+                                  >
+                                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 14.5v-9l6 4.5-6 4.5z" />
+                                  </svg>
+                                )}
                               </div>
                               <div className="flex-1 min-w-0">
                                 <div className="flex items-center gap-2 mb-1">
                                   <p
                                     className={`text-sm font-medium truncate ${
-                                      Number(sessionId) === s.id ? "text-white" : "text-gray-300"
+                                      isLocked
+                                        ? "text-gray-500"
+                                        : Number(sessionId) === s.id
+                                          ? "text-white"
+                                          : "text-gray-300"
                                     }`}
                                   >
                                     {s.title}
@@ -400,8 +424,27 @@ export default function WatchPage() {
                                 </p>
                               </div>
                             </div>
-                          </Link>
-                        ))}
+                          );
+
+                          if (isLocked) {
+                            return (
+                              <div
+                                key={s.id}
+                                aria-disabled="true"
+                                className={rowClassName}
+                                onClick={() => alert("수강 신청 후 이용할 수 있습니다.")}
+                              >
+                                {rowContent}
+                              </div>
+                            );
+                          }
+
+                          return (
+                            <Link key={s.id} href={`/academy/${courseId}/session/${s.id}`} className={rowClassName}>
+                              {rowContent}
+                            </Link>
+                          );
+                        })}
                       </div>
                     </div>
                   ))

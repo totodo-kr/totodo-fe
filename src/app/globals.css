@@ -122,3 +122,34 @@ body::-webkit-scrollbar {
     @apply border-white/10 my-6;
   }
 }
+/* 강의 수강 화면 프로그레스 바 (선: 회색, 핸들: 보라색) */
+
+.video-progress-range {
+  accent-color: #a200cb;
+}
+
+.video-progress-range::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #a200cb;
+  cursor: pointer;
+}
+
+.video-progress-range::-moz-range-thumb {
+  -moz-appearance: none;
+  appearance: none;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #a200cb;
+  border: none;
+  cursor: pointer;
+}
+
+/* 콘텐츠 블록의 네이티브 video 컨트롤 (브라우저 기본 UI) — Chromium 계열에서만 적용 가능 */
+.totodo-video-controls::-webkit-media-controls-timeline {
+  accent-color: #a200cb;
+}

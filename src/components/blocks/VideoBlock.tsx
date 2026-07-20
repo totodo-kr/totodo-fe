@@ -29,7 +29,7 @@ export default function VideoBlock({ data }: { data: VideoBlockData }) {
 
   return (
     <div style={{ width: `${maxW}%`, margin: "0 auto" }}>
-      <video src={data.url} controls className="w-full rounded-lg" />
+      <video src={data.url} controls className="totodo-video-controls w-full rounded-lg" />
     </div>
   );
 }

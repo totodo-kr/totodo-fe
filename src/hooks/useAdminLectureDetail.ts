@@ -41,7 +41,7 @@ export function useAdminLectureDetail(lectureId: string | undefined) {
     if (!lectureId) return;
     setLoading(true);
     try {
-      const [lectureRes, chaptersRes] = await Promise.all([
+      const [lectureRes, chaptersRes, videosRes] = await Promise.all([
         supabase
           .from("lectures")
           .select("id, title, subtitle, description, thumbnail_url, price, is_published")
@@ -51,14 +51,25 @@ export function useAdminLectureDetail(lectureId: string | undefined) {
           .from("lecture_chapters")
           .select(`
             id, title, order_index,
-            lecture_sessions(id, title, description, video_url, video_storage_path, duration_seconds, order_index, is_preview)
+            lecture_sessions(id, title, description, duration_seconds, order_index, is_preview)
           `)
           .eq("lecture_id", lectureId)
           .order("order_index"),
+        // video_url/video_storage_path는 컬럼 권한이 차단되어 있어 테이블 직접 조회로는 얻을 수 없다.
+        // is_admin() 체크가 있는 RPC로만 조회한다.
+        supabase.rpc("admin_get_lecture_session_videos", { p_lecture_id: Number(lectureId) }),
       ]);
 
       if (lectureRes.error) throw lectureRes.error;
       if (chaptersRes.error) throw chaptersRes.error;
+      if (videosRes.error) throw videosRes.error;
+
+      const videoBySessionId = new Map<number, { video_url: string | null; video_storage_path: string | null }>(
+        (videosRes.data ?? []).map((v: any) => [
+          v.session_id,
+          { video_url: v.video_url ?? null, video_storage_path: v.video_storage_path ?? null },
+        ])
+      );
 
       setInfo(lectureRes.data as AdminLectureInfo);
       setChapters(
@@ -72,8 +83,8 @@ export function useAdminLectureDetail(lectureId: string | undefined) {
               id: s.id,
               title: s.title,
               description: s.description ?? null,
-              video_url: s.video_url ?? null,
-              video_storage_path: s.video_storage_path ?? null,
+              video_url: videoBySessionId.get(s.id)?.video_url ?? null,
+              video_storage_path: videoBySessionId.get(s.id)?.video_storage_path ?? null,
               duration_seconds: s.duration_seconds,
               order_index: s.order_index,
               is_preview: s.is_preview,
