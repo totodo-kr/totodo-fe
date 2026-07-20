@@ -30,18 +30,6 @@ export const DELIVERY_META_SCHEMAS: Record<string, MetaField[]> = {
     { key: "coupon_value", label: "쿠폰 금액 (원)", type: "number", span: "half" },
     { key: "expiry_days", label: "유효기간 (일)", type: "number", placeholder: "90", span: "half" },
   ],
-  coupon: [
-    { key: "coupon_code", label: "쿠폰 코드", type: "text", span: "half" },
-    {
-      key: "discount_type",
-      label: "할인 유형",
-      type: "select",
-      options: ["정액", "정률"],
-      span: "half",
-    },
-    { key: "discount_value", label: "할인 값", type: "number", placeholder: "3000 또는 10(%)", span: "half" },
-    { key: "min_order_amount", label: "최소 주문금액 (원)", type: "number", span: "half" },
-  ],
 };
 
 export function getMetaSchema(

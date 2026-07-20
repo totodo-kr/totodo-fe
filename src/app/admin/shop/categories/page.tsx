@@ -16,7 +16,7 @@ const COLUMNS = [
   { label: "관리", className: "text-center" },
 ];
 
-const GRID = "140px 140px 1fr 100px 90px";
+const GRID = "140px 210px 1fr 100px 90px";
 
 export default function AdminProductCategoriesPage() {
   const router = useRouter();

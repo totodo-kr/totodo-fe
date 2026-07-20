@@ -7,7 +7,7 @@ import { toast } from "sonner";
 import { Plus, Trash2, MessageCircle, Star } from "lucide-react";
 import { clsx } from "clsx";
 import { AdminPageHeader } from "@/components/admin/organisms";
-import { IconActionButton } from "@/components/admin/molecules";
+import { IconActionButton, ImageUploadInput } from "@/components/admin/molecules";
 import SearchSelect from "@/components/admin/molecules/SearchSelect";
 import { Spinner } from "@/components/admin/atoms";
 import AdminRichTextEditor from "@/components/admin/AdminRichTextEditor";
@@ -21,6 +21,7 @@ import {
 } from "@/hooks/useAdminProductDetail";
 import { ProductCategory } from "@/hooks/useAdminProducts";
 import { useAdminCoupons } from "@/hooks/useAdminCoupons";
+import type { Coupon } from "@/types/coupon";
 
 const DELIVERY_OPTIONS = [
   { value: "physical", label: "배송 (physical)" },
@@ -36,6 +37,18 @@ const EVENT_LABEL_OPTIONS = [
   { value: "NEW", label: "NEW" },
   { value: "LIMITED", label: "LIMITED" },
 ];
+
+const DISCOUNT_TYPE_LABEL: Record<string, string> = {
+  fixed: "정액",
+  percentage: "정률",
+  free_shipping: "무료배송",
+};
+
+function formatCouponDiscount(coupon: Coupon): string {
+  if (coupon.discount_type === "percentage") return `${coupon.discount_value}%`;
+  if (coupon.discount_type === "fixed") return `${coupon.discount_value.toLocaleString()}원`;
+  return "-";
+}
 
 interface ProductFormProps {
   mode: "create" | "edit";
@@ -56,6 +69,15 @@ function SectionTitle({ children }: { children: React.ReactNode }) {
     >
       {children}
     </h2>
+  );
+}
+
+function CouponInfoItem({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <span style={{ color: "#8e8b82" }}>{label}: </span>
+      <span style={{ color: "#252523" }}>{value}</span>
+    </div>
   );
 }
 
@@ -107,6 +129,7 @@ export default function ProductForm({ mode, productId, initialData, categories }
 
   const selectedCategory = categories.find((c) => c.id === form.category_id);
   const metaSchema = getMetaSchema(selectedCategory?.field_schema, form.delivery_type);
+  const selectedCoupon = coupons.find((c) => c.id === form.type_meta.coupon_id);
 
   const validate = (): boolean => {
     const errors: FieldError = {};
@@ -514,6 +537,24 @@ export default function ProductForm({ mode, productId, initialData, categories }
               <p className="text-xs mt-1.5" style={{ color: "#8e8b82" }}>
                 이 상품을 구매하면 여기서 선택한 쿠폰이 실제로 발급됩니다. 선택하지 않으면 결제 자체가 차단됩니다.
               </p>
+
+              {selectedCoupon && (
+                <div
+                  className="grid grid-cols-2 gap-x-4 gap-y-2 mt-3 p-3 rounded-lg text-sm"
+                  style={{ background: "#faf9f5", border: "1px solid #e6dfd8" }}
+                >
+                  <CouponInfoItem label="쿠폰 코드" value={selectedCoupon.code} />
+                  <CouponInfoItem
+                    label="할인 유형"
+                    value={DISCOUNT_TYPE_LABEL[selectedCoupon.discount_type] ?? selectedCoupon.discount_type}
+                  />
+                  <CouponInfoItem label="할인 값" value={formatCouponDiscount(selectedCoupon)} />
+                  <CouponInfoItem
+                    label="최소 주문금액"
+                    value={`${selectedCoupon.min_order_amount.toLocaleString()}원`}
+                  />
+                </div>
+              )}
             </FieldRow>
           )}
 

@@ -33,8 +33,17 @@ export default function AuthStateSync() {
       setLoading(false);
     });
 
+    // 탭 포커스 복귀 시 Supabase가 동일 세션에 대해 이벤트를 재발화하는 경우가 있음
+    // (session.user는 매번 새로 역직렬화되어 참조가 달라짐) → id가 실제로 바뀐 경우만 반영
+    // 그렇지 않으면 user를 deps로 쓰는 전역 useEffect들이 탭 전환마다 재실행되어
+    // 편집 중이던 폼이 서버 데이터로 리셋되는 문제가 발생함
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      setUser(session?.user ?? null);
+      const nextUser = session?.user ?? null;
+      const currentUser = useAuthStore.getState().user;
+
+      if (currentUser?.id !== nextUser?.id) {
+        setUser(nextUser);
+      }
       setLoading(false);
     });
 

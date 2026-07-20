@@ -4,6 +4,7 @@ import { use, useEffect, useState, useRef } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 import { Heart, Share2, ChevronRight, Lock, Loader2 } from "lucide-react";
 import { useProducts, ShopProductDetail, ProductReview, ProductQna } from "@/hooks/useProducts";
 import { useCart } from "@/hooks/useCart";
@@ -11,6 +12,7 @@ import { useWishlist } from "@/hooks/useWishlist";
 import { useAuthStore } from "@/store/useAuthStore";
 import LoginModal from "@/components/LoginModal";
 import PageLoading from "@/components/PageLoading";
+import { getDeliveryPolicyInfo } from "@/config/deliveryPolicyInfo";
 
 const DELIVERY_TYPE_LABELS: Record<string, string> = {
   physical: "배송",
@@ -216,6 +218,15 @@ export default function ProductDetailPage({
     setWishlistPending(false);
   };
 
+  const handleShare = async () => {
+    try {
+      await navigator.clipboard.writeText(window.location.href);
+      toast.success("링크가 복사되었습니다.");
+    } catch {
+      toast.error("링크 복사에 실패했습니다.");
+    }
+  };
+
   const handleOpenQnaForm = () => {
     if (!user) { setLoginOpen(true); return; }
     setShowQnaForm((prev) => !prev);
@@ -284,6 +295,7 @@ export default function ProductDetailPage({
   const categoryDisplayName = product.product_categories?.name ?? category;
   const typeMeta = (details?.type_meta ?? {}) as Record<string, string | number>;
   const deliveryLabel = DELIVERY_TYPE_LABELS[product.delivery_type] ?? product.delivery_type;
+  const policyInfo = getDeliveryPolicyInfo(product.delivery_type);
   const eventBadgeStyle = product.event_label
     ? (EVENT_BADGE_STYLES[product.event_label.toUpperCase()] ?? "bg-brand-500 text-white")
     : null;
@@ -380,7 +392,11 @@ export default function ProductDetailPage({
                     />
                   )}
                 </button>
-                <button className="p-2 rounded-lg border border-white/10 hover:border-white/30 transition-colors">
+                <button
+                  onClick={handleShare}
+                  className="p-2 rounded-lg border border-white/10 hover:border-white/30 transition-colors"
+                  aria-label="공유"
+                >
                   <Share2 className="w-5 h-5" />
                 </button>
               </div>
@@ -419,15 +435,6 @@ export default function ProductDetailPage({
                 </span>
               </div>
             )}
-
-            {/* 무이자 할부 */}
-            <div className="flex items-center justify-between py-3 border-b border-white/10">
-              <span className="text-gray-400">무이자 할부</span>
-              <button className="text-brand-500 hover:underline flex items-center gap-1 text-sm">
-                카드 자세히 보기
-                <ChevronRight className="w-4 h-4" />
-              </button>
-            </div>
 
             {/* 수량 선택 */}
             {!isSoldOut && (
@@ -713,20 +720,19 @@ export default function ProductDetailPage({
           <h2 className="text-2xl font-bold mb-6">상품 결제 정보</h2>
           <div className="space-y-6 text-gray-300 leading-relaxed">
             <section>
-              <h3 className="text-lg font-semibold text-white mb-3">배송 안내</h3>
+              <h3 className="text-lg font-semibold text-white mb-3">{policyInfo.shippingTitle}</h3>
               <ul className="space-y-2 text-sm">
-                <li>• 배송비: 3,000원 (50,000원 이상 구매 시 무료배송)</li>
-                <li>• 배송 기간: 주문 후 2-3일 소요</li>
-                <li>• 제주도 및 도서산간 지역은 추가 배송비가 발생할 수 있습니다.</li>
+                {policyInfo.shipping.map((line) => (
+                  <li key={line}>• {line}</li>
+                ))}
               </ul>
             </section>
             <section>
-              <h3 className="text-lg font-semibold text-white mb-3">교환/반품 안내</h3>
+              <h3 className="text-lg font-semibold text-white mb-3">{policyInfo.returnTitle}</h3>
               <ul className="space-y-2 text-sm">
-                <li>• 교환 및 반품은 상품 수령 후 7일 이내 가능합니다.</li>
-                <li>• 단순 변심에 의한 교환/반품 시 왕복 배송비는 고객 부담입니다.</li>
-                <li>• 상품 하자 또는 오배송의 경우 무료로 교환/반품 가능합니다.</li>
-                <li>• 포장을 개봉하였거나 사용한 흔적이 있는 경우 교환/반품이 불가능합니다.</li>
+                {policyInfo.returns.map((line) => (
+                  <li key={line}>• {line}</li>
+                ))}
               </ul>
             </section>
           </div>
