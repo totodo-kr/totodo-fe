@@ -306,3 +306,71 @@ SELECT setval('lecture_board_posts_id_seq', (SELECT MAX(id) FROM lecture_board_p
 -- =============================================
 ALTER TABLE lecture_sessions    ADD COLUMN IF NOT EXISTS video_storage_path TEXT;
 ALTER TABLE lecture_board_posts ADD COLUMN IF NOT EXISTS category TEXT NOT NULL DEFAULT '일반';
+
+-- =============================================
+-- 2026.07.20
+-- 마이그레이션: 세션 영상 컬럼 보호
+-- lecture_sessions_read_all 정책은 RLS(행 단위)라서 video_url/video_storage_path도
+-- 그대로 노출된다 (F12 콘솔에서 테이블을 직접 조회해도 얻을 수 있었음).
+-- 컬럼 단위 권한을 회수하고, 미리보기(is_preview)이거나 활성 수강 등록이 있을 때만
+-- get_session_video() RPC로 영상 정보를 반환하도록 막는다.
+-- 관리자 화면은 is_admin() 체크가 있는 admin_get_lecture_session_videos() RPC로 조회한다.
+-- =============================================
+REVOKE SELECT ON lecture_sessions FROM anon, authenticated;
+GRANT SELECT (id, chapter_id, title, description, duration_seconds, order_index, is_preview, created_at, updated_at)
+  ON lecture_sessions TO anon, authenticated;
+
+CREATE OR REPLACE FUNCTION public.get_session_video(p_session_id integer)
+RETURNS TABLE (video_url text, video_storage_path text)
+LANGUAGE plpgsql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_lecture_id integer;
+  v_is_preview boolean;
+BEGIN
+  SELECT lc.lecture_id, ls.is_preview INTO v_lecture_id, v_is_preview
+  FROM lecture_sessions ls
+  JOIN lecture_chapters lc ON lc.id = ls.chapter_id
+  WHERE ls.id = p_session_id;
+
+  IF v_lecture_id IS NULL THEN
+    RETURN;
+  END IF;
+
+  IF NOT v_is_preview THEN
+    IF auth.uid() IS NULL OR NOT EXISTS (
+      SELECT 1 FROM lecture_enrollments
+      WHERE user_id = auth.uid()
+        AND lecture_id = v_lecture_id
+        AND status = 'active'
+    ) THEN
+      RETURN; -- 권한 없음: 빈 결과 (잠긴 강의)
+    END IF;
+  END IF;
+
+  RETURN QUERY
+    SELECT ls.video_url, ls.video_storage_path
+    FROM lecture_sessions ls
+    WHERE ls.id = p_session_id;
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION public.get_session_video(integer) TO anon, authenticated;
+
+CREATE OR REPLACE FUNCTION public.admin_get_lecture_session_videos(p_lecture_id integer)
+RETURNS TABLE (session_id integer, video_url text, video_storage_path text)
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+  SELECT ls.id, ls.video_url, ls.video_storage_path
+  FROM lecture_sessions ls
+  JOIN lecture_chapters lc ON lc.id = ls.chapter_id
+  WHERE lc.lecture_id = p_lecture_id AND public.is_admin();
+$$;
+
+GRANT EXECUTE ON FUNCTION public.admin_get_lecture_session_videos(integer) TO authenticated;
