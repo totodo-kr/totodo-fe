@@ -6,6 +6,8 @@ import { useSliderStore } from "@/store/useSliderStore";
 import { useProducts, ShopProduct, ProductCategory } from "@/hooks/useProducts";
 import ProductCard from "@/components/shop/ProductCard";
 
+const SHOW_CAROUSEL = false;
+
 function BestProductSkeleton() {
   return (
     <div className="flex flex-col gap-4">
@@ -34,6 +36,8 @@ export default function ShopPage() {
   const [loadingCategories, setLoadingCategories] = useState(true);
 
   useEffect(() => {
+    if (!SHOW_CAROUSEL) return;
+
     setSlides([
       {
         id: 1,
