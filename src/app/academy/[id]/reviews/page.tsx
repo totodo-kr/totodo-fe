@@ -1,7 +1,7 @@
 "use client";
 
 import { useParams } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Star, Pin, EyeOff } from "lucide-react";
 import { useLectureReviews } from "@/hooks/useLectureReviews";
 import { useMyLectureReview } from "@/hooks/useMyLectureReview";
@@ -131,7 +131,7 @@ export default function LectureReviewsPage() {
 
   const [showForm, setShowForm] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  const sentinelRef = useRef<HTMLDivElement>(null);
+  const observerRef = useRef<IntersectionObserver | null>(null);
 
   useEffect(() => {
     fetchReviews();
@@ -141,21 +141,23 @@ export default function LectureReviewsPage() {
     if (user) fetchMyReview();
   }, [user, fetchMyReview]);
 
-  // 하단 sentinel이 보이면 다음 10개 리뷰를 이어서 로드
-  useEffect(() => {
-    if (!hasMore) return;
-    const el = sentinelRef.current;
-    if (!el) return;
+  // 콜백 ref: sentinel div가 로딩 상태에 따라 마운트/언마운트를 반복해도
+  // (useRef + useEffect 조합과 달리) 매번 정확히 새 노드에 옵저버를 재연결한다.
+  const sentinelRef = useCallback(
+    (node: HTMLDivElement | null) => {
+      observerRef.current?.disconnect();
+      if (!node || !hasMore) return;
 
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (entries[0].isIntersecting) loadMore();
-      },
-      { rootMargin: "200px" }
-    );
-    observer.observe(el);
-    return () => observer.disconnect();
-  }, [hasMore, loadMore]);
+      observerRef.current = new IntersectionObserver(
+        (entries) => {
+          if (entries[0].isIntersecting) loadMore();
+        },
+        { rootMargin: "200px" }
+      );
+      observerRef.current.observe(node);
+    },
+    [hasMore, loadMore]
+  );
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
