@@ -72,7 +72,7 @@ export default function RefundPage({ params }: { params: Promise<{ id: string }>
     if (!order) return;
 
     setSubmitError("");
-    const ok = await requestRefund(orderId, reason.trim(), order.order_type, order.final_price);
+    const ok = await requestRefund(orderId, reason.trim(), order.final_price);
     if (ok) {
       router.push(`/settings/purchases/${id}?refund=1`);
     } else {

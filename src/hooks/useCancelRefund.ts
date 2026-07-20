@@ -1,11 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { createClient } from "@/utils/supabase/client";
 import {
   canCancelItem,
   canRefundItem,
-  PHYSICAL_REFUND_WINDOW_DAYS,
+  canRefundOrderByDeliveryState,
   type CancelEligibility,
   type RefundEligibility,
   type OrderItemWithFulfillment,
@@ -59,23 +58,10 @@ export function computeOrderEligibility(
 
   if (order.refund_status) {
     orderRefundReason = "이미 환불 신청이 접수되었거나 처리 완료된 주문입니다.";
-  } else if (order.order_type === "digital") {
-    // 완전 디지털 주문은 배송 개념이 없어 paid가 terminal 성공 상태
-    orderRefundAllowed = order.status === "paid";
-    orderRefundReason = orderRefundAllowed ? undefined : "환불 신청이 불가능한 상태입니다.";
   } else {
-    // physical / mixed — 배송 완료 후 7일 이내
-    if (order.status !== "delivered" || !order.delivered_at) {
-      orderRefundReason = "배송 완료 후에만 환불 신청할 수 있습니다.";
-    } else {
-      const daysSinceDelivered =
-        (Date.now() - new Date(order.delivered_at).getTime()) / (1000 * 60 * 60 * 24);
-      if (daysSinceDelivered > PHYSICAL_REFUND_WINDOW_DAYS) {
-        orderRefundReason = `배송 완료 후 ${PHYSICAL_REFUND_WINDOW_DAYS}일이 지나 환불할 수 없습니다.`;
-      } else {
-        orderRefundAllowed = true;
-      }
-    }
+    const deliveryEligibility = canRefundOrderByDeliveryState(order);
+    orderRefundAllowed = deliveryEligibility.allowed;
+    orderRefundReason = deliveryEligibility.reason;
   }
 
   return {
@@ -110,42 +96,18 @@ export function useCancelRefund() {
   const requestRefund = async (
     orderId: number,
     reason: string,
-    orderType: string,
     amount?: number
   ): Promise<boolean> => {
     if (!reason.trim() || reason.length > 1000) return false;
 
-    const supabase = createClient();
     setProcessing(true);
-
     try {
-      const { data: order } = await supabase
-        .from("orders")
-        .select("final_price")
-        .eq("id", orderId)
-        .single();
-
-      if (!order) return false;
-
-      const refundAmount = amount ?? order.final_price;
-      if (refundAmount < 0 || refundAmount > order.final_price) return false;
-
-      // 완전 디지털 주문은 배송이 없어 'paid'가 terminal 성공 상태 — 'delivered'를 기다리지 않는다.
-      const eligibleStatus = orderType === "digital" ? "paid" : "delivered";
-
-      const { error } = await supabase
-        .from("orders")
-        .update({
-          refund_reason: reason.trim(),
-          refund_amount: refundAmount,
-          refund_status: "requested",
-          refund_requested_at: new Date().toISOString(),
-        })
-        .eq("id", orderId)
-        .eq("status", eligibleStatus)
-        .is("refund_status", null);
-
-      return !error;
+      const res = await fetch("/api/orders/refund-request", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ orderId, reason, amount }),
+      });
+      return res.ok;
     } finally {
       setProcessing(false);
     }

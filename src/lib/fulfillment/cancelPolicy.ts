@@ -38,6 +38,17 @@ export interface RefundEligibility {
   reason?: string;
 }
 
+export interface OrderRefundEligibility {
+  allowed: boolean;
+  reason?: string;
+}
+
+export interface OrderDeliveryState {
+  status: string;
+  order_type: string;
+  delivered_at?: string | null;
+}
+
 function hoursSince(isoDate: string): number {
   return (Date.now() - new Date(isoDate).getTime()) / (1000 * 60 * 60);
 }
@@ -134,4 +145,28 @@ export function canRefundItem(
     default:
       return { allowed: false, excludeAmount: false, reason: "알 수 없는 상품 유형입니다." };
   }
+}
+
+// 주문 레벨 환불 가능 여부(배송 상태 + 7일 창) — useCancelRefund.ts(클라이언트 버튼 노출)와
+// /api/payment/cancel(서버 승인 처리) 양쪽에서 동일 기준으로 재사용한다.
+export function canRefundOrderByDeliveryState(order: OrderDeliveryState): OrderRefundEligibility {
+  if (order.order_type === "digital") {
+    // 완전 디지털 주문은 배송 개념이 없어 paid가 terminal 성공 상태
+    if (order.status !== "paid") {
+      return { allowed: false, reason: "환불 신청이 불가능한 상태입니다." };
+    }
+    return { allowed: true };
+  }
+
+  // physical / mixed — 배송 완료 후 7일 이내
+  if (order.status !== "delivered" || !order.delivered_at) {
+    return { allowed: false, reason: "배송 완료 후에만 환불 신청할 수 있습니다." };
+  }
+  if (daysSince(order.delivered_at) > PHYSICAL_REFUND_WINDOW_DAYS) {
+    return {
+      allowed: false,
+      reason: `배송 완료 후 ${PHYSICAL_REFUND_WINDOW_DAYS}일이 지나 환불할 수 없습니다.`,
+    };
+  }
+  return { allowed: true };
 }

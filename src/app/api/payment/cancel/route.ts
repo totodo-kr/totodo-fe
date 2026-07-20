@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/utils/supabase/server";
 import { createAdminClient } from "@/utils/supabase/admin";
-import { DIGITAL_CANCEL_WINDOW_HOURS } from "@/lib/fulfillment/cancelPolicy";
+import { DIGITAL_CANCEL_WINDOW_HOURS, canRefundOrderByDeliveryState } from "@/lib/fulfillment/cancelPolicy";
 
 export async function POST(req: NextRequest) {
   try {
@@ -25,7 +25,7 @@ export async function POST(req: NextRequest) {
     const adminDb = createAdminClient();
     const { data: order } = await adminDb
       .from("orders")
-      .select("id, user_id, status, final_price, refund_amount, refund_status, payment_info, user_coupon_id, coupon_discount, paid_at")
+      .select("id, user_id, status, order_type, final_price, refund_amount, refund_status, payment_info, user_coupon_id, coupon_discount, paid_at")
       .eq("id", orderId)
       .single();
 
@@ -51,6 +51,25 @@ export async function POST(req: NextRequest) {
       }
       if (order.refund_status !== "requested") {
         return NextResponse.json({ error: "환불 요청 상태가 아닙니다." }, { status: 400 });
+      }
+
+      // 신청 시점 이후 시간이 지났을 수 있으므로 승인 시점에 배송 상태/7일 창을 서버에서 재검증한다.
+      const { data: tracking } = await adminDb
+        .from("shipping_tracking")
+        .select("delivered_at")
+        .eq("order_id", order.id)
+        .maybeSingle();
+
+      const deliveryEligibility = canRefundOrderByDeliveryState({
+        status: order.status,
+        order_type: order.order_type,
+        delivered_at: tracking?.delivered_at ?? null,
+      });
+      if (!deliveryEligibility.allowed) {
+        return NextResponse.json(
+          { error: deliveryEligibility.reason ?? "환불 가능한 주문이 아닙니다." },
+          { status: 400 }
+        );
       }
     }
 
