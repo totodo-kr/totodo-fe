@@ -117,9 +117,10 @@ export default function BoardPage() {
                     {post.author_name && <span>{post.author_name}</span>}
                     {post.published_at && <span>{post.published_at.slice(0, 10)}</span>}
                   </div>
-                  <div className="pt-4 border-t border-white/10 space-y-4 text-gray-300 leading-relaxed whitespace-pre-wrap">
-                    {post.content}
-                  </div>
+                  <div
+                    className="pt-4 border-t border-white/10 prose prose-invert prose-sm max-w-none text-gray-300 leading-relaxed"
+                    dangerouslySetInnerHTML={{ __html: post.content ?? "" }}
+                  />
                 </div>
               </div>
             ) : (

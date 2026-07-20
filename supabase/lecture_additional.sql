@@ -141,3 +141,13 @@ CREATE POLICY "lecture_mission_submissions_update_own"    ON lecture_mission_sub
 CREATE POLICY "lecture_mission_submissions_select_admin"  ON lecture_mission_submissions FOR SELECT USING (public.is_admin());
 CREATE POLICY "lecture_mission_submissions_update_admin"  ON lecture_mission_submissions FOR UPDATE USING (public.is_admin());
 CREATE POLICY "lecture_mission_submissions_delete_admin"  ON lecture_mission_submissions FOR DELETE USING (public.is_admin());
+
+-- =============================================
+-- 26.07.20
+-- 마이그레이션: 유저당 리뷰 1개 제약 제거
+-- (이미 운영 중인 DB에 실행)
+-- 커뮤니티 게시글을 강의 리뷰로 마이그레이션하면 한 유저가 여러 건을
+-- 가질 수 있어 UNIQUE(lecture_id, user_id) 제약을 DB에서 제거한다.
+-- 신규 작성 시 유저당 1개 제한은 앱 레벨(useMyLectureReview)에서 강제한다.
+-- =============================================
+ALTER TABLE lecture_reviews DROP CONSTRAINT IF EXISTS lecture_reviews_unique_user;

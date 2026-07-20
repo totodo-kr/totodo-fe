@@ -1,13 +1,14 @@
 "use client";
 
 import { useParams } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Star, Pin, EyeOff } from "lucide-react";
 import { useLectureReviews } from "@/hooks/useLectureReviews";
 import { useMyLectureReview } from "@/hooks/useMyLectureReview";
 import { useLectureContext } from "@/contexts/LectureContext";
 import { useAuthStore } from "@/store/useAuthStore";
 import LoadingSpinner from "@/components/LoadingSpinner";
+import RichTextEditor from "@/components/RichTextEditor";
 
 function StarRating({
   value,
@@ -78,12 +79,10 @@ function ReviewForm({
       </div>
       <div className="mb-4">
         <p className="text-sm text-gray-400 mb-2">내용 (선택)</p>
-        <textarea
+        <RichTextEditor
           value={content}
-          onChange={(e) => setContent(e.target.value)}
+          onChange={setContent}
           placeholder="강의에 대한 솔직한 후기를 남겨주세요."
-          rows={4}
-          className="w-full bg-zinc-800 border border-white/10 rounded-lg p-3 text-white placeholder:text-gray-600 focus:outline-none focus:border-brand-500 transition-colors resize-none"
         />
       </div>
       <div className="flex justify-end gap-2">
@@ -114,8 +113,17 @@ export default function LectureReviewsPage() {
   const { user } = useAuthStore();
   const { isEnrolled } = useLectureContext();
 
-  const { pinnedReviews, reviews, averageRating, totalCount, loading, fetchReviews } =
-    useLectureReviews(lectureId);
+  const {
+    pinnedReviews,
+    reviews,
+    averageRating,
+    totalCount,
+    loading,
+    loadingMore,
+    hasMore,
+    fetchReviews,
+    loadMore,
+  } = useLectureReviews(lectureId);
   const { myReview, fetchMyReview, submitReview, updateReview } = useMyLectureReview(
     lectureId,
     user?.id
@@ -123,6 +131,7 @@ export default function LectureReviewsPage() {
 
   const [showForm, setShowForm] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const sentinelRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     fetchReviews();
@@ -131,6 +140,22 @@ export default function LectureReviewsPage() {
   useEffect(() => {
     if (user) fetchMyReview();
   }, [user, fetchMyReview]);
+
+  // 하단 sentinel이 보이면 다음 10개 리뷰를 이어서 로드
+  useEffect(() => {
+    if (!hasMore) return;
+    const el = sentinelRef.current;
+    if (!el) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting) loadMore();
+      },
+      { rootMargin: "200px" }
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [hasMore, loadMore]);
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
@@ -209,9 +234,10 @@ export default function LectureReviewsPage() {
               <span className="text-xs text-gray-500">내 리뷰</span>
             </div>
             {myReview.content && (
-              <p className="text-gray-400 text-sm leading-relaxed whitespace-pre-wrap">
-                {myReview.content}
-              </p>
+              <div
+                className="prose prose-invert prose-sm max-w-none text-gray-400 leading-relaxed"
+                dangerouslySetInnerHTML={{ __html: myReview.content }}
+              />
             )}
           </div>
         </div>
@@ -258,6 +284,11 @@ export default function LectureReviewsPage() {
           ))}
         </div>
       )}
+
+      {/* Infinite scroll sentinel */}
+      {!loading && hasMore && (
+        <div ref={sentinelRef}>{loadingMore && <LoadingSpinner className="py-6" />}</div>
+      )}
     </div>
   );
 }
@@ -288,9 +319,10 @@ function ReviewCard({
         <StarRating value={review.rating} readOnly size="sm" />
       </div>
       {review.content && (
-        <p className="text-gray-300 text-sm leading-relaxed whitespace-pre-wrap pl-11">
-          {review.content}
-        </p>
+        <div
+          className="prose prose-invert prose-sm max-w-none text-gray-300 leading-relaxed pl-11"
+          dangerouslySetInnerHTML={{ __html: review.content }}
+        />
       )}
     </>
   );

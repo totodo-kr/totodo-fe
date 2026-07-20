@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from "react";
 import { useParams } from "next/navigation";
 import { Pencil, Trash2, Plus, X, Eye, EyeOff } from "lucide-react";
 import { useAdminLectureBoard, BoardPostInput } from "@/hooks/useAdminLectureBoard";
+import AdminRichTextEditor from "@/components/admin/AdminRichTextEditor";
 import { AdminTable } from "@/components/admin/organisms";
 import { SearchBar, ResultCount, Pagination, FilterTabs, IconActionButton, ToggleButton } from "@/components/admin/molecules";
 import { Badge } from "@/components/admin/atoms";
@@ -255,15 +256,11 @@ export default function AdminLectureBoardPage() {
               <label className="text-xs font-semibold" style={{ color: "#6c6a64" }}>
                 내용 <span style={{ color: "#c64545" }}>*</span>
               </label>
-              <textarea
+              <AdminRichTextEditor
                 value={form.content}
-                onChange={(e) => setForm((f) => ({ ...f, content: e.target.value }))}
+                onChange={(html) => setForm((f) => ({ ...f, content: html }))}
                 placeholder="내용을 입력하세요"
-                rows={8}
-                className="px-3 py-2 rounded-lg border text-sm outline-none transition-colors resize-y"
-                style={{ borderColor: "#e6dfd8", background: "#faf9f5", color: "#141413" }}
-                onFocus={(e) => (e.currentTarget.style.borderColor = "#cc785c")}
-                onBlur={(e) => (e.currentTarget.style.borderColor = "#e6dfd8")}
+                minHeight={200}
               />
             </div>
 
