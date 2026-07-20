@@ -4,12 +4,15 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
-import { Loader2, AlertCircle, ChevronLeft, Package, CreditCard, Building2, Smartphone, Landmark, Ticket } from "lucide-react";
+import { Loader2, AlertCircle, ChevronLeft, Package, CreditCard, Building2, Smartphone, Landmark, Ticket, MapPin } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
 import { useAuthStore } from "@/store/useAuthStore";
 import { useOrders, type OrderItem } from "@/hooks/useOrders";
 import { useCouponValidate } from "@/hooks/useCouponValidate";
+import { useAddresses } from "@/hooks/useAddresses";
+import AddressSearchModal from "@/components/AddressSearchModal";
 import type { UserCoupon } from "@/types/coupon";
+import type { UserAddress } from "@/types/address";
 
 interface CartItem {
   id: number;
@@ -55,16 +58,48 @@ export default function CheckoutPage() {
     selectCoupon,
     clearCoupon,
   } = useCouponValidate();
+  const { addresses } = useAddresses(user);
 
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
   const [cartLoading, setCartLoading] = useState(true);
 
+  const [selectedAddressId, setSelectedAddressId] = useState<string | null>(null);
+  const [showAddressSearch, setShowAddressSearch] = useState(false);
   const [recipientName, setRecipientName] = useState("");
   const [recipientPhone, setRecipientPhone] = useState("");
   const [shippingAddress, setShippingAddress] = useState("");
+  const [shippingAddressDetail, setShippingAddressDetail] = useState("");
   const [shippingZipcode, setShippingZipcode] = useState("");
   const [shippingMemo, setShippingMemo] = useState("");
   const [formErrors, setFormErrors] = useState<FormErrors>({});
+
+  const applyAddress = useCallback((addr: UserAddress) => {
+    setRecipientName(addr.recipient_name);
+    setRecipientPhone(addr.recipient_phone);
+    setShippingZipcode(addr.zipcode);
+    setShippingAddress(addr.address);
+    setShippingAddressDetail(addr.address_detail ?? "");
+  }, []);
+
+  const handleSelectAddress = (value: string) => {
+    setSelectedAddressId(value);
+    if (value === "new") {
+      setShippingZipcode("");
+      setShippingAddress("");
+      setShippingAddressDetail("");
+      return;
+    }
+    const addr = addresses.find((a) => String(a.id) === value);
+    if (addr) applyAddress(addr);
+  };
+
+  // 배송지 목록 로딩 후 기본 배송지(없으면 첫 번째)를 자동 선택
+  useEffect(() => {
+    if (selectedAddressId !== null || addresses.length === 0) return;
+    const def = addresses.find((a) => a.is_default) ?? addresses[0];
+    setSelectedAddressId(String(def.id));
+    applyAddress(def);
+  }, [addresses, selectedAddressId, applyAddress]);
 
   const [selectedMethod, setSelectedMethod] = useState<PaymentMethod>("CARD");
   const paymentRef = useRef<TossPayment>(null);
@@ -222,7 +257,9 @@ export default function CheckoutPage() {
       final_price: finalPrice,
       recipient_name: recipientName.trim(),
       recipient_phone: recipientPhone.trim(),
-      shipping_address: hasPhysicalItem ? shippingAddress.trim() : "",
+      shipping_address: hasPhysicalItem
+        ? `${shippingAddress.trim()}${shippingAddressDetail.trim() ? ` ${shippingAddressDetail.trim()}` : ""}`
+        : "",
       shipping_zipcode: shippingZipcode.trim() || undefined,
       shipping_memo: shippingMemo.trim() || undefined,
       user_coupon_id: selectedCouponId ?? undefined,
@@ -341,6 +378,27 @@ export default function CheckoutPage() {
               <h2 className="text-xl font-bold text-white mb-5">수령인 정보</h2>
 
               <div className="space-y-4">
+                {hasPhysicalItem && addresses.length > 0 && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-400 mb-1.5">
+                      배송지 선택
+                    </label>
+                    <select
+                      value={selectedAddressId ?? ""}
+                      onChange={(e) => handleSelectAddress(e.target.value)}
+                      className="w-full px-4 py-3 bg-black/30 border border-white/10 rounded-lg text-white focus:outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 transition-colors appearance-none"
+                    >
+                      {addresses.map((addr) => (
+                        <option key={addr.id} value={addr.id}>
+                          {addr.is_default ? "[기본] " : ""}
+                          {addr.recipient_name} - {addr.address}
+                        </option>
+                      ))}
+                      <option value="new">새 배송지 입력</option>
+                    </select>
+                  </div>
+                )}
+
                 <div>
                   <label className="block text-sm font-medium text-gray-400 mb-1.5">
                     수령인 이름 <span className="text-red-400">*</span>
@@ -397,21 +455,34 @@ export default function CheckoutPage() {
                         <input
                           type="text"
                           value={shippingZipcode}
-                          onChange={(e) => setShippingZipcode(e.target.value)}
+                          readOnly
                           placeholder="우편번호"
-                          className="w-32 px-4 py-3 bg-black/30 border border-white/10 rounded-lg text-white placeholder-gray-600 focus:outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 transition-colors"
+                          className="w-32 px-4 py-3 bg-black/30 border border-white/10 rounded-lg text-white placeholder-gray-600 cursor-not-allowed"
                         />
+                        <button
+                          type="button"
+                          onClick={() => setShowAddressSearch(true)}
+                          className="flex-1 flex items-center justify-center gap-1.5 px-4 py-3 bg-black/30 border border-white/10 rounded-lg text-gray-300 hover:border-white/30 hover:text-white text-sm font-medium transition-colors"
+                        >
+                          <MapPin size={14} />
+                          주소 검색
+                        </button>
                       </div>
                       <input
                         type="text"
                         value={shippingAddress}
-                        onChange={(e) => setShippingAddress(e.target.value)}
-                        placeholder="도로명 주소를 입력해주세요"
-                        className={`w-full px-4 py-3 bg-black/30 border rounded-lg text-white placeholder-gray-600 focus:outline-none focus:ring-2 transition-colors ${
-                          formErrors.shipping_address
-                            ? "border-red-500 focus:ring-red-500/30"
-                            : "border-white/10 focus:border-brand-500 focus:ring-brand-500/20"
+                        readOnly
+                        placeholder="주소 검색을 눌러 주소를 선택해주세요"
+                        className={`w-full px-4 py-3 bg-black/30 border rounded-lg text-white placeholder-gray-600 cursor-not-allowed mb-2 ${
+                          formErrors.shipping_address ? "border-red-500" : "border-white/10"
                         }`}
+                      />
+                      <input
+                        type="text"
+                        value={shippingAddressDetail}
+                        onChange={(e) => setShippingAddressDetail(e.target.value)}
+                        placeholder="상세 주소를 입력해주세요"
+                        className="w-full px-4 py-3 bg-black/30 border border-white/10 rounded-lg text-white placeholder-gray-600 focus:outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 transition-colors"
                       />
                       {formErrors.shipping_address && (
                         <p className="mt-1.5 text-xs text-red-400 flex items-center gap-1">
@@ -621,6 +692,18 @@ export default function CheckoutPage() {
           </div>
         </div>
       </div>
+
+      {showAddressSearch && (
+        <AddressSearchModal
+          onComplete={({ zipcode, address }) => {
+            setSelectedAddressId("new");
+            setShippingZipcode(zipcode);
+            setShippingAddress(address);
+            setShowAddressSearch(false);
+          }}
+          onClose={() => setShowAddressSearch(false)}
+        />
+      )}
     </main>
   );
 }
