@@ -410,14 +410,12 @@ export default function ProductForm({ mode, productId, initialData, categories }
         >
           <SectionTitle>이미지</SectionTitle>
 
-          <FieldRow label="썸네일 URL">
-            <input
-              type="text"
+          <FieldRow label="썸네일 이미지">
+            <ImageUploadInput
               value={form.thumbnail_url}
-              onChange={(e) => set("thumbnail_url", e.target.value)}
-              placeholder="https://..."
-              className={inputClass}
-              style={inputStyle}
+              onChange={(url) => set("thumbnail_url", url)}
+              folder="products/thumbnails"
+              placeholder="https://... (URL 직접 입력 또는 업로드)"
             />
           </FieldRow>
 

@@ -8,3 +8,4 @@ export { default as SearchSelect } from "./SearchSelect";
 export type { SearchSelectOption } from "./SearchSelect";
 export { default as VideoUploader } from "./VideoUploader";
 export type { VideoChangeResult } from "./VideoUploader";
+export { default as ImageUploadInput } from "./ImageUploadInput";
