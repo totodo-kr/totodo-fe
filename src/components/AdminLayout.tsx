@@ -135,7 +135,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   });
 
   return (
-    <div className="flex min-h-screen" style={{ background: "#faf9f5" }}>
+    <div className="flex min-h-screen" style={{ background: "#faf9f5", color: "#141413" }}>
       {/* Sidebar */}
       <aside
         className={`fixed top-0 left-0 h-full flex flex-col z-40 transition-all duration-300 ${collapsed ? "w-16" : "w-60"}`}
