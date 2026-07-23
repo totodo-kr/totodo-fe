@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { ShoppingCart, Loader2, Check } from "lucide-react";
+import { ShoppingCart, Check } from "lucide-react";
+import { Spinner } from "@/components/ui/atoms";
 import { useCart } from "@/hooks/useCart";
 import { useAuthStore } from "@/store/useAuthStore";
 import LoginModal from "@/components/LoginModal";
@@ -53,7 +54,7 @@ export default function CartButton({
         }
       >
         {loading ? (
-          <Loader2 size={20} className="animate-spin" />
+          <Spinner size="md" color="#fff" />
         ) : added ? (
           <Check size={20} />
         ) : (

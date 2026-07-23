@@ -3,7 +3,8 @@
 import { useEffect, useState, useRef, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { CheckCircle, Loader2, AlertCircle, ShoppingBag, ReceiptText } from "lucide-react";
+import { CheckCircle, AlertCircle, ShoppingBag, ReceiptText } from "lucide-react";
+import { Spinner } from "@/components/ui/atoms";
 
 type ConfirmStatus = "pending" | "success" | "error";
 
@@ -113,7 +114,7 @@ function PaymentSuccessContent() {
     return (
       <main className="min-h-screen flex flex-col items-center justify-center gap-6">
         <div className="bg-zinc-900 rounded-2xl border border-white/10 p-12 flex flex-col items-center gap-5 max-w-md w-full mx-4">
-          <Loader2 className="w-12 h-12 text-brand-500 animate-spin" />
+          <Spinner size="xl" />
           <h1 className="text-xl font-bold text-white">결제 확인 중...</h1>
           <p className="text-gray-400 text-sm text-center">
             결제가 완료되었는지 확인하고 있습니다. 잠시만 기다려주세요.
@@ -236,7 +237,7 @@ export default function PaymentSuccessPage() {
     <Suspense
       fallback={
         <main className="min-h-screen flex items-center justify-center">
-          <Loader2 className="w-8 h-8 text-brand-500 animate-spin" />
+          <Spinner size="xl" />
         </main>
       }
     >

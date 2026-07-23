@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useRef, useCallback } from "react";
-import { Upload, CheckCircle, Youtube, X, Loader2 } from "lucide-react";
+import { Upload, CheckCircle, Youtube, X } from "lucide-react";
+import { Spinner } from "@/components/admin/atoms";
 import { createClient } from "@/utils/supabase/client";
 
 export interface VideoChangeResult {
@@ -198,7 +199,7 @@ export default function VideoUploader({
             />
             {uploading ? (
               <div className="flex items-center gap-2 py-1">
-                <Loader2 className="w-4 h-4 animate-spin shrink-0" style={{ color: "#cc785c" }} />
+                <Spinner size="sm" />
                 <span className="text-xs" style={{ color: "#6c6a64" }}>업로드 중… 다른 작업을 계속하셔도 됩니다.</span>
               </div>
             ) : (
@@ -246,7 +247,7 @@ export default function VideoUploader({
               onMouseEnter={(e) => { if (!applyingUrl && urlInput.trim()) (e.currentTarget as HTMLButtonElement).style.background = "#a9583e"; }}
               onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = "#cc785c"; }}
             >
-              {applyingUrl ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : "적용"}
+              {applyingUrl ? <Spinner size="sm" color="#fff" /> : "적용"}
             </button>
           </div>
         )}

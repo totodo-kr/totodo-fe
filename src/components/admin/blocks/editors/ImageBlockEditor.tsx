@@ -2,7 +2,8 @@
 
 import { useRef, useState, useMemo } from "react";
 import Image from "next/image";
-import { Upload, X, Loader2 } from "lucide-react";
+import { Upload, X } from "lucide-react";
+import { Spinner } from "@/components/admin/atoms";
 import { createClient } from "@/utils/supabase/client";
 import { useAuthStore } from "@/store/useAuthStore";
 import type { ImageBlockData } from "@/types/blocks";
@@ -110,7 +111,7 @@ export default function ImageBlockEditor({ data, onChange }: Props) {
             onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.borderColor = "#cc785c"; (e.currentTarget as HTMLButtonElement).style.color = "#cc785c"; }}
             onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.borderColor = "#e6dfd8"; (e.currentTarget as HTMLButtonElement).style.color = "#8e8b82"; }}
           >
-            {uploading ? <Loader2 className="w-6 h-6 animate-spin" /> : <Upload className="w-6 h-6" />}
+            {uploading ? <Spinner size="lg" color="#8e8b82" /> : <Upload className="w-6 h-6" />}
             <span className="text-sm">{uploading ? "업로드 중..." : "클릭하여 이미지 업로드"}</span>
           </button>
         )}

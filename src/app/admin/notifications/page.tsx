@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import { Search, X, Send, Users, User, CheckCircle, AlertCircle } from "lucide-react";
 import { useAdminNotifications, NotificationTarget } from "@/hooks/useAdminNotifications";
+import { Spinner } from "@/components/admin/atoms";
 
 type TargetMode = "all" | "specific";
 
@@ -235,10 +236,7 @@ export default function AdminNotificationsPage() {
                 >
                   {searching ? (
                     <div className="flex items-center justify-center py-4">
-                      <div
-                        className="w-4 h-4 border-2 border-t-transparent rounded-full animate-spin"
-                        style={{ borderColor: "#cc785c", borderTopColor: "transparent" }}
-                      />
+                      <Spinner size="sm" />
                     </div>
                   ) : searchResults.length === 0 ? (
                     <p className="text-sm text-center py-4" style={{ color: "#8e8b82" }}>
@@ -348,10 +346,7 @@ export default function AdminNotificationsPage() {
         >
           {sending ? (
             <>
-              <div
-                className="w-4 h-4 border-2 border-t-transparent rounded-full animate-spin"
-                style={{ borderColor: "#fff", borderTopColor: "transparent" }}
-              />
+              <Spinner size="sm" color="#fff" />
               발송 중...
             </>
           ) : (

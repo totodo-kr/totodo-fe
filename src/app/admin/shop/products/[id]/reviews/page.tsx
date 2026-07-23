@@ -7,6 +7,7 @@ import { Eye, EyeOff, Trash2, Star, ChevronLeft } from "lucide-react";
 import { useAdminProductReviews } from "@/hooks/useAdminProductReviews";
 import { AdminTable } from "@/components/admin/organisms";
 import { SearchBar, ResultCount, Pagination, IconActionButton } from "@/components/admin/molecules";
+import { Spinner } from "@/components/admin/atoms";
 
 const PAGE_SIZE = 15;
 
@@ -171,7 +172,7 @@ export default function AdminProductReviewsPage() {
                 className="p-1.5 rounded transition-colors hover:bg-[#efe9de] disabled:opacity-40"
               >
                 {pendingId === review.id ? (
-                  <span className="w-4 h-4 block rounded-full border-2 border-t-transparent border-gray-400 animate-spin" />
+                  <Spinner size="sm" color="#9ca3af" />
                 ) : review.is_visible ? (
                   <Eye className="w-4 h-4" style={{ color: "#5db872" }} />
                 ) : (

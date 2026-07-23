@@ -15,6 +15,7 @@ import {
   ImageIcon,
 } from "lucide-react";
 import { useAdminLectureDetail, AdminChapter, AdminSession } from "@/hooks/useAdminLectureDetail";
+import { Spinner } from "@/components/admin/atoms";
 import { VideoUploader, VideoChangeResult } from "@/components/admin/molecules";
 
 type SessionVideoData = { video_url?: string | null; video_storage_path?: string | null; duration_seconds?: number };
@@ -554,10 +555,7 @@ export default function AdminLectureDetailPage({
     <div className="p-8 max-w-3xl">
       {loading ? (
         <div className="flex items-center justify-center py-24">
-          <div
-            className="w-8 h-8 border-2 border-t-transparent rounded-full animate-spin"
-            style={{ borderColor: "#cc785c", borderTopColor: "transparent" }}
-          />
+          <Spinner size="lg" />
         </div>
       ) : !info ? (
         <p className="text-sm" style={{ color: "#8e8b82" }}>
@@ -743,8 +741,7 @@ export default function AdminLectureDetailPage({
                       {uploadingThumbnail && (
                         <div className="absolute inset-0 flex items-center justify-center"
                           style={{ background: "rgba(255,255,255,0.7)" }}>
-                          <div className="w-6 h-6 border-2 border-t-transparent rounded-full animate-spin"
-                            style={{ borderColor: "#cc785c", borderTopColor: "transparent" }} />
+                          <Spinner size="lg" />
                         </div>
                       )}
                     </button>

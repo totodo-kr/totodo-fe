@@ -6,6 +6,7 @@ import SettingsLayout from "@/components/SettingsLayout";
 import { useAuthStore } from "@/store/useAuthStore";
 import { useMyOrders, type MyOrderDetail } from "@/hooks/useMyOrders";
 import { useCancelRefund, computeOrderEligibility } from "@/hooks/useCancelRefund";
+import { Spinner } from "@/components/ui/atoms";
 import { createClient } from "@/utils/supabase/client";
 import { fetchLectureProgress } from "@/lib/lecture/progress";
 
@@ -104,7 +105,7 @@ export default function CancelPage({ params }: { params: Promise<{ id: string }>
     <SettingsLayout title={pageTitle}>
       {loadingOrder ? (
         <div className="flex items-center justify-center py-20">
-          <div className="w-6 h-6 border-2 border-white/20 border-t-white rounded-full animate-spin" />
+          <Spinner size="lg" color="#fff" />
         </div>
       ) : blockReason ? (
         <div className="bg-[#1a1a1a] rounded-2xl border border-white/5 p-8 text-center">
@@ -205,7 +206,7 @@ export default function CancelPage({ params }: { params: Promise<{ id: string }>
             >
               {processing ? (
                 <>
-                  <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  <Spinner size="sm" color="#fff" />
                   처리 중...
                 </>
               ) : (

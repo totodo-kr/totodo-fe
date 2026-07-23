@@ -4,6 +4,7 @@ import React from "react";
 import Link from "next/link";
 import { Users, GraduationCap, HelpCircle, ShoppingBag, RotateCcw, ArrowRight } from "lucide-react";
 import { useAdminStats } from "@/hooks/useAdminStats";
+import { Spinner } from "@/components/admin/atoms";
 
 type StatKey = "userCount" | "lectureCount" | "faqCount" | "orderCount" | "refundRequestCount";
 
@@ -130,10 +131,7 @@ export default function AdminDashboard() {
           <div style={{ background: "#faf9f5" }}>
             {loading ? (
               <div className="flex items-center justify-center py-10">
-                <div
-                  className="w-6 h-6 border-2 border-t-transparent rounded-full animate-spin"
-                  style={{ borderColor: "#cc785c", borderTopColor: "transparent" }}
-                />
+                <Spinner size="lg" />
               </div>
             ) : stats?.recentUsers.length === 0 ? (
               <p className="text-center py-8 text-sm" style={{ color: "#8e8b82" }}>
@@ -201,10 +199,7 @@ export default function AdminDashboard() {
           <div style={{ background: "#faf9f5" }}>
             {loading ? (
               <div className="flex items-center justify-center py-10">
-                <div
-                  className="w-6 h-6 border-2 border-t-transparent rounded-full animate-spin"
-                  style={{ borderColor: "#cc785c", borderTopColor: "transparent" }}
-                />
+                <Spinner size="lg" />
               </div>
             ) : stats?.recentFaqs.length === 0 ? (
               <p className="text-center py-8 text-sm" style={{ color: "#8e8b82" }}>

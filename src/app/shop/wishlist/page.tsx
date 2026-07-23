@@ -2,7 +2,8 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { Heart, ShoppingCart, X, LogIn, Loader2 } from "lucide-react";
+import { Heart, ShoppingCart, X, LogIn } from "lucide-react";
+import { Spinner } from "@/components/ui/atoms";
 import { useEffect, useState } from "react";
 import { useAuthStore } from "@/store/useAuthStore";
 import { useWishlist } from "@/hooks/useWishlist";
@@ -67,7 +68,7 @@ export default function WishlistPage() {
   if (authLoading) {
     return (
       <main className="min-h-screen py-16 px-6 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-brand-500" />
+        <Spinner size="xl" />
       </main>
     );
   }
@@ -113,7 +114,7 @@ export default function WishlistPage() {
 
           {loading ? (
             <div className="flex items-center justify-center py-20">
-              <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-brand-500" />
+              <Spinner size="xl" />
             </div>
           ) : wishlistItems.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
@@ -176,7 +177,7 @@ export default function WishlistPage() {
                         className="flex-1 px-4 py-2.5 bg-brand-500 text-white rounded-lg font-medium hover:bg-brand-600 transition-colors flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed"
                       >
                         {addingIds.has(item.product_id) ? (
-                          <Loader2 size={18} className="animate-spin" />
+                          <Spinner size="md" color="#fff" />
                         ) : addedIds.has(item.product_id) ? (
                           <>
                             <ShoppingCart size={18} />

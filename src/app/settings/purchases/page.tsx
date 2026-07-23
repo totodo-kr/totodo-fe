@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import SettingsLayout from "@/components/SettingsLayout";
 import PageLoading from "@/components/PageLoading";
+import { Spinner } from "@/components/ui/atoms";
 import { useMyOrders, type MyOrder, type MyOrderStatus } from "@/hooks/useMyOrders";
 
 /* ─── helpers ─────────────────────────────────────────────── */
@@ -243,7 +244,7 @@ export default function PurchasesPage() {
       {/* 주문 목록 */}
       {fetching ? (
         <div className="flex justify-center py-20">
-          <div className="h-8 w-8 animate-spin rounded-full border-4 border-solid border-brand-500 border-r-transparent" />
+          <Spinner size="xl" />
         </div>
       ) : orders.length === 0 ? (
         <div className="bg-[#1a1a1a] rounded-2xl border border-white/5 min-h-[400px] flex items-center justify-center">

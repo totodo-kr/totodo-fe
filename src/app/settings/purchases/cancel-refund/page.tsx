@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import SettingsLayout from "@/components/SettingsLayout";
 import PageLoading from "@/components/PageLoading";
+import { Spinner } from "@/components/ui/atoms";
 import { useMyOrders, type MyOrder } from "@/hooks/useMyOrders";
 
 function formatPrice(n: number) {
@@ -105,7 +106,7 @@ export default function CancelRefundPage() {
     <SettingsLayout title="취소/환불 내역">
       {loading ? (
         <div className="flex justify-center py-16">
-          <div className="w-6 h-6 border-2 border-t-transparent border-brand-500 rounded-full animate-spin" />
+          <Spinner size="lg" />
         </div>
       ) : orders.length === 0 ? (
         <p className="text-center text-gray-500 py-16 text-sm">취소 또는 환불 내역이 없습니다.</p>

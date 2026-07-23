@@ -5,7 +5,8 @@ import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Heart, Share2, ChevronRight, Lock, Loader2 } from "lucide-react";
+import { Heart, Share2, ChevronRight, Lock } from "lucide-react";
+import { Spinner } from "@/components/ui/atoms";
 import { useProducts, ShopProductDetail, ProductReview, ProductQna } from "@/hooks/useProducts";
 import { useCart } from "@/hooks/useCart";
 import { useWishlist } from "@/hooks/useWishlist";
@@ -383,7 +384,7 @@ export default function ProductDetailPage({
                   aria-label="위시리스트"
                 >
                   {wishlistPending ? (
-                    <Loader2 className="w-5 h-5 animate-spin" />
+                    <Spinner size="md" color="#fff" />
                   ) : (
                     <Heart
                       className={`w-5 h-5 transition-colors ${
@@ -486,7 +487,7 @@ export default function ProductDetailPage({
                   className="py-4 px-6 rounded-lg border border-white/20 hover:border-white/40 transition-colors font-medium disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                 >
                   {cartLoading ? (
-                    <Loader2 size={18} className="animate-spin" />
+                    <Spinner size="md" color="#fff" />
                   ) : cartAdded ? (
                     "담기 완료 ✓"
                   ) : (
@@ -498,7 +499,7 @@ export default function ProductDetailPage({
                   disabled={buyLoading}
                   className="py-4 px-6 rounded-lg bg-brand-500 hover:bg-brand-600 transition-colors font-bold disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                 >
-                  {buyLoading ? <Loader2 size={18} className="animate-spin" /> : "구매하기"}
+                  {buyLoading ? <Spinner size="md" color="#fff" /> : "구매하기"}
                 </button>
               </div>
             )}
@@ -850,7 +851,7 @@ export default function ProductDetailPage({
                   className="px-6 py-3 rounded-lg border border-white/20 hover:border-white/40 transition-colors font-medium disabled:opacity-70 disabled:cursor-not-allowed flex items-center gap-2"
                 >
                   {cartLoading ? (
-                    <Loader2 size={16} className="animate-spin" />
+                    <Spinner size="sm" color="#fff" />
                   ) : cartAdded ? (
                     "담기 완료 ✓"
                   ) : (
@@ -862,7 +863,7 @@ export default function ProductDetailPage({
                   disabled={buyLoading}
                   className="px-8 py-3 rounded-lg bg-brand-500 hover:bg-brand-600 transition-colors font-bold disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                 >
-                  {buyLoading ? <Loader2 size={16} className="animate-spin" /> : "구매하기"}
+                  {buyLoading ? <Spinner size="sm" color="#fff" /> : "구매하기"}
                 </button>
               </div>
             )}

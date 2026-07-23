@@ -15,8 +15,9 @@ import {
   Bold, Italic, Underline, Strikethrough,
   AlignLeft, AlignCenter, AlignRight, AlignJustify,
   List, ListOrdered, Image as ImageIcon, Link as LinkIcon,
-  Quote, Undo, Redo, Loader2,
+  Quote, Undo, Redo,
 } from "lucide-react";
+import { Spinner } from "@/components/admin/atoms";
 
 interface Props {
   value: string;
@@ -129,7 +130,7 @@ export default function RichTextEditor({ value, onChange, placeholder = "내용�
         <div className="h-4 w-px bg-white/10 mx-1" />
         <TB onClick={() => { const url = window.prompt("URL을 입력하세요"); if (url) editor.chain().focus().setLink({ href: url }).run(); }} active={editor.isActive("link")} icon={<LinkIcon className="w-4 h-4" />} />
         <input type="file" ref={imageInputRef} onChange={handleImageUpload} accept="image/*" className="hidden" />
-        <TB onClick={() => imageInputRef.current?.click()} icon={isUploadingImage ? <Loader2 className="w-4 h-4 animate-spin" /> : <ImageIcon className="w-4 h-4" />} />
+        <TB onClick={() => imageInputRef.current?.click()} icon={isUploadingImage ? <Spinner size="sm" color="#9ca3af" /> : <ImageIcon className="w-4 h-4" />} />
         <TB onClick={() => editor.chain().focus().toggleBlockquote().run()} active={editor.isActive("blockquote")} icon={<Quote className="w-4 h-4" />} />
         <div className="h-4 w-px bg-white/10 mx-1" />
         <TB onClick={() => editor.chain().focus().undo().run()} icon={<Undo className="w-4 h-4" />} />

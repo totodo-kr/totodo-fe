@@ -4,7 +4,8 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
-import { Loader2, AlertCircle, ChevronLeft, CreditCard, Building2, Smartphone, Landmark, BookOpen } from "lucide-react";
+import { AlertCircle, ChevronLeft, CreditCard, Building2, Smartphone, Landmark, BookOpen } from "lucide-react";
+import { Spinner } from "@/components/ui/atoms";
 import { useAuthStore } from "@/store/useAuthStore";
 import { useLecture } from "@/hooks/useLecture";
 import { useLecturePromotion } from "@/hooks/useLecturePromotion";
@@ -115,7 +116,7 @@ export default function LectureCheckoutPage() {
   if (isLoading) {
     return (
       <main className="min-h-screen flex items-center justify-center">
-        <Loader2 className="w-8 h-8 animate-spin" style={{ color: "#a200cb" }} />
+        <Spinner size="xl" />
       </main>
     );
   }
@@ -253,7 +254,7 @@ export default function LectureCheckoutPage() {
               >
                 {creating || requestingPayment ? (
                   <>
-                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <Spinner size="sm" color="#fff" />
                     처리 중...
                   </>
                 ) : (

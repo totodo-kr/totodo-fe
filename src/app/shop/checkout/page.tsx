@@ -4,7 +4,8 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
-import { Loader2, AlertCircle, ChevronLeft, Package, CreditCard, Building2, Smartphone, Landmark, Ticket, MapPin } from "lucide-react";
+import { AlertCircle, ChevronLeft, Package, CreditCard, Building2, Smartphone, Landmark, Ticket, MapPin } from "lucide-react";
+import { Spinner } from "@/components/ui/atoms";
 import { createClient } from "@/utils/supabase/client";
 import { useAuthStore } from "@/store/useAuthStore";
 import { useOrders, type OrderItem } from "@/hooks/useOrders";
@@ -329,7 +330,7 @@ export default function CheckoutPage() {
   if (authLoading || cartLoading) {
     return (
       <main className="min-h-screen flex items-center justify-center">
-        <Loader2 className="w-8 h-8 text-brand-500 animate-spin" />
+        <Spinner size="xl" />
       </main>
     );
   }
@@ -564,7 +565,7 @@ export default function CheckoutPage() {
 
               {couponsLoading ? (
                 <div className="flex items-center gap-2 text-gray-400 text-sm">
-                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <Spinner size="sm" color="#9ca3af" />
                   쿠폰 목록 불러오는 중...
                 </div>
               ) : availableCoupons.length === 0 ? (
@@ -675,7 +676,7 @@ export default function CheckoutPage() {
               >
                 {creating || requestingPayment ? (
                   <>
-                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <Spinner size="sm" color="#fff" />
                     처리 중...
                   </>
                 ) : finalPrice === 0 ? (
@@ -786,7 +787,7 @@ function CouponSelectCard({
           sub && <p className="text-xs text-gray-500 mt-0.5">{sub}</p>
         )}
       </div>
-      {loading && <Loader2 className="w-4 h-4 animate-spin text-gray-500 shrink-0" />}
+      {loading && <Spinner size="sm" color="#6b7280" />}
     </button>
   );
 }

@@ -3,7 +3,8 @@
 import { Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { XCircle, Loader2, RotateCcw, ShoppingCart } from "lucide-react";
+import { XCircle, RotateCcw, ShoppingCart } from "lucide-react";
+import { Spinner } from "@/components/ui/atoms";
 
 function PaymentFailContent() {
   const searchParams = useSearchParams();
@@ -80,7 +81,7 @@ export default function PaymentFailPage() {
     <Suspense
       fallback={
         <main className="min-h-screen flex items-center justify-center">
-          <Loader2 className="w-8 h-8 text-brand-500 animate-spin" />
+          <Spinner size="xl" />
         </main>
       }
     >

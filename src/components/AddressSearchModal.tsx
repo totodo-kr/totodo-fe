@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { X, Loader2 } from "lucide-react";
+import { X } from "lucide-react";
+import { Spinner } from "@/components/ui/atoms";
 
 interface DaumPostcodeData {
   zonecode: string;
@@ -102,7 +103,7 @@ export default function AddressSearchModal({ onComplete, onClose }: AddressSearc
 
         {loading && (
           <div className="absolute inset-0 flex items-center justify-center">
-            <Loader2 className="w-6 h-6 text-gray-400 animate-spin" />
+            <Spinner size="lg" color="#9ca3af" />
           </div>
         )}
 

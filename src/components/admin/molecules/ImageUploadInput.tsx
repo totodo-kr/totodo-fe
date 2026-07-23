@@ -2,7 +2,8 @@
 
 import { useRef, useState, useMemo } from "react";
 import Image from "next/image";
-import { Upload, Loader2, X } from "lucide-react";
+import { Upload, X } from "lucide-react";
+import { Spinner } from "@/components/admin/atoms";
 import { createClient } from "@/utils/supabase/client";
 
 interface Props {
@@ -81,7 +82,7 @@ export default function ImageUploadInput({
           onMouseLeave={(e) => ((e.currentTarget as HTMLButtonElement).style.background = "#efe9de")}
         >
           {uploading ? (
-            <Loader2 className="w-4 h-4 animate-spin" />
+            <Spinner size="sm" color="#6c6a64" />
           ) : (
             <Upload className="w-4 h-4" />
           )}

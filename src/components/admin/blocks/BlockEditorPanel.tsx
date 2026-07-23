@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { X, Loader2 } from "lucide-react";
+import { X } from "lucide-react";
+import { Spinner } from "@/components/admin/atoms";
 import type { PageBlock, BlockType, BlockData, GridBlockData } from "@/types/blocks";
 import { BLOCK_TYPE_LABELS } from "@/types/blocks";
 import TextBlockEditor from "./editors/TextBlockEditor";
@@ -180,7 +181,7 @@ export default function BlockEditorPanel({ block, onClose, onSave }: Props) {
             onMouseEnter={(e) => { if (!saving) (e.currentTarget as HTMLButtonElement).style.background = "#a9583e"; }}
             onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = "#cc785c"; }}
           >
-            {saving && <Loader2 className="w-4 h-4 animate-spin" />}
+            {saving && <Spinner size="sm" color="#fff" />}
             {saving ? "저장 중..." : "저장"}
           </button>
         </div>

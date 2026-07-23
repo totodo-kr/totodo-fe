@@ -1,3 +1,5 @@
+import { Spinner } from "@/components/ui/atoms";
+
 interface PageLoadingProps {
   message?: string;
   variant?: "center" | "top";
@@ -12,7 +14,9 @@ export default function PageLoading({ message, variant = "center" }: PageLoading
   return (
     <div className={wrapperClass}>
       <div className="text-center">
-        <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-brand-500 border-r-transparent" />
+        <div className="inline-block">
+          <Spinner size="xl" />
+        </div>
         {message && <p className="mt-4 text-gray-400">{message}</p>}
       </div>
     </div>

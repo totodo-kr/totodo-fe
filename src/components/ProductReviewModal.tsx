@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from "react";
 import Image from "next/image";
-import { Star, X, ImagePlus, Loader2 } from "lucide-react";
+import { Star, X, ImagePlus } from "lucide-react";
+import { Spinner } from "@/components/ui/atoms";
 import { useAuthStore } from "@/store/useAuthStore";
 import { useMyProductReview } from "@/hooks/useMyProductReview";
 import { createClient } from "@/utils/supabase/client";
@@ -164,7 +165,7 @@ export default function ProductReviewModal({
 
         {loading ? (
           <div className="flex justify-center py-12">
-            <Loader2 className="w-6 h-6 animate-spin text-gray-500" />
+            <Spinner size="lg" color="#6b7280" />
           </div>
         ) : (
           <>
@@ -214,7 +215,7 @@ export default function ProductReviewModal({
                 ))}
                 <label className="w-16 h-16 rounded-lg border border-dashed border-white/20 flex items-center justify-center cursor-pointer hover:border-white/40 transition-colors">
                   {uploading ? (
-                    <Loader2 className="w-4 h-4 animate-spin text-gray-400" />
+                    <Spinner size="sm" color="#9ca3af" />
                   ) : (
                     <ImagePlus className="w-5 h-5 text-gray-500" />
                   )}

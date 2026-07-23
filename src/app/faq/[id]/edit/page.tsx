@@ -17,8 +17,8 @@ import {
   Quote,
   Undo,
   Redo,
-  Loader2,
 } from "lucide-react";
+import { Spinner } from "@/components/ui/atoms";
 import { useRouter, useParams } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useEditor, EditorContent } from "@tiptap/react";
@@ -327,7 +327,7 @@ export default function FAQEditPage() {
                 onClick={() => imageInputRef.current?.click()}
                 icon={
                   isUploadingImage ? (
-                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <Spinner size="sm" color="#9ca3af" />
                   ) : (
                     <ImageIcon className="w-4 h-4" />
                   )

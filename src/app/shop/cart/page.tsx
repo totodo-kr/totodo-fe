@@ -3,6 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { ShoppingCart, Minus, Plus, X, LogIn, Truck } from "lucide-react";
+import { Spinner } from "@/components/ui/atoms";
 import { useEffect, useState } from "react";
 import { useAuthStore } from "@/store/useAuthStore";
 import { useCartStore } from "@/store/useCartStore";
@@ -58,7 +59,7 @@ export default function CartPage() {
   if (authLoading) {
     return (
       <main className="min-h-screen py-16 px-6 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-brand-500" />
+        <Spinner size="xl" />
       </main>
     );
   }
@@ -103,7 +104,7 @@ export default function CartPage() {
 
         {isLoading ? (
           <div className="flex items-center justify-center py-20">
-            <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-brand-500" />
+            <Spinner size="xl" />
           </div>
         ) : items.length > 0 ? (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">

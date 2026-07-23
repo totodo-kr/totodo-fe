@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { useLectureSession } from "@/hooks/useLectureSession";
+import { Spinner } from "@/components/ui/atoms";
 import { useWatchProgress } from "@/hooks/useWatchProgress";
 import { formatDuration } from "@/hooks/useLecture";
 
@@ -145,7 +146,7 @@ export default function WatchPage() {
                 />
               ) : (
                 <div className="absolute inset-0 flex items-center justify-center bg-zinc-900">
-                  {loading && <div className="w-10 h-10 border-2 border-white/20 border-t-white rounded-full animate-spin" />}
+                  {loading && <Spinner size="xl" color="#fff" />}
                 </div>
               )}
             </div>
@@ -191,7 +192,7 @@ export default function WatchPage() {
           ) : (
             <div className="absolute inset-0 flex items-center justify-center bg-zinc-900">
               {loading ? (
-                <div className="w-10 h-10 border-2 border-white/20 border-t-white rounded-full animate-spin" />
+                <Spinner size="xl" color="#fff" />
               ) : locked ? (
                 <div className="text-center px-6">
                   <svg className="w-14 h-14 mx-auto mb-4 text-white/30" fill="currentColor" viewBox="0 0 24 24">
@@ -350,7 +351,7 @@ export default function WatchPage() {
               <div className="p-4 space-y-4">
                 {loading ? (
                   <div className="flex justify-center py-10">
-                    <div className="w-6 h-6 border-2 border-white/20 border-t-white rounded-full animate-spin" />
+                    <Spinner size="lg" color="#fff" />
                   </div>
                 ) : (
                   chapters.map((chapter) => (

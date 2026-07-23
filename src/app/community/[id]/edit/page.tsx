@@ -17,8 +17,8 @@ import {
   Quote,
   Undo,
   Redo,
-  Loader2,
 } from "lucide-react";
+import { Spinner } from "@/components/ui/atoms";
 import { useRouter, useParams } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useEditor, EditorContent } from "@tiptap/react";
@@ -329,7 +329,7 @@ export default function EditCommunityPage() {
               />
               <ToolbarButton
                 onClick={() => imageInputRef.current?.click()}
-                icon={isUploadingImage ? <Loader2 className="w-4 h-4 animate-spin" /> : <ImageIcon className="w-4 h-4" />}
+                icon={isUploadingImage ? <Spinner size="sm" color="#9ca3af" /> : <ImageIcon className="w-4 h-4" />}
               />
               <ToolbarButton
                 onClick={() => editor.chain().focus().toggleBlockquote().run()}

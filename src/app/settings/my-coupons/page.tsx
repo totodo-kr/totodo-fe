@@ -1,7 +1,8 @@
 "use client";
 
 import { useAuthStore } from "@/store/useAuthStore";
-import { Ticket, Loader2 } from "lucide-react";
+import { Ticket } from "lucide-react";
+import { Spinner } from "@/components/ui/atoms";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, useRef } from "react";
 import SettingsLayout from "@/components/SettingsLayout";
@@ -133,7 +134,7 @@ export default function MyCouponsPage() {
             disabled={registering || !code.trim()}
             className="h-12 px-6 rounded-lg bg-brand-500 text-white font-medium hover:bg-brand-600 transition-colors disabled:opacity-50 flex items-center gap-2"
           >
-            {registering && <Loader2 className="w-4 h-4 animate-spin" />}
+            {registering && <Spinner size="sm" color="#fff" />}
             등록
           </button>
         </div>
@@ -167,7 +168,7 @@ export default function MyCouponsPage() {
       {/* 쿠폰 목록 */}
       {loading ? (
         <div className="flex items-center justify-center min-h-[200px]">
-          <Loader2 className="w-6 h-6 animate-spin text-brand-500" />
+          <Spinner size="lg" />
         </div>
       ) : displayed.length === 0 ? (
         <div className="bg-[#1a1a1a] rounded-2xl border border-white/5 shadow-lg min-h-[200px] flex items-center justify-center">
