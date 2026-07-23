@@ -56,6 +56,14 @@ export interface AdminOrder {
   refund_completed_at?: string | null;
 }
 
+export interface ShippingTracking {
+  courier_name: string | null;
+  tracking_number: string | null;
+  status: string | null;
+  shipped_at: string | null;
+  delivered_at: string | null;
+}
+
 export interface FulfillmentEbookInfo {
   id: number;
   download_token: string;
@@ -260,6 +268,8 @@ export function useAdminOrders() {
     return res.ok;
   };
 
+  // Phase 0-2: shipping_tracking에 shipped_at/delivered_at을 함께 기록해야
+  // canRefundOrderByDeliveryState()의 실물 상품 7일 환불 조건이 정상 동작한다.
   const updateStatus = async (orderId: number, status: OrderStatus) => {
     const supabase = createClient();
     setUpdatingId(orderId);
@@ -267,12 +277,46 @@ export function useAdminOrders() {
       .from("orders")
       .update({ status })
       .eq("id", orderId);
+
     if (!error) {
       setOrders((prev) =>
         prev.map((o) => (o.id === orderId ? { ...o, status } : o))
       );
+
+      if (status === "shipped" || status === "delivered") {
+        const now = new Date().toISOString();
+        const trackingUpdate =
+          status === "shipped"
+            ? { status, shipped_at: now }
+            : { status, delivered_at: now };
+        await supabase
+          .from("shipping_tracking")
+          .upsert({ order_id: orderId, ...trackingUpdate }, { onConflict: "order_id" });
+      }
     }
     setUpdatingId(null);
+    return !error;
+  };
+
+  const fetchShippingTracking = async (orderId: number): Promise<ShippingTracking | null> => {
+    const supabase = createClient();
+    const { data } = await supabase
+      .from("shipping_tracking")
+      .select("courier_name, tracking_number, status, shipped_at, delivered_at")
+      .eq("order_id", orderId)
+      .maybeSingle();
+    return (data as ShippingTracking) ?? null;
+  };
+
+  // 운송장번호/택배사 수동 입력 — 상태 전환과 별개로 언제든 저장 가능.
+  const updateShippingTracking = async (
+    orderId: number,
+    data: { courier_name: string; tracking_number: string }
+  ): Promise<boolean> => {
+    const supabase = createClient();
+    const { error } = await supabase
+      .from("shipping_tracking")
+      .upsert({ order_id: orderId, ...data }, { onConflict: "order_id" });
     return !error;
   };
 
@@ -330,9 +374,11 @@ export function useAdminOrders() {
     fetchOrders,
     fetchOrderItems,
     fetchFulfillments,
+    fetchShippingTracking,
     resetDownloadCount,
     reissueGifticonCode,
     updateStatus,
+    updateShippingTracking,
     processRefund,
   };
 }

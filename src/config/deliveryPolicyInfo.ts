@@ -10,7 +10,7 @@ export const DELIVERY_POLICY_INFO: Record<string, DeliveryPolicyInfo> = {
   physical: {
     shippingTitle: "배송 안내",
     shipping: [
-      "배송비: 3,000원 (50,000원 이상 구매 시 무료배송)",
+      "배송비: 3,000원 (30,000원 이상 구매 시 무료배송)",
       "배송 기간: 주문 후 2-3일 소요",
       "제주도 및 도서산간 지역은 추가 배송비가 발생할 수 있습니다.",
     ],

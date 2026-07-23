@@ -11,6 +11,7 @@ import {
   OrderItem,
   AdminOrder,
   AdminFulfillmentItem,
+  ShippingTracking,
 } from "@/hooks/useAdminOrders";
 import { AdminPageHeader, AdminTable } from "@/components/admin/organisms";
 import { Pagination, FilterTabs } from "@/components/admin/molecules";
@@ -173,6 +174,108 @@ function OrderItemsRow({
         ))}
       </tbody>
     </table>
+  );
+}
+
+function ShippingTrackingPanel({
+  orderId,
+  fetchShippingTracking,
+  updateShippingTracking,
+}: {
+  orderId: number;
+  fetchShippingTracking: (id: number) => Promise<ShippingTracking | null>;
+  updateShippingTracking: (
+    id: number,
+    data: { courier_name: string; tracking_number: string }
+  ) => Promise<boolean>;
+}) {
+  const [tracking, setTracking] = useState<ShippingTracking | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [courierName, setCourierName] = useState("");
+  const [trackingNumber, setTrackingNumber] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    const data = await fetchShippingTracking(orderId);
+    setTracking(data);
+    setCourierName(data?.courier_name ?? "");
+    setTrackingNumber(data?.tracking_number ?? "");
+    setLoading(false);
+  }, [orderId, fetchShippingTracking]);
+
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  const handleSave = async () => {
+    setSaving(true);
+    const ok = await updateShippingTracking(orderId, {
+      courier_name: courierName,
+      tracking_number: trackingNumber,
+    });
+    if (ok) {
+      setSaved(true);
+      await load();
+    }
+    setSaving(false);
+  };
+
+  if (loading) {
+    return (
+      <div className="px-6 pt-1 pb-4">
+        <Spinner size="sm" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="px-6 pt-1 pb-4">
+      <p
+        className="text-xs font-semibold uppercase tracking-wide mb-2"
+        style={{ color: "#6c6a64" }}
+      >
+        운송장 정보
+      </p>
+      <div className="flex items-center gap-2 flex-wrap">
+        <input
+          value={courierName}
+          onChange={(e) => {
+            setCourierName(e.target.value);
+            setSaved(false);
+          }}
+          placeholder="택배사"
+          className="text-sm rounded-lg px-3 py-1.5 border outline-none w-28"
+          style={{ borderColor: "#e6dfd8", color: "#252523" }}
+        />
+        <input
+          value={trackingNumber}
+          onChange={(e) => {
+            setTrackingNumber(e.target.value);
+            setSaved(false);
+          }}
+          placeholder="운송장번호"
+          className="text-sm rounded-lg px-3 py-1.5 border outline-none w-40"
+          style={{ borderColor: "#e6dfd8", color: "#252523" }}
+        />
+        <button
+          onClick={handleSave}
+          disabled={saving}
+          className="px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors disabled:opacity-50"
+          style={{ background: "#cc785c", color: "#fff" }}
+        >
+          {saving ? <Spinner size="xs" /> : saved ? "저장됨" : "저장"}
+        </button>
+        {(tracking?.shipped_at || tracking?.delivered_at) && (
+          <span className="text-xs" style={{ color: "#8e8b82" }}>
+            {tracking?.shipped_at && `발송: ${formatDate(tracking.shipped_at)}`}
+            {tracking?.shipped_at && tracking?.delivered_at && " · "}
+            {tracking?.delivered_at && `배송완료: ${formatDate(tracking.delivered_at)}`}
+          </span>
+        )}
+      </div>
+    </div>
   );
 }
 
@@ -362,9 +465,11 @@ export default function AdminOrdersPage() {
     fetchOrders,
     fetchOrderItems,
     fetchFulfillments,
+    fetchShippingTracking,
     resetDownloadCount,
     reissueGifticonCode,
     updateStatus,
+    updateShippingTracking,
     processRefund,
   } = useAdminOrders();
   const [page, setPage] = useState(1);
@@ -609,6 +714,14 @@ export default function AdminOrdersPage() {
                     </div>
                   </div>
                 </div>
+
+                {order.order_type !== "digital" && (
+                  <ShippingTrackingPanel
+                    orderId={order.id}
+                    fetchShippingTracking={fetchShippingTracking}
+                    updateShippingTracking={updateShippingTracking}
+                  />
+                )}
 
                 {/* 취소/환불 정보 섹션 */}
                 {(order.cancel_reason || order.refund_status) && (
