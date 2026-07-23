@@ -1,13 +1,13 @@
 // 전자책 등 digital_download 상품의 보안 다운로드 엔드포인트.
-// 파일 원본은 Supabase Storage의 비공개 "ebook_files" 버킷에 있다고 가정한다
-// (대시보드에서 버킷을 private으로 생성 — public URL로 노출되면 안 됨).
+// 파일 원본은 Supabase Storage의 비공개 PRIVATE_BUCKET(totodo_prv_storage) "ebooks/" 폴더에
+// 있다고 가정한다 (대시보드에서 버킷을 private으로 생성 — public URL로 노출되면 안 됨).
 
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/utils/supabase/server";
 import { createAdminClient } from "@/utils/supabase/admin";
+import { PRIVATE_BUCKET } from "@/lib/storage/privateFiles";
 
 const SIGNED_URL_TTL_SECONDS = 300; // 5분
-const EBOOK_BUCKET = "ebook_files";
 
 export async function GET(
   req: NextRequest,
@@ -78,7 +78,7 @@ export async function GET(
 
   // 3. Storage signed URL 발급 후 redirect
   const { data: signedUrlData, error: signError } = await admin.storage
-    .from(EBOOK_BUCKET)
+    .from(PRIVATE_BUCKET)
     .createSignedUrl(ebookRow.source_ref, SIGNED_URL_TTL_SECONDS);
 
   if (signError || !signedUrlData) {

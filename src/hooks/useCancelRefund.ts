@@ -53,6 +53,8 @@ export function computeOrderEligibility(
     ? cancelEligibility.get(blockingCancelItem.id)?.reason
     : undefined;
 
+  const blockingRefundItem = items.find((item) => !refundEligibility.get(item.id)?.allowed);
+
   let orderRefundAllowed = false;
   let orderRefundReason: string | undefined;
 
@@ -60,8 +62,15 @@ export function computeOrderEligibility(
     orderRefundReason = "이미 환불 신청이 접수되었거나 처리 완료된 주문입니다.";
   } else {
     const deliveryEligibility = canRefundOrderByDeliveryState(order);
-    orderRefundAllowed = deliveryEligibility.allowed;
-    orderRefundReason = deliveryEligibility.reason;
+    if (!deliveryEligibility.allowed) {
+      orderRefundAllowed = false;
+      orderRefundReason = deliveryEligibility.reason;
+    } else if (blockingRefundItem) {
+      orderRefundAllowed = false;
+      orderRefundReason = refundEligibility.get(blockingRefundItem.id)?.reason;
+    } else {
+      orderRefundAllowed = true;
+    }
   }
 
   return {

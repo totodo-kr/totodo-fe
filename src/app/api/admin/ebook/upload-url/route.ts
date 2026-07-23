@@ -1,17 +1,16 @@
-// 어드민 전용: digital_download 상품의 원본 파일을 비공개 Storage 버킷("ebook_files")에
-// 올리기 위한 signed upload URL 발급. 실제 파일 바이트는 브라우저 → Supabase Storage로
-// 직접 전송되므로(uploadToSignedUrl) Next.js 서버 라우트의 요청 바디 크기 제한을 타지 않는다.
+// 어드민 전용: digital_download 상품의 원본 파일을 비공개 Storage 버킷(PRIVATE_BUCKET)의
+// "ebooks/" 폴더에 올리기 위한 signed upload URL 발급. 실제 파일 바이트는 브라우저 →
+// Supabase Storage로 직접 전송되므로(uploadToSignedUrl) Next.js 서버 라우트의 요청 바디
+// 크기 제한을 타지 않는다.
 //
-// 사전 조건: Supabase 대시보드에서 "ebook_files" 버킷을 private으로 생성해 둘 것.
+// 사전 조건: Supabase 대시보드에서 PRIVATE_BUCKET(totodo_prv_storage)을 private으로 생성해 둘 것.
 // 이 버킷은 storage.objects RLS 정책이 전혀 없어도 된다 — 업로드(signed upload token)와
 // 다운로드(download/[token]/route.ts의 createSignedUrl) 모두 service_role 경유로만 이루어진다.
 
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/utils/supabase/server";
 import { createAdminClient } from "@/utils/supabase/admin";
-import crypto from "crypto";
-
-const EBOOK_BUCKET = "ebook_files";
+import { PRIVATE_BUCKET, ebookStoragePath } from "@/lib/storage/privateFiles";
 
 async function requireAdmin() {
   const supabase = await createClient();
@@ -28,10 +27,6 @@ async function requireAdmin() {
   return profile?.role === "admin" ? { admin } : null;
 }
 
-function sanitizeFileName(name: string): string {
-  return name.replace(/[^a-zA-Z0-9._-]/g, "_");
-}
-
 export async function POST(req: NextRequest) {
   try {
     const ctx = await requireAdmin();
@@ -45,9 +40,9 @@ export async function POST(req: NextRequest) {
     }
 
     const { admin } = ctx;
-    const path = `${productId}/${crypto.randomUUID()}-${sanitizeFileName(fileName)}`;
+    const path = ebookStoragePath(productId, fileName);
 
-    const { data, error } = await admin.storage.from(EBOOK_BUCKET).createSignedUploadUrl(path);
+    const { data, error } = await admin.storage.from(PRIVATE_BUCKET).createSignedUploadUrl(path);
 
     if (error || !data) {
       console.error("createSignedUploadUrl error:", error);

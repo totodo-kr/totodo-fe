@@ -4,8 +4,7 @@ import { useRef, useState } from "react";
 import { FileText, Trash2 } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
 import { Spinner } from "@/components/admin/atoms";
-
-const EBOOK_BUCKET = "ebook_files";
+import { PRIVATE_BUCKET } from "@/lib/storage/privateFiles";
 
 interface EbookFilePanelProps {
   productId: number;
@@ -18,7 +17,7 @@ export default function EbookFilePanel({ productId, filePath, onFilePathChange }
   const [error, setError] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const fileName = filePath?.split("/").slice(1).join("/") ?? null;
+  const fileName = filePath?.split("/").pop() ?? null;
 
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -42,7 +41,7 @@ export default function EbookFilePanel({ productId, filePath, onFilePathChange }
 
       const supabase = createClient();
       const { error: uploadError } = await supabase.storage
-        .from(EBOOK_BUCKET)
+        .from(PRIVATE_BUCKET)
         .uploadToSignedUrl(urlData.path, urlData.token, file);
 
       if (uploadError) {

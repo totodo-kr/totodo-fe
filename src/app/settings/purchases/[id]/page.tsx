@@ -554,8 +554,11 @@ export default function OrderDetailPage({
   const eligibleForReview = REVIEWABLE_STATUSES.includes(order.status);
 
   const badgeClass = STATUS_CLASS[order.status] ?? "bg-gray-600 text-gray-200";
+  const hasDownloadableItem = order.order_items.some(
+    (item) => item.delivery_type === "digital_download"
+  );
   const statusLabel =
-    order.order_type === "digital" && order.status === "paid"
+    hasDownloadableItem && order.status === "paid"
       ? "다운로드 가능"
       : STATUS_LABEL[order.status] ?? order.status;
 
